@@ -238,7 +238,7 @@ function fxProfile(root, id, focusId, opts) {
   function render() {
     const t = T();
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-    document.title = (data && data.name ? data.name + ' · ' : '') + t.title;
+    document.title = (data && data.name ? data.name + ' · ' : '') + (opts.site || t.title);
     const dir = lang === 'fa' ? 'rtl' : 'ltr', e = cur ? (data.diary || []).find(x => x.id === cur) : null;
     if (e) {
       const name = String(data.name || '').trim() || t.title;
