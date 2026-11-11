@@ -9,7 +9,10 @@ const Posters = (() => {
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   const IMG = 'https://image.tmdb.org/t/p/w185';
   let authFail = false;
-  function setToken(t) { const n = t && /^eyJ/.test(t.trim()) ? t.trim() : null; if (n !== token) { token = n; authFail = false; } }
+  // a copy of the template can ship a site-wide key in config.js; a key the person adds in Settings wins
+  const DEF = () => (typeof FY_CONFIG !== 'undefined' && FY_CONFIG.tmdb) || '';
+  let usingDef = false;
+  function setToken(t) { const own = t && /^eyJ/.test(String(t).trim()) ? String(t).trim() : null, d = DEF(), n = own || (d && /^eyJ/.test(d) ? d : null); usingDef = !own && !!n; if (n !== token) { token = n; authFail = false; } }
   async function api(path) {
     const r = await fetch('https://api.themoviedb.org/3' + path, {headers: {Authorization: 'Bearer ' + token, accept: 'application/json'}});
     if (r.status === 401) { authFail = true; throw new Error('auth'); }
@@ -72,7 +75,16 @@ const Posters = (() => {
     const dirs = ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name);
     return {d: dirs.slice(0, 3).join(', '), m: j.runtime || 0, p: j.poster_path || ''};
   }
+  // best TMDB match for a title and year (for imports): {id, t, y, p} or null
+  async function match(t, y) {
+    if (!token) return null;
+    const q = encodeURIComponent(String(t).replace(/\s*\(\d{4}\)\s*$/, ''));
+    let j = await api('/search/movie?query=' + q + (y ? '&year=' + y : '') + '&include_adult=false&language=en-US');
+    let m = pick(j.results, t, y);
+    if (!m && y) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
+    return m ? {id: m.id, t: m.title, y: +(m.release_date || '').slice(0, 4) || y || 0, p: m.poster_path || ''} : null;
+  }
   function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
   const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
-  return {setToken, on: () => !!token, failed: () => authFail, src, fill, test, search, details, put, url};
+  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, src, fill, test, search, details, match, put, url};
 })();

@@ -13,14 +13,68 @@
   }
   const S = {all: () => Store.data, set: (k, v) => Store.set(k, v)};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  // ---- Letterboxd: the export files once (here), new logs every few hours (a GitHub Action, same rules: fxlb.js) ----
+  const LB_SINCE = '2026-11-01';
+  async function pool(list, n, fn) { let i = 0; await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => { while (i < list.length) await fn(list[i++]); })); }
+  const LBX = {
+    status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
+    async importFiles(files, progress) {
+      let rows = [];
+      for (const f of files) { const r = FXLB.fromCsv(await f.text()); if (r) rows = rows.concat(r); }
+      if (!rows.length) return {bad: true};
+      const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
+      rows.forEach(r => { if (!isPlan(r)) { const k = FXLB.norm(r.t) + '|' + r.y; (need[k] = need[k] || []).push(r); } });
+      const keys = Object.keys(need); let done = 0;
+      progress(0, keys.length);
+      // films outside the plan: poster, director and runtime from TMDB (once per film, not per viewing)
+      if (Posters.on()) await pool(keys, 4, async k => {
+        const r0 = need[k][0];
+        try {
+          const m = await Posters.match(r0.t, r0.y);
+          if (m) {
+            const d = await Posters.details(m.id).catch(() => ({}));
+            const p = d.p || m.p || '';
+            need[k].forEach(r => { r.tm = m.id; r.md = {d: d.d || '', m: d.m || 0, p}; });
+            if (p) Posters.put('tx:' + r0.t + (r0.y ? ' (' + r0.y + ')' : ''), p);
+          }
+        } catch (e) {}
+        progress(++done, keys.length);
+      });
+      const res = FXLB.merge(rows, Store.data, D.F, LB_SINCE);
+      res.sets.forEach(([k, v]) => Store.set(k, v));
+      return res;
+    },
+  };
+  // entries the GitHub Action brought in know only their TMDB id: fill in director, runtime and poster, a few at a time
+  let enriching = false; const tried = new Set();
+  async function enrichSome() {
+    if (enriching || !Posters.on()) return;
+    enriching = true; let n = 0;
+    try {
+      const todo = Object.keys(Store.data).filter(k => k.startsWith('md:log:') && !tried.has(k)).map(k => { try { return [k, JSON.parse(Store.data[k])]; } catch (e) { return [k, null]; } })
+        .filter(([, md]) => md && md.tm && md.d === undefined).slice(0, 20);
+      for (const [k, md] of todo) {
+        tried.add(k);
+        try {
+          const d = await Posters.details(md.tm);
+          Store.set(k, JSON.stringify(Object.assign({}, md, {d: d.d || '', m: d.m || 0, p: d.p || md.p || ''})));
+          const v = Store.data[k.slice(3)]; if (d.p && v) Posters.put('tx:' + String(v).slice(2), d.p);
+          n++;
+        } catch (e) {}
+      }
+    } finally { enriching = false; }
+    if (n && FX) FX.render();
+  }
+  let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
   function start(D) {
     window.D = D;
     fresh();
     FX = mountFocus(root, D, S, {
-      posters: Posters, settings: WebSync,
+      posters: Posters, settings: WebSync, letterboxd: LBX,
       openFull: w => { location.href = 'plan.html' + (w ? '#w-' + Math.min(D.W.length, w) : ''); },
     });
     WebSync.setPayload(() => fxShare(D, Store.data, k => Posters.src(k)));
+    enrichSoon();
   }
   const GT = {
     en: {title: 'Five Years of Cinema', p: 'A personal page — nothing to see here.', owner: 'Is this yours?', how: 'Paste your GitHub token (gist access) and the plan loads from your private Gist. No token yet? <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">Create one here</a> (Expiration: No expiration).', connect: 'Connect', loading: 'Connected — loading your plan…', missing: 'No plan was found in this account’s Gists.'},
@@ -65,7 +119,7 @@
     WebSync.run();
   });
   window.addEventListener('hashchange', () => { if (!FX && location.hash === '#signin') gate(''); });
-  Store.onChange(() => FX && FX.render());
+  Store.onChange(() => { if (FX) { FX.render(); enrichSoon(); } });
   WebSync.onStatus(() => FX && FX.render());
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

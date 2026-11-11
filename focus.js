@@ -33,6 +33,16 @@ const FX_STR = {
     shNew: 'I watched…', shEdit: 'Edit entry', shSave: 'Save', shDate: 'Watched on', shRewatch: 'I’ve watched this film before', shRate: 'Rate', shRated: 'Rated',
     shReviewPh: 'Add a review…', shSpoil: 'Contains spoilers', shTagPh: 'Add tags…', shTagMore: 'Add another…', shTagRm: x => 'Remove tag ' + x,
     shRemove: 'Remove from diary', shRemove2: 'Tap again to remove', shDiscard: 'Discard?', shTagHint: 'Return or comma adds a tag', shMore: 'More',
+    navList: 'List', listH: 'Your List', listEye: (n, w) => n + ' films · ' + w + (w === '1' ? ' week' : ' weeks'), listAdd: '+ Add films', listImport: 'Import from Letterboxd',
+    perWeekL: 'Films a week', listEmpty: 'Nothing here yet. Add films one by one, or bring in your Letterboxd watchlist.', listAllDone: 'You’ve watched everything on your list. Add a few more?',
+    wkLabel: w => 'Week ' + w, thisWeekL: 'this week', moveUp: 'Move up', moveDown: 'Move down', removeL: 'Remove', removeL2: 'Remove?', showAllWeeks: n => 'Show all ' + n + ' weeks', pastWeeks: n => n + (n === '1' ? ' week' : ' weeks') + ' behind you',
+    importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, imported: (a, s2) => a + ' films added' + (s2 ? ' · ' + s2 + ' already there' : '') + '.', importedDiary: (a, s2, u) => a + ' diary entries added' + (u ? ' · ' + u + ' filled in' : '') + (s2 ? ' · ' + s2 + ' already there' : '') + '.',
+    importBad: 'That doesn’t look like a Letterboxd export (a .csv with Name and Year).', importNoDates: 'This file has no viewing dates. For your history, use diary.csv from the export.',
+    importHelp: 'On letterboxd.com: Settings → Data → Export your data. Use watchlist.csv or a list for your list, diary.csv (or reviews.csv) for your history.',
+    inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + n + ' films', planSample: 'Sample plan · Five Years of Cinema', planReset: 'Start over with another plan', planReset2: 'Tap again to start over — your diary stays',
+    lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, unzip it, and pick diary.csv (and reviews.csv, for the review text). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import diary.csv',
+    lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in.', lbBad: 'Pick diary.csv or reviews.csv from the export: this file has no viewing dates.',
+    lbAuto: (ago, n) => 'New logs from Letterboxd come in by themselves every few hours. Last check ' + ago + (n ? ' · ' + n + ' new' : '') + '.', lbAutoOff: 'Automatic import from Letterboxd isn’t running yet.',
     navWeek: 'This Week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link', cfgSave: 'Save changes', cfgSaved: 'Saved.',
     diaryEmpty: 'Your diary is empty. Films you mark as watched show up here — or log one yourself.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
     logOnLb: 'Letterboxd ↗', logToLb: 'Log on Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
@@ -83,6 +93,16 @@ const FX_STR = {
     shNew: 'دیدمش…', shEdit: 'ویرایش', shSave: 'ثبت', shDate: 'تاریخ دیدن', shRewatch: 'این فیلم رو قبلاً دیده بودم', shRate: 'امتیاز بده', shRated: 'امتیاز',
     shReviewPh: 'ریویو بنویس…', shSpoil: 'اسپویل داره', shTagPh: 'تگ اضافه کن…', shTagMore: 'یکی دیگه…', shTagRm: x => 'حذف تگ ' + x,
     shRemove: 'حذف از دفتر', shRemove2: 'برای حذف دوباره بزن', shDiscard: 'تغییرات بره؟', shTagHint: 'با اینتر یا کاما اضافه می‌شه', shMore: 'بیشتر',
+    navList: 'لیست', listH: 'لیست من', listEye: (n, w) => n + ' فیلم · ' + w + ' هفته', listAdd: '+ اضافه کردن فیلم', listImport: 'آوردن از لترباکس',
+    perWeekL: 'فیلم در هفته', listEmpty: 'هنوز چیزی اینجا نیست. فیلم‌ها رو یکی‌یکی اضافه کن یا واچ‌لیست لترباکست رو بیار.', listAllDone: 'هر چی توی لیستت بود دیدی. چند تا دیگه اضافه کنیم؟',
+    wkLabel: w => 'هفته‌ی ' + w, thisWeekL: 'این هفته', moveUp: 'بالاتر', moveDown: 'پایین‌تر', removeL: 'حذف', removeL2: 'حذف؟', showAllWeeks: n => 'نشون دادن همه‌ی ' + n + ' هفته', pastWeeks: n => n + ' هفته پشت سر گذاشتی',
+    importing: (d, n) => 'دارم فیلم‌ها رو با TMDB تطبیق می‌دم… ' + d + ' از ' + n, imported: (a, s2) => a + ' فیلم اضافه شد' + (s2 ? ' · ' + s2 + ' تا از قبل بود' : '') + '.', importedDiary: (a, s2, u) => a + ' مورد به دفتر اضافه شد' + (u ? ' · ' + u + ' تا کامل شد' : '') + (s2 ? ' · ' + s2 + ' تا از قبل بود' : '') + '.',
+    importBad: 'این فایل خروجی لترباکس به نظر نمیاد (یه فایل csv با ستون‌های Name و Year).', importNoDates: 'این فایل تاریخ دیدن نداره. برای تاریخچه‌ت diary.csv رو از خروجی لترباکس بیار.',
+    importHelp: 'توی letterboxd.com: Settings ← Data ← Export your data. برای لیست watchlist.csv یا یه لیست، برای تاریخچه diary.csv (یا reviews.csv).',
+    inList: 'توی لیستت هست', addedL: t => 'اضافه شد: ' + t, listPh: 'هر فیلمی رو جستجو کن', planH: 'برنامه', planList: n => 'لیست خودم · ' + n + ' فیلم', planSample: 'برنامه‌ی نمونه · پنج سال سینما', planReset: 'شروع دوباره با یه برنامه‌ی دیگه', planReset2: 'برای شروع دوباره، دوباره بزن (دفترت می‌مونه)',
+    lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data، فایل رو باز کن و diary.csv رو انتخاب کن (و reviews.csv برای متن ریویوها). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن diary.csv',
+    lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد.', lbBad: 'diary.csv یا reviews.csv رو از خروجی انتخاب کن؛ این فایل تاریخ دیدن نداره.',
+    lbAuto: (ago, n) => 'هر چی توی لترباکس ثبت کنی، هر چند ساعت خودش میاد اینجا. آخرین بررسی ' + ago + (n ? ' · ' + n + ' مورد جدید' : '') + '.', lbAutoOff: 'آوردن خودکار از لترباکس هنوز روشن نشده.',
     navWeek: 'این هفته', navDiary: 'دفتر', navSettings: 'تنظیمات', preview: 'دیدن صفحه ↗', linkL: 'لینک صفحه‌ت', cfgSave: 'ذخیره', cfgSaved: 'ذخیره شد.',
     diaryEmpty: 'هنوز چیزی ثبت نشده. هر فیلمی که تیک بزنی خودش اینجا میاد، یا خودت یکی ثبت کن.', edit: 'ویرایش', watchedOn: 'تاریخ دیدن', done: 'تموم', unlog: 'حذف از دفتر',
     logOnLb: 'لترباکس ↗', logToLb: 'ثبت در لترباکس ↗', copyPost: 'کپی پست', postCopied: 'کپی شد؛ تو کانالت بچسبون.',
@@ -220,7 +240,7 @@ function fxShare(D, seen, posterUrl) {
   const KEYIDX = fxKeyIdx(D);
   const dir = i => lang === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const pos = k => posterUrl ? posterUrl(k) || '' : '';
-  const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', w: day || ''});
+  const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', tm: F[i][16] || 0, w: day || ''});
   const day = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '';
   const ch = /^https:\/\/[^\s"<>]+$/.test(seen['cfg:channel'] || '') ? seen['cfg:channel'] : '';
   const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
@@ -267,9 +287,9 @@ function fxShare(D, seen, posterUrl) {
 
 // opts: openFull(week), posters (Posters module or null), settings (adapter or null)
 function mountFocus(root, D, S, opts) {
-  const F = D.F, W = D.W, WM = D.WM, SG = D.SG || [], NW = W.length, FA = D.faDir || {};
-  const WK = fxCompact(D), P = opts.posters || null, ST = opts.settings || null;
-  const KEYIDX = fxKeyIdx(D);
+  let F = D.F, W = D.W, WM = D.WM, SG = D.SG || [], NW = W.length, FA = D.faDir || {};
+  let WK = fxCompact(D), KEYIDX = fxKeyIdx(D);
+  const P = opts.posters || null, ST = opts.settings || null, LS = opts.list || null;
   const seen = () => S.all();
   const L = () => fxLang(seen()), T = () => FX_STR[L()];
   const fa = n => fxNum(L())(n);
@@ -281,11 +301,12 @@ function mountFocus(root, D, S, opts) {
   const pdate = v => { try { return /^\d{4}-\d\d-\d\d$/.test(v) ? (L() === 'fa' ? jd : ed).format(new Date(v + 'T12:00:00')) : ''; } catch (e) { return ''; } };
   const ago = t => t ? T().ago(Math.round((Date.now() - t) / 60000)).replace(/\d+/g, d => fa(d)) : '';
   const KEY = i => F[i][8];
-  const link = i => F[i][5] ? 'https://letterboxd.com/film/' + F[i][5] + '/' : 'https://letterboxd.com/search/films/' + encodeURIComponent(F[i][0] + ' ' + F[i][1]) + '/';
+  const link = i => F[i][5] ? 'https://letterboxd.com/film/' + F[i][5] + '/' : F[i][16] ? 'https://letterboxd.com/tmdb/' + F[i][16] + '/' : 'https://letterboxd.com/search/films/' + encodeURIComponent(F[i][0] + ' ' + F[i][1]) + '/';
   const lbSearch = t => 'https://letterboxd.com/search/films/' + encodeURIComponent(t) + '/';
   const STK = {wl: 'ok', done: 'ok', dl: 'dl', need: 'need'};
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+  let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '';
   let shown = null, pickK = null, altOpen = {}, view = 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
@@ -299,14 +320,22 @@ function mountFocus(root, D, S, opts) {
   const hmin = m => L() === 'fa' ? T().min(fa(m)) : T().hm(m);
   // "Your first Ozu": family name, family-name-first for Chinese/Korean names, full name when two directors share it
   const FAMILY_FIRST = new Set(['Jia', 'Wang', 'Bi', 'Hou', 'Tsai', 'Wong', 'Hong', 'Lee', 'Bong', 'Park', 'Kim', 'Zhang', 'Chen', 'Hu', 'Lou', 'Diao', 'Tian', 'Feng', 'King', 'Tsui', 'Lim', 'Hur', 'Im', 'Ozu']);
-  const SHORT = (() => {
+  let SHORT;
+  const shortMap = () => {
     const all = new Set(); F.forEach(f => f[2].split(', ').forEach(d => all.add(d)));
     const short = d => { const p = d.split(' '); if (p.length < 2) return d; if (p[0] === 'Apichatpong') return 'Apichatpong'; if (FAMILY_FIRST.has(p[0]) && p.length === 2 && /-|^[A-Z][a-z]+$/.test(p[1]) && !/^(Ozu)$/.test(p[0])) return p[0]; return p[p.length - 1]; };
     const count = {}, m = {};
     all.forEach(d => { const s2 = short(d); count[s2] = (count[s2] || 0) + 1; m[d] = s2; });
     all.forEach(d => { if (count[m[d]] > 1) m[d] = d; });
     return m;
-  })();
+  };
+  SHORT = shortMap();
+  function setPlan(nd) {
+    D = nd; F = D.F; W = D.W; WM = D.WM; SG = D.SG || []; NW = W.length; FA = D.faDir || {};
+    WK = fxCompact(D); KEYIDX = fxKeyIdx(D); SHORT = shortMap();
+    if (shown !== null && shown > NW + 1) shown = null;
+    render();
+  }
   const firstDir = i => { const d = F[i][2].split(', ')[0]; return L() === 'fa' ? FA[d] || d : SHORT[d] || d; };
   function marathon(s) {
     const d = String(s).replace(/[۰-۹]/g, c => '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)).match(/(\d+)\D+(\d+)/);
@@ -423,11 +452,12 @@ function mountFocus(root, D, S, opts) {
   }
   function foot() {
     const t = T();
+    if (!opts.openFull) return '';
     return `<footer class="fx-foot"><button type="button" class="fx-link" data-full>${t.full} →</button></footer>`;
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
-    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${b('week', t.navWeek)}${b('diary', t.navDiary)}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function syncDot() {
     const st = ST.status();
@@ -435,10 +465,10 @@ function mountFocus(root, D, S, opts) {
     return `<i class="fx-sd ${st.state === 'err' ? 'err' : st.state === 'busy' ? 'busy' : 'ok'}" aria-hidden="true"></i>`;
   }
   function pickerBox() {
-    const t = T(), head = picker.fav != null ? t.favPick(fa(picker.fav + 1)) : picker.log ? t.logH : picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
+    const t = T(), head = picker.list ? t.addToList : picker.fav != null ? t.favPick(fa(picker.fav + 1)) : picker.log ? t.logH : picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
     return `<div class="fx-picker fx-card"><div class="fx-pick-h">${esc(head)}</div>
-      <input type="search" class="fx-pick-q" dir="auto" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(t.addPh)}" aria-label="${esc(t.addPh)}" value="${esc(picker.q || '')}">
-      <ul class="fx-res">${pickerResults()}</ul><div class="fx-row"><button type="button" class="fx-link" data-pick-cancel>${t.cancel}</button></div></div>`;
+      <input type="search" class="fx-pick-q" dir="auto" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(picker.list ? t.listPh : t.addPh)}" aria-label="${esc(picker.list ? t.listPh : t.addPh)}" value="${esc(picker.q || '')}">
+      ${picker.note ? `<p class="fx-note ok">${esc(picker.note)}</p>` : ''}<ul class="fx-res">${pickerResults()}</ul><div class="fx-row"><button type="button" class="fx-link" data-pick-cancel>${t.cancel}</button></div></div>`;
   }
   function pickerResults() {
     const q = norm(picker.q || ''), t = T();
@@ -447,7 +477,7 @@ function mountFocus(root, D, S, opts) {
     for (let i = 0; i < F.length && hits.length < 60; i++) { const nt = norm(F[i][0]); if (nt.includes(q)) hits.push([nt.startsWith(q) ? 0 : 1, i]); }
     hits.sort((a, b) => a[0] - b[0] || F[a[1]][1] - F[b[1]][1]);
     const tmOn = posterOn(), top = hits.slice(0, tmOn ? 5 : 8);
-    let h = (tmOn && top.length ? `<li class="fx-resh">${t.inPlan}</li>` : '') + top.map(([, i]) => `<li><button type="button" class="fx-hit" data-pick-film="${i}"><span class="fx-film">${esc(F[i][0])}</span> <span class="fx-y">${F[i][1]}</span><span class="fx-hd"><bdi>${esc(dirName(i))}</bdi></span></button></li>`).join('');
+    let h = (tmOn && top.length ? `<li class="fx-resh">${picker.list ? t.inList : t.inPlan}</li>` : '') + top.map(([, i]) => `<li><button type="button" class="fx-hit" ${picker.list ? 'disabled' : `data-pick-film="${i}"`}><span class="fx-film">${esc(F[i][0])}</span> <span class="fx-y">${F[i][1]}</span><span class="fx-hd"><bdi>${esc(dirName(i))}</bdi></span></button></li>`).join('');
     if (tmOn) {
       const seenTY = new Set(top.map(([, i]) => norm(F[i][0]) + '|' + F[i][1]));
       if (picker.tmq === picker.q && picker.tm) {
@@ -458,11 +488,64 @@ function mountFocus(root, D, S, opts) {
     if (picker.fav == null) h += `<li><button type="button" class="fx-hit fx-asis" data-pick-text>${esc(t.addAsIs((picker.q || '').trim()))}</button></li>`;
     return h;
   }
+  // ---------- a personal list (template edition): weeks of n films, reorder, remove, add, import ----------
+  function renderList() {
+    const t = T(), s = seen(), n = F.length, nw = W.length, cur = Math.min(fxCur(WK, s), Math.max(nw, 1));
+    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.listEye(fa(n), fa(nw)))}</div><h1 class="fx-h1">${t.listH}</h1></header>`;
+    const pw = D.perWeek || 3;
+    h += `<div class="fx-lbar"><div class="fx-row">${picker && picker.list ? '' : `<button type="button" class="fx-btn primary" data-ladd>${t.listAdd}</button>`}<label class="fx-btn fx-file">${t.listImport}<input type="file" accept=".csv,text/csv" data-limport></label></div>
+      <div class="fx-step" role="group" aria-label="${esc(t.perWeekL)}"><span>${t.perWeekL}</span><button type="button" data-lpw="-1" aria-label="−"${pw <= 1 ? ' disabled' : ''}>−</button><b>${fa(pw)}</b><button type="button" data-lpw="1" aria-label="+"${pw >= 14 ? ' disabled' : ''}>+</button></div></div>`;
+    if (listBusy) h += `<p class="fx-note" data-lprog>${esc(listBusy)}</p>`;
+    else if (listNote) h += `<p class="fx-note ${listNote[0]}">${esc(listNote[1])}</p>`;
+    if (picker && picker.list) h += pickerBox();
+    if (!n) return h + `<p class="fx-muted">${t.listEmpty}</p><p class="fx-muted fx-small">${t.importHelp}</p>`;
+    if (cur > 1) h += `<p class="fx-muted fx-small">${esc(t.pastWeeks(fa(cur - 1)))}</p>`;
+    const last = listAll ? nw : Math.min(nw, cur + 5), first = W[0] && W[0][0] ? W[0][0][1] : 0, lastI = n - 1;
+    for (let w = cur; w <= last; w++) {
+      h += `<section class="fx-lweek"><h3 class="fx-month">${esc(t.wkLabel(fa(w)))}${w === cur ? ` <span class="fx-lnow">· ${t.thisWeekL}</span>` : ''}</h3><ul class="fx-dl fx-ll">`;
+      W[w - 1].forEach(it => {
+        const i = it[1], k = KEY(i), watched = !!s[k];
+        const acts = watched ? `<span class="fx-chk on" aria-label="${esc(t.watched || '')}"></span>`
+          : `<button type="button" class="fx-lb" data-lmove="-1" aria-label="${esc(t.moveUp)}"${i === first ? ' disabled' : ''}>↑</button><button type="button" class="fx-lb" data-lmove="1" aria-label="${esc(t.moveDown)}"${i === lastI ? ' disabled' : ''}>↓</button><button type="button" class="fx-lb rm${listRm === k ? ' armed' : ''}" data-lrm aria-label="${esc(t.removeL)}">${listRm === k ? t.removeL2 : '×'}</button>`;
+        h += `<li class="fx-de fx-li${watched ? ' done' : ''}" data-lk="${esc(k)}">${posterOn() ? poster(i) : ''}<div class="fx-b">${titleLine(i)}${subLine(i)}</div><div class="fx-lacts">${acts}</div></li>`;
+      });
+      h += '</ul></section>';
+    }
+    if (last < nw) h += `<div class="fx-row"><button type="button" class="fx-link" data-lall>${esc(t.showAllWeeks(fa(nw)))}</button></div>`;
+    return h;
+  }
+  async function lbImport(files) {
+    const t = T();
+    if (!files.length || !opts.letterboxd) return;
+    lbBusy = t.lbWorking('0', '…'); delete note.lb; render();
+    const prog = (d, n) => { lbBusy = t.lbWorking(fa(d), fa(n)); const el = root.querySelector('[data-lbprog]'); if (el) el.textContent = lbBusy; };
+    let r;
+    try { r = await opts.letterboxd.importFiles(files, prog); } catch (e) { r = {bad: true}; }
+    lbBusy = '';
+    note.lb = r.bad ? ['bad', t.lbBad] : ['ok', t.lbDone(fa(r.added), fa(r.ticked), fa(r.merged))];
+    render();
+  }
+  async function listImport(file) {
+    const t = T();
+    if (!file || !LS) return;
+    let text = '';
+    try { text = await file.text(); } catch (e) { listNote = ['bad', t.importBad]; render(); return; }
+    const progress = (d, n) => { listBusy = t.importing(fa(d), fa(n)); const el = root.querySelector('[data-lprog]'); if (el) el.textContent = listBusy; };
+    listBusy = t.importing(fa(0), '…'); listNote = null; render();
+    let r;
+    try { r = await LS.importFile(text, file.name, progress); } catch (e) { r = {kind: 'unknown'}; }
+    listBusy = '';
+    if (r.kind === 'list') listNote = ['ok', t.imported(fa(r.added), r.skipped ? fa(r.skipped) : '')];
+    else if (r.kind === 'diary') listNote = ['ok', t.importedDiary(fa(r.added), r.skipped ? fa(r.skipped) : '', r.updated ? fa(r.updated) : '')];
+    else listNote = ['bad', r.kind === 'nodates' ? t.importNoDates : t.importBad];
+    render();
+  }
   function renderWeek() {
     const cur = fxCur(WK, seen()), t = T();
     if (shown === null || shown > cur) shown = cur;
     const w = shown;
     let h = '';
+    if (LS && (w > NW || !F.length)) return `<section class="fx-rest"><h1 class="fx-h1">${F.length ? t.end : t.listH}</h1><p>${F.length ? t.listAllDone : t.listEmpty}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-golist>${t.listAdd}</button></div></section>`;
     if (w > NW) return `<section class="fx-rest"><h1 class="fx-h1">${t.end}</h1><p>${t.endP}</p></section>`;
     const m = WM[w - 1], list = itemsOf(w);
     const finished = w < cur;
@@ -539,6 +622,7 @@ function mountFocus(root, D, S, opts) {
     const st = ST.status(), tm = seen()['cfg:tmdb'], t = T(), lang = L();
     const msg = k => note[k] ? `<p class="fx-note ${note[k][0]}">${esc(note[k][1])}</p>` : '';
     let h = `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${t.settings}</h1></div></header>`;
+    if (opts.plan) h += `<section class="fx-card"><h2>${t.planH}</h2><p>${esc(D.kind === 'list' ? t.planList(fa(F.length)) : t.planSample)}</p><div class="fx-row"><button type="button" class="fx-link${note.planReset ? ' fx-warn' : ''}" data-plan-reset>${note.planReset ? t.planReset2 : t.planReset}</button></div></section>`;
     if (ST.shareOn) {
       const sid = seen()['cfg:share'];
       h += `<section class="fx-card"><h2>${t.shareH}</h2>`;
@@ -555,6 +639,13 @@ function mountFocus(root, D, S, opts) {
         else h += `<div class="fx-row"><button type="button" class="fx-btn primary" data-share-on>${t.shareMake}</button></div>`;
       }
       h += msg('share') + `</section>`;
+    }
+    if (opts.letterboxd) {
+      const ls = opts.letterboxd.status();
+      h += `<section class="fx-card"><h2>${t.lbH}</h2><p class="fx-muted">${t.lbP}</p>
+        <div class="fx-row"><label class="fx-btn fx-file">${t.lbPick}<input type="file" accept=".csv,text/csv" multiple data-lbimport></label></div>
+        ${lbBusy ? `<p class="fx-note busy" data-lbprog>${esc(lbBusy)}</p>` : msg('lb')}
+        <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p></section>`;
     }
     h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p></section>`;
     h += `<section class="fx-card"><h2>${t.syncH}</h2>`;
@@ -584,7 +675,7 @@ function mountFocus(root, D, S, opts) {
   }
   function render() {
     applyLang();
-    const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : renderWeek();
+    const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : renderWeek();
     root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
     if (posterOn()) P.fill(root);
@@ -615,6 +706,12 @@ function mountFocus(root, D, S, opts) {
     return id;
   }
   function pick(val, md) {
+    if (picker.list) {
+      const title = md && md.t ? md.t : val.slice(2).replace(/\s*\(\d{4}\)\s*$/, '');
+      if (val.startsWith('t:')) LS.add(md ? {t: md.t, y: md.y, d: md.d, m: md.m, p: md.p, tm: md.tm} : {t: title, y: +(val.match(/\((\d{4})\)\s*$/) || [])[1] || 0});
+      picker = {q: '', focus: true, list: true, note: T().addedL(title)};
+      return;
+    }
     const keepMd = key => { if (md) { S.set('md:' + key, JSON.stringify(md)); if (P && md.p) P.put('tx:' + val.slice(2), md.p); } };
     if (picker.fav != null) {
       if (val.startsWith('k:')) setFav(picker.fav, {k: val.slice(2)});
@@ -873,6 +970,8 @@ function mountFocus(root, D, S, opts) {
     const ul = root.querySelector('.fx-res'); if (ul) ul.innerHTML = pickerResults();
   });
   root.addEventListener('change', e => {
+    if (e.target.matches('input[data-lbimport]')) { const fs = [...(e.target.files || [])]; e.target.value = ''; lbImport(fs); return; }
+    if (e.target.matches('input[data-limport]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; listImport(f); return; }
     const c = e.target.closest('input[data-cfg]');
     if (c) { saveCfg(c); return; }
     if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
@@ -899,7 +998,21 @@ function mountFocus(root, D, S, opts) {
     const t = e.target.closest('button'); if (!t || !root.contains(t)) return;
     const li = t.closest('.fx-i'), k = li && li.dataset.k, tt = T();
     if (t.dataset.open) { openSheet({ek: t.dataset.open}); return; }
-    if (t.dataset.nav) { view = t.dataset.nav; note = {}; picker = null; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
+    if (t.hasAttribute('data-golist')) { view = 'list'; picker = {q: '', focus: true, list: true}; render(); return; }
+    if (t.hasAttribute('data-ladd')) { picker = {q: '', focus: true, list: true}; listNote = null; render(); return; }
+    if (t.hasAttribute('data-lall')) { listAll = true; render(); return; }
+    if (t.dataset.lpw) { LS.setPerWeek((D.perWeek || 3) + +t.dataset.lpw); return; }
+    if (t.dataset.lmove) { listRm = ''; LS.move(t.closest('[data-lk]').dataset.lk, +t.dataset.lmove); return; }
+    if (t.hasAttribute('data-lrm')) {
+      const k = t.closest('[data-lk]').dataset.lk;
+      if (listRm !== k) { listRm = k; render(); setTimeout(() => { if (listRm === k) { listRm = ''; if (view === 'list') render(); } }, 4000); return; }
+      listRm = ''; LS.remove(k); return;
+    }
+    if (t.hasAttribute('data-plan-reset')) {
+      if (!note.planReset) { note.planReset = 1; render(); setTimeout(() => { if (note.planReset) { delete note.planReset; render(); } }, 4000); return; }
+      delete note.planReset; if (opts.plan) opts.plan.reset(); return;
+    }
+    if (t.dataset.nav) { view = t.dataset.nav; note = {}; picker = null; listNote = null; listRm = ''; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
     if (t.hasAttribute('data-fav')) { picker = {q: '', focus: true, fav: +t.dataset.fav}; render(); const q = root.querySelector('.fx-pick-q'); if (q) q.scrollIntoView({block: 'center'}); return; }
     if (t.hasAttribute('data-favrm')) { setFav(+t.dataset.favrm, null); render(); return; }
     if (t.hasAttribute('data-pick-tm')) {
@@ -1012,5 +1125,7 @@ function mountFocus(root, D, S, opts) {
     render: () => { if (P) P.setToken(seen()['cfg:tmdb']); if (!root.querySelector('input:focus, textarea:focus')) render(); },
     current: () => fxCur(WK, seen()),
     lang: L,
+    setPlan,
+    plan: () => D,
   };
 }
