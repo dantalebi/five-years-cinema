@@ -37,14 +37,21 @@
     status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
     async importFiles(files, progress) {
       let rows = [];
+      const fw = {}, FILMS = {'watched.csv': 'w', 'ratings.csv': 'r', 'likes/films.csv': 'l'};
       for (const f of files) {
         const head = new Uint8Array(await f.slice(0, 2).arrayBuffer());
-        if (head[0] === 0x50 && head[1] === 0x4b) {  // the whole export, zipped: its diary and reviews
-          const z = await FXLB.unzip(await f.arrayBuffer(), ['diary.csv', 'reviews.csv']) || {};
+        if (head[0] === 0x50 && head[1] === 0x4b) {  // the whole export, zipped: diary and reviews, plus what was watched, rated and liked
+          const z = await FXLB.unzip(await f.arrayBuffer(), ['diary.csv', 'reviews.csv'].concat(Object.keys(FILMS))) || {};
           ['diary.csv', 'reviews.csv'].forEach(n => { const r = z[n] && FXLB.fromCsv(z[n]); if (r) rows = rows.concat(r); });
-        } else { const r = FXLB.fromCsv(await f.text()); if (r) rows = rows.concat(r); }
+          Object.keys(FILMS).forEach(n => { if (z[n]) fw[FILMS[n]] = z[n]; });
+        } else {
+          const txt = await f.text(), r = FXLB.fromCsv(txt);
+          if (r) rows = rows.concat(r);
+          else if (/^watched\.csv$/i.test(f.name)) fw.w = txt; else if (/^ratings\.csv$/i.test(f.name)) fw.r = txt; else if (/^films\.csv$/i.test(f.name)) fw.l = txt;
+        }
       }
-      if (!rows.length) return {bad: true};
+      const films = FXLB.fromFilms(fw.w, fw.r, fw.l) || [];
+      if (!rows.length && !films.length) return {bad: true};
       const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
       rows.forEach(r => { if (!isPlan(r)) { const k = FXLB.norm(r.t) + '|' + r.y; (need[k] = need[k] || []).push(r); } });
       const keys = Object.keys(need); let done = 0;
@@ -65,8 +72,11 @@
       });
       const res = FXLB.merge(rows, Store.data, D.F, LB_SINCE);
       res.sets.forEach(([k, v]) => Store.set(k, v));
+      // after the diary is in: hearts for liked films, and films watched with no diary entry (stats only)
+      const fr = FXLB.mergeFilms(films, Store.data, D.F);
+      fr.sets.forEach(([k, v]) => Store.set(k, v));
       enrichSoon();
-      return res;
+      return Object.assign(res, {liked: fr.liked, undated: fr.undated});
     },
   };
   // entries the GitHub Action brought in know only their TMDB id: fill in director, runtime and poster, a few at a time
@@ -75,8 +85,20 @@
     if (enriching || !Posters.on()) return;
     enriching = true; let n = 0;
     try {
-      const todo = Object.keys(Store.data).filter(k => k.startsWith('md:log:') && !tried.has(k)).map(k => { try { return [k, JSON.parse(Store.data[k])]; } catch (e) { return [k, null]; } })
+      const todo = Object.keys(Store.data).filter(k => (k.startsWith('md:log:') || k.startsWith('md:wx:')) && !tried.has(k)).map(k => { try { return [k, JSON.parse(Store.data[k])]; } catch (e) { return [k, null]; } })
         .filter(([, md]) => md && md.tm && (md.d === undefined || !md.p));
+      // films watched with no diary entry arrive as a bare title: find them on TMDB first
+      const bare = Object.keys(Store.data).filter(k => /^wx:[^:]+$/.test(k) && String(Store.data[k]).startsWith('t:') && !Store.data['md:' + k] && !tried.has('md:' + k));
+      await pool(bare, 3, async k => {
+        tried.add('md:' + k);
+        try {
+          const v = String(Store.data[k]).slice(2), t = v.replace(/\s*\(\d{4}\)\s*$/, ''), y = +(v.match(/\((\d{4})\)\s*$/) || [])[1] || 0;
+          const m = await Posters.match(t, y);
+          if (!m) return;
+          const d = m.id ? await Posters.details(m.id).catch(() => ({})) : {};
+          Store.set('md:' + k, JSON.stringify({tm: m.id || 0, t, y, d: d.d || '', m: d.m || 0, p: d.p || m.p || ''})); n++;
+        } catch (e) {}
+      });
       await pool(todo, 3, async ([k, md]) => {
         tried.add(k);
         try {

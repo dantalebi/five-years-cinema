@@ -41,7 +41,7 @@ const FX_STR = {
     importHelp: 'On letterboxd.com: Settings → Data → Export your data. Use watchlist.csv or a list for your list, diary.csv (or reviews.csv) for your history.',
     inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + n + ' films', planSample: 'Sample plan · Five Years of Cinema', planReset: 'Start over with another plan', planReset2: 'Tap again to start over — your diary stays',
     lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, then pick the .zip it gives you (or diary.csv and reviews.csv from inside it). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import Letterboxd export',
-    lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in.', lbBad: 'That isn’t the Letterboxd export: pick the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
+    lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m, lk, u) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in' + (lk ? ' · ' + lk + ' hearts' : '') + (u ? ' · ' + u + ' films without a date, counted in the stats' : '') + '.', lbBad: 'That isn’t the Letterboxd export: pick the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
     lbAuto: (ago, n) => 'What you log on Letterboxd shows up here by itself within a few hours. Last check ' + ago + (n ? ' · ' + n + ' new last time' : '') + '.', lbAutoOff: 'What you log on Letterboxd will show up here by itself within a few hours.',
     changePoster: 'Change poster', posterH: 'Choose a poster', posterDefault: 'Default', imgsLoading: 'Loading from TMDB…', imgsNone: 'TMDB has no other posters for this film.', imgsFail: 'Couldn’t reach TMDB just now.',
     bdH: 'Backdrop', bdP: 'A wide still from any film, across the top of your profile and of this app.', bdChoose: 'Choose a film', bdChange: 'Another film', bdRemove: 'Remove', bdFrom: t => 'Stills from ' + t, bdNone: 'TMDB has no stills for this film.', bdPick: 'Choose a film for your backdrop',
@@ -103,7 +103,7 @@ const FX_STR = {
     importHelp: 'توی letterboxd.com: Settings ← Data ← Export your data. برای لیست watchlist.csv یا یه لیست، برای تاریخچه diary.csv (یا reviews.csv).',
     inList: 'توی لیستت هست', addedL: t => 'اضافه شد: ' + t, listPh: 'هر فیلمی رو جستجو کن', planH: 'برنامه', planList: n => 'لیست خودم · ' + n + ' فیلم', planSample: 'برنامه‌ی نمونه · پنج سال سینما', planReset: 'شروع دوباره با یه برنامه‌ی دیگه', planReset2: 'برای شروع دوباره، دوباره بزن (دفترت می‌مونه)',
     lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data و فایل zip ـی که می‌ده رو انتخاب کن (یا diary.csv و reviews.csv از توش). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن خروجی لترباکس',
-    lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد.', lbBad: 'این خروجی لترباکس نیست؛ فایل zip ـی که از Settings ← Data ← Export your data می‌گیری رو انتخاب کن (یا diary.csv از توش).',
+    lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m, lk, u) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد' + (lk ? ' · ' + lk + ' قلب' : '') + (u ? ' · ' + u + ' فیلمِ بی‌تاریخ که فقط تو آمار حساب می‌شه' : '') + '.', lbBad: 'این خروجی لترباکس نیست؛ فایل zip ـی که از Settings ← Data ← Export your data می‌گیری رو انتخاب کن (یا diary.csv از توش).',
     lbAuto: (ago, n) => 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا. آخرین بررسی ' + ago + (n ? ' · دفعه‌ی قبل ' + n + ' مورد جدید' : '') + '.', lbAutoOff: 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا.',
     changePoster: 'عوض کردن پوستر', posterH: 'یه پوستر انتخاب کن', posterDefault: 'پیش‌فرض', imgsLoading: 'دارم از TMDB میارم…', imgsNone: 'TMDB برای این فیلم پوستر دیگه‌ای نداره.', imgsFail: 'الان به TMDB وصل نشد.',
     bdH: 'بک‌دراپ', bdP: 'یه نمای عریض از هر فیلمی، بالای پروفایلت و بالای همین اپ.', bdChoose: 'انتخاب فیلم', bdChange: 'یه فیلم دیگه', bdRemove: 'برداشتن', bdFrom: t => 'نماهای ' + t, bdNone: 'TMDB برای این فیلم نمایی نداره.', bdPick: 'فیلم بک‌دراپ رو انتخاب کن',
@@ -246,7 +246,7 @@ async function fxMetaFill(D, seen, set, P) {
   fxMetaBusy = true;
   const s = seen(), d0 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10), todo = new Map();
   try {
-    fxDiary(D, s).forEach(e => {
+    fxDiary(D, s).concat(fxWatched(D, s)).forEach(e => {
       const k = fxMetaKey(D, e);
       if (todo.has(k)) return;
       if (s[k]) { try { const o = JSON.parse(s[k]); if (!o.x || o.x > d0) return; } catch (er) { return; } }
@@ -271,6 +271,23 @@ async function fxMetaFill(D, seen, set, P) {
     flush();
     return n;
   } finally { fxMetaBusy = false; }
+}
+// films marked watched on Letterboxd with no diary entry (wx:…): counted in the stats, never shown in the diary
+function fxWatched(D, seen) {
+  const KI = fxKeyIdx(D), inDiary = new Set(), out = [];
+  const id = (t, y) => fxNorm(String(t).replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (y || 0);
+  fxDiary(D, seen).forEach(e => { inDiary.add(id(e.t, e.y)); const md = e.md || {}; if (md.tm) inDiary.add('tm' + md.tm); });
+  for (const k in seen) {
+    if (!k.startsWith('wx:') || k.slice(3).includes(':')) continue;
+    const v = String(seen[k] || ''), md = fxMd(seen, k);
+    let e = null;
+    if (v.startsWith('k:') && KI[v.slice(2)] !== undefined) { const i = KI[v.slice(2)]; e = {k, i, t: D.F[i][0], y: D.F[i][1]}; }
+    else if (v.startsWith('t:')) e = {k, i: null, t: v.slice(2), y: fxYear(v), md};
+    if (!e || inDiary.has(id(e.t, e.y)) || (md && md.tm && inDiary.has('tm' + md.tm))) continue;
+    e.r = +(seen['r:' + k] || 0); e.l = !!seen['l:' + k];
+    out.push(e);
+  }
+  return out;
 }
 function fxFav(seen) { try { const a = JSON.parse(seen['cfg:fav'] || '[]'); return Array.isArray(a) ? a.slice(0, 4) : []; } catch (e) { return []; } }
 const fxTmdbImg = p => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : '';
@@ -330,6 +347,12 @@ function fxShare(D, seen, posterUrl) {
     return Object.assign(base, {id: fxEntryId(e.k), r: e.r || 0, h: e.l ? 1 : 0, rv: String(e.rv || '').slice(0, 20000), sp: e.sp ? 1 : 0, rw: e.rw ? 1 : 0,
       ww: String(e.ww || '').slice(0, 80), tg: String(e.tg || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8)},
       mx ? {g: (mx.g || []).slice(0, 5), c: (mx.c || []).slice(0, 4), lg: mx.l || '', ca: (mx.a || []).slice(0, 6)} : {});
+  });
+  // the films with no diary entry, for the all-time stats only: no dates, no posters, no reviews
+  if (seen['cfg:pubdiary'] !== '0') out.seen = fxWatched(D, seen).map(e => {
+    const md = e.md || {}, mx = fxMeta(seen, fxMetaKey(D, e));
+    const base = e.i != null ? {t: F[e.i][0], y: F[e.i][1], d: dir(e.i), m: F[e.i][3] || 0} : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0};
+    return Object.assign(base, {r: e.r || 0, h: e.l ? 1 : 0}, mx ? {g: (mx.g || []).slice(0, 5), c: (mx.c || []).slice(0, 4), lg: mx.l || '', ca: (mx.a || []).slice(0, 6)} : {});
   });
   out.fav = fxFav(seen).map(f => {
     if (f && f.k && KEYIDX[f.k] !== undefined) { const i = KEYIDX[f.k]; return {t: F[i][0], y: F[i][1], d: dir(i), p: pos(F[i][8]), l: F[i][5] || ''}; }
@@ -576,7 +599,7 @@ function mountFocus(root, D, S, opts) {
     let r;
     try { r = await opts.letterboxd.importFiles(files, prog); } catch (e) { r = {bad: true}; }
     lbBusy = '';
-    note.lb = r.bad ? ['bad', t.lbBad] : ['ok', t.lbDone(fa(r.added), fa(r.ticked), fa(r.merged))];
+    note.lb = r.bad ? ['bad', t.lbBad] : ['ok', t.lbDone(fa(r.added), fa(r.ticked), fa(r.merged), r.liked ? fa(r.liked) : '', r.undated ? fa(r.undated) : '')];
     render();
   }
   async function listImport(file) {

@@ -45,6 +45,26 @@ const FXLB = (() => {
     });
     return out;
   }
+  // watched.csv, ratings.csv and likes/films.csv → one row per film {t, y, r, l, seen}; null if there's nothing in them
+  function fromFilms(watched, ratings, likes) {
+    const by = {};
+    const read = (text, fn) => {
+      if (!text) return;
+      const rows = csv(text), hi = rows.findIndex(r => r.includes('Name') && r.includes('Year'));
+      if (hi < 0) return;
+      const H = rows[hi], cN = H.indexOf('Name'), cY = H.indexOf('Year');
+      rows.slice(hi + 1).forEach(r => {
+        const t = (r[cN] || '').trim(); if (!t) return;
+        const y = +(r[cY] || 0) || 0, k = norm(t) + '|' + y;
+        fn(by[k] = by[k] || {t, y, r: 0, l: false, seen: false}, r, H);
+      });
+    };
+    read(watched, o => { o.seen = true; });
+    read(ratings, (o, r, H) => { const v = parseFloat(r[H.indexOf('Rating')]); if (v > 0) o.r = Math.max(1, Math.min(10, Math.round(v * 2))); o.seen = true; });
+    read(likes, o => { o.l = true; });
+    const out = Object.values(by);
+    return out.length ? out : null;
+  }
   // the RSS feed at letterboxd.com/<user>/rss/ → rows (diary items only)
   function fromRss(xml) {
     const dec = s => String(s).replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
@@ -75,12 +95,9 @@ const FXLB = (() => {
     return r => (r.slug && bySlug[r.slug]) || byTY[norm(r.t) + '|' + r.y] || (r.y ? byTY[norm(r.t) + '|' + (r.y - 1)] || byTY[norm(r.t) + '|' + (r.y + 1)] : '') || '';
   }
   // ---- the merge: returns the entries to set, and what happened ----
-  function merge(rows, data, F, since) {
-    const cur = Object.assign({}, data), sets = [];
-    const set = (k, v) => { if (v === undefined || cur[k] === v || (v === null && cur[k] === undefined)) return; if (v === null) delete cur[k]; else cur[k] = v; sets.push([k, v]); };
-    const planKey = matcher(F);
-    const filmId = (pk, t, y, tm) => pk ? 'k:' + pk : tm ? 'tm:' + tm : 't:' + norm(t) + '|' + (y || 0);
-    // what's already in the diary: film → [entry key, date]
+  const filmId = (pk, t, y, tm) => pk ? 'k:' + pk : tm ? 'tm:' + tm : 't:' + norm(t) + '|' + (y || 0);
+  // what's already in the diary: film → [[entry key, date, added by this import]]
+  function diaryIndex(cur, F, planKey) {
     const idx = {};
     // entries already there match within a day (time zones); entries this import adds match only the same day,
     // so two real watches on consecutive days stay two, while reviews.csv still folds into its diary.csv row
@@ -99,6 +116,12 @@ const FXLB = (() => {
       }
     }
     for (const f of F || []) if (isDate(cur[f[8]])) note('k:' + f[8], f[8], cur[f[8]]);
+    return {idx, note};
+  }
+  function merge(rows, data, F, since) {
+    const cur = Object.assign({}, data), sets = [];
+    const set = (k, v) => { if (v === undefined || cur[k] === v || (v === null && cur[k] === undefined)) return; if (v === null) delete cur[k]; else cur[k] = v; sets.push([k, v]); };
+    const planKey = matcher(F), {idx, note} = diaryIndex(cur, F, planKey);
     const near = (fid, date) => (idx[fid] || []).find(([, d, fresh]) => fresh ? d === date : Math.abs(dayN(d) - dayN(date)) <= 1);
     function fill(k, r) {
       let ch = false;
@@ -131,6 +154,28 @@ const FXLB = (() => {
     });
     return Object.assign(res, {sets});
   }
+  // films from watched/ratings/likes: a liked film shows its heart on its latest diary entry; a film watched
+  // with no diary entry at all is kept apart (wx:…) so the stats can count it — it never shows in the diary
+  function mergeFilms(films, data, F) {
+    const cur = Object.assign({}, data), sets = [], res = {liked: 0, undated: 0};
+    const set = (k, v) => { if (v === undefined || cur[k] === v) return; cur[k] = v; sets.push([k, v]); };
+    const planKey = matcher(F), {idx} = diaryIndex(cur, F, planKey);
+    const hash = s => { let h = 0; for (const c of s) h = (h * 31 + c.codePointAt(0)) >>> 0; return h.toString(36); };
+    (films || []).forEach(f => {
+      const pk = planKey(f), fid = filmId(pk, f.t, f.y, f.tm), on = idx[fid] || (f.tm && !pk ? idx['tm:' + f.tm] : null);
+      if (on && on.length) {
+        if (f.l && !on.some(([k]) => cur['l:' + k])) { const last = on.slice().sort((a, b) => a[1] < b[1] ? 1 : -1)[0][0]; set('l:' + last, 1); res.liked++; }
+        return;
+      }
+      if (!f.seen) return;
+      const id = 'wx:' + hash(fid);
+      if (!cur[id]) { set(id, pk ? 'k:' + pk : 't:' + f.t + (f.y ? ' (' + f.y + ')' : '')); res.undated++; }
+      if (!pk && (f.tm || f.md) && !cur['md:' + id]) set('md:' + id, JSON.stringify(Object.assign({tm: f.tm || 0, t: f.t, y: f.y || 0}, f.md || {})));
+      if (f.r && !cur['r:' + id]) set('r:' + id, f.r);
+      if (f.l && !cur['l:' + id]) set('l:' + id, 1);
+    });
+    return Object.assign(res, {sets});
+  }
   // the export as Letterboxd gives it (a .zip): pull out the files we read, without any library
   async function unzip(buf, wanted) {
     const b = new Uint8Array(buf), dv = new DataView(b.buffer, b.byteOffset, b.byteLength), out = {};
@@ -150,6 +195,6 @@ const FXLB = (() => {
     }
     return out;
   }
-  return {csv, fromCsv, fromRss, merge, matcher, norm, unzip};
+  return {csv, fromCsv, fromFilms, fromRss, merge, mergeFilms, matcher, norm, unzip};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FXLB;

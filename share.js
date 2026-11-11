@@ -184,18 +184,19 @@ function fxProfile(root, id, focusId, opts) {
   const card = (title, tools, body) => `<section class="fx-card"><div class="fx-cardh"><h2>${title}</h2>${tools || ''}</div>${body}</section>`;
   const dirsOf = f => String(f.d || '').split(/,\s*|،\s*/).filter(Boolean);
   function statsView() {
-    const t = T(), d = inYear(), films = filmsOf(d), mw = [['n', t.most], ['r', t.best]];
+    // all time also counts the films marked watched with no diary entry, as Letterboxd's stats do
+    const t = T(), d = inYear(), extra = year === 'all' ? data.seen : [], films = filmsOf(d.concat(extra)), mw = [['n', t.most], ['r', t.best]];
     const hasMeta = films.some(f => Array.isArray(f.g) || Array.isArray(f.c));
     // the headline numbers
     const days = {}; d.forEach(e => { if (day.test(e.w)) days[e.w] = (days[e.w] || 0) + 1; });
     const num = n => Number(n).toLocaleString(lang === 'fa' ? 'fa-IR' : 'en-US');
-    const big = [[num(films.length), t.big.films], [num(Math.round(d.reduce((a, e) => a + (+e.m || 0), 0) / 60)), t.big.hours],
+    const big = [[num(films.length), t.big.films], [num(Math.round(d.concat(extra).reduce((a, e) => a + (+e.m || 0), 0) / 60)), t.big.hours],
       [num(new Set(films.flatMap(dirsOf)).size), t.big.dirs]];
     if (hasMeta) big.push([num(new Set(films.flatMap(f => f.c || [])).size), t.big.countries]);
     big.push([num(Object.values(days).filter(n => n > 1).length), t.big.multi]);
     let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
     if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang])}</section>`;
-    const hist = Array(11).fill(0); d.forEach(e => { if (e.r) hist[e.r]++; });
+    const hist = Array(11).fill(0); d.concat(extra).forEach(e => { if (e.r) hist[e.r]++; });
     const hm = Math.max(1, ...hist);
     h += `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / hm * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
     // decades: how many, or how well liked
@@ -286,6 +287,7 @@ function fxProfile(root, id, focusId, opts) {
       lang = data.lang === 'fa' ? 'fa' : 'en';
       if (!Array.isArray(data.diary)) data.diary = [];
       data.diary = data.diary.filter(e => e && typeof e.t === 'string');
+      data.seen = (Array.isArray(data.seen) ? data.seen : []).filter(e => e && typeof e.t === 'string');
       withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
       updated = g.updated_at;
       if (cur && !data.diary.some(x => x.id === cur)) cur = '';
