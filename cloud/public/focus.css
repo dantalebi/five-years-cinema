@@ -778,3 +778,19 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fw-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
 /* the way in: diary and stats */
 .fx-wbtn{justify-self:start; font:inherit; font-size:14px; font-weight:600; cursor:pointer; border:0; border-radius:999px; padding:8px 16px; background:linear-gradient(90deg, #00b843, #00e054); color:#04220f}
+/* ---- Activity → Tonight: a film to watch together ---- */
+.fx-tgcard{gap:12px}
+.fx[dir] .fx-card h2.fx-tgh{font-family:var(--serif); font-size:26px; font-weight:400; letter-spacing:0; text-transform:none; color:var(--ink); margin:0}
+.fx-tgwho{display:flex; flex-wrap:wrap; gap:7px}
+.fx-tgc{font:inherit; font-size:14px; cursor:pointer; border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:999px; padding:6px 14px}
+.fx-tgc.on{background:var(--star); border-color:var(--star); color:var(--on-star); font-weight:600}
+span.fx-tgc{cursor:default}
+.fx-tgpick{grid-template-columns:132px minmax(0,1fr); gap:18px; align-items:start}
+.fx-tgbig{position:relative; width:132px; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:repeating-linear-gradient(135deg, var(--sunk) 0 6px, transparent 6px 12px); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.fx-tgbig img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.fx-tgbig .fx-pt{position:absolute; inset:0; display:grid; place-items:center; padding:8px; text-align:center; font-family:var(--serif); font-size:15px}
+.fx-tgb{display:grid; gap:8px; min-width:0; align-content:start}
+.fx-tgb .fx-at{font-size:28px}
+.fx-why{list-style:none; margin:0; padding:0; display:grid; gap:4px; font-size:13.5px; color:var(--ink)}
+.fx-why li::before{content:"· "; color:var(--star); font-weight:700}
+@media (max-width:420px){ .fx-tgpick{grid-template-columns:104px minmax(0,1fr); gap:14px} .fx-tgbig{width:104px} .fx-tgb .fx-at{font-size:23px} }

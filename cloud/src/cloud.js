@@ -147,7 +147,7 @@
     status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
     async importFiles(files, progress) {
       let rows = [];
-      const fw = {}, FILMS = {'watched.csv': 'w', 'ratings.csv': 'r', 'likes/films.csv': 'l'};
+      const fw = {}, FILMS = {'watched.csv': 'w', 'ratings.csv': 'r', 'likes/films.csv': 'l', 'watchlist.csv': 'wl'};
       for (const f of files) {
         const head = new Uint8Array(await f.slice(0, 2).arrayBuffer());
         if (head[0] === 0x50 && head[1] === 0x4b) {
@@ -157,11 +157,12 @@
         } else {
           const txt = await f.text(), r = FXLB.fromCsv(txt);
           if (r) rows = rows.concat(r);
-          else if (/^watched\.csv$/i.test(f.name)) fw.w = txt; else if (/^ratings\.csv$/i.test(f.name)) fw.r = txt; else if (/^films\.csv$/i.test(f.name)) fw.l = txt;
+          else if (/^watched\.csv$/i.test(f.name)) fw.w = txt; else if (/^ratings\.csv$/i.test(f.name)) fw.r = txt; else if (/^films\.csv$/i.test(f.name)) fw.l = txt; else if (/^watchlist\.csv$/i.test(f.name)) fw.wl = txt;
         }
       }
       const films = FXLB.fromFilms(fw.w, fw.r, fw.l) || [];
-      if (!rows.length && !films.length) return {bad: true};
+      const wlN = fw.wl && FR ? importWatchlist(fw.wl) : 0;
+      if (!rows.length && !films.length) return wlN ? {added: 0, ticked: 0, merged: 0, wl: wlN} : {bad: true};
       const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
       rows.forEach(r => { if (!isPlan(r)) { const k = FXLB.norm(r.t) + '|' + r.y; (need[k] = need[k] || []).push(r); } });
       const keys = Object.keys(need); let done = 0;
@@ -186,6 +187,19 @@
       return Object.assign(res, {liked: fr.liked, undated: fr.undated});
     },
   };
+  // Letterboxd's watchlist.csv → your watchlist here (films you've already seen are left out)
+  function importWatchlist(text) {
+    const rows = FXLB.csv(text), hi = rows.findIndex(r => r.includes('Name') && r.includes('Year')); if (hi < 0) return 0;
+    const H = rows[hi], cN = H.indexOf('Name'), cY = H.indexOf('Year'), cD = H.indexOf('Date');
+    const seen = new Set(); try { fxDiary(window.D, Store.data).concat(fxWatched(window.D, Store.data)).forEach(e => seen.add(norm(String(e.t).replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (+e.y || 0))); } catch (e) {}
+    let n = 0;
+    rows.slice(hi + 1).slice(0, 3000).forEach(r => {
+      const t = String(r[cN] || '').trim(), y = +(r[cY] || 0) || 0; if (!t || seen.has(norm(t) + '|' + y)) return;
+      const k = FR.wl.key({t, y, tm: 0}); if (Store.data[k]) return;
+      Store.set(k, JSON.stringify({t, y, tm: 0, p: '', u: '', at: Date.parse(r[cD] || '') || Date.now()})); n++;
+    });
+    return n;
+  }
   // fill in director, runtime and poster where only a TMDB id or a bare title is known; then genres and cast for the stats
   let enriching = false; const tried = new Set();
   async function enrichSome() {
@@ -238,7 +252,12 @@
       const b = e.target.closest('[data-home]'); if (!b) return;
       Store.set('cfg:home', b.dataset.home === 'week' ? 'week' : null); if (FX) FX.render();
     });
-    CloudSync.setPayload(() => fxShare(FX.plan(), Store.data, k => Posters.src(k)));
+    CloudSync.setPayload(() => {
+      const out = fxShare(FX.plan(), Store.data, k => Posters.src(k));
+      if (!FR || Store.data['cfg:pubdiary'] === '0') return out;
+      const o = JSON.parse(out); o.wl = FR.wl.list().slice(0, 1500).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
+      return JSON.stringify(o);
+    });
     enrichSoon(); setTimeout(lbPull, 2500);
   }
   // your year in film: built from your own diary on this device (even with the diary hidden from your profile)

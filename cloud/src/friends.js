@@ -6,7 +6,11 @@
 // fxFriendsTab(CloudSync) → a tab for mountFocus: {id, label, view(lang), click(button, render), submit(form, render), dot()}
 function fxFriendsTab(CS) {
   const T = {
-    h: 'Activity', segF: 'Friends', segN: 'Notifications', segP: 'People',
+    h: 'Activity', segF: 'Friends', segN: 'Notifications', segP: 'People', segT: 'Tonight',
+    tH: 'What should we watch tonight?', tP: 'Pick who’s watching. Films on more than one watchlist come first, then ones somebody loved that nobody else has seen.',
+    tWho: 'Who’s watching', tYou: 'You', tNoFriends: 'Follow a few people first.', tGo: 'Find a film', tBusy: 'Looking through your diaries…', tNone: 'Nothing fits. Add films to your watchlists (the bookmark on a friend’s film), or pick other people.',
+    tAgain: 'Another one', tAlso: 'Also good', tLen: 'Length', tAny: 'Any', tShort: 'Under 2h', tWant: 'Want to watch',
+    why: {all: 'On everyone’s watchlist', wl: names => 'On the watchlist of ' + names, loved: (n, r) => n + ' gave it ' + r + (r === '★★★★★' ? '' : '') + ', nobody else has seen it'},
     none: 'Follow people and their latest logs show up here.', findPeople: 'Find people to follow',
     find: 'Find someone', follow: 'Follow', following: 'Following', followBack: 'Follow back', followsYou: 'follows you', loading: 'Loading…', fail: 'Couldn’t load.', retry: 'Try again',
     alone: 'Nobody else is here yet. Send your link to a friend.', more: 'Show more',
@@ -27,6 +31,7 @@ function fxFriendsTab(CS) {
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   const bare = t => String(t || '').replace(/\s*\(\d{4}\)\s*$/, '');
   let feed = null, re = [], inbox = null, people = null, me = '', err = false, loading = false, q = '', shown = 30, nShown = 30, redraw = null;
+  let tg = {sel: new Set(), state: 'pick', list: [], i: 0, len: 'any'}, tgData = {};
   let logger = null, seg = 'f', openC = new Set(), openN = new Set(), seenBefore = null, wlOpen = false, busyKeys = new Set();
   const when = d => { try { return /^\d{4}-\d\d-\d\d$/.test(d) ? new Intl.DateTimeFormat('en-US', {day: 'numeric', month: 'short'}).format(new Date(d + 'T12:00:00')) : ''; } catch (e) { return ''; } };
   const ago = ms => {
@@ -44,7 +49,7 @@ function fxFriendsTab(CS) {
 
   // ---- the watchlist: one key per film in the diary's own store, so it syncs like everything else ----
   const wlKey = e => 'wl:' + (+e.tm > 0 ? 'tm' + (+e.tm) : norm(bare(e.t)) + '|' + (+e.y || 0));
-  const wlHas = e => !!S()[wlKey(e)];
+  const wlHas = e => !!(S()[wlKey(e)] || S()[wlKey({t: e.t, y: e.y, tm: 0})]);
   function wlSet(e, on, from) {
     Store.set(wlKey(e), on ? JSON.stringify({t: bare(e.t), y: +e.y || 0, tm: +e.tm || 0, p: okPoster(e.p) ? e.p : '', u: from || '', at: Date.now()}) : null);
   }
@@ -177,6 +182,74 @@ function fxFriendsTab(CS) {
       return r.ok;
     });
   }
+  // ---- watching together: everyone's watchlist and diary, from their profiles (yours from this device) ----
+  const fkeys = f => { const out = [norm(bare(f.t)) + '|' + (+f.y || 0)]; if (+f.tm > 0) out.unshift('tm' + (+f.tm)); return out; };
+  async function personData(u) {
+    if (u === me) {
+      const o = JSON.parse(fxShare(window.D, Object.assign({}, S(), {'cfg:pubdiary': null}), k => (typeof Posters !== 'undefined' ? Posters.src(k) : '')));
+      o.wl = wlList(); return o;
+    }
+    if (tgData[u] && Date.now() - tgData[u].at < 5 * 60e3) return tgData[u].d;
+    const r = await fetch('/api/u/' + u, {credentials: 'same-origin', cache: 'no-store'});
+    if (!r.ok) return null;
+    const j = await r.json(); tgData[u] = {at: Date.now(), d: j.data || {}}; return tgData[u].d;
+  }
+  async function findTonight() {
+    tg.state = 'busy'; if (redraw) redraw();
+    const who = [me].concat([...tg.sel]), names = {}; (people || []).forEach(p => { names[p.username] = p.name || '@' + p.username; }); names[me] = T.tYou;
+    const all = await Promise.all(who.map(u => personData(u).catch(() => null)));
+    const seenBy = new Map(), cand = new Map();
+    const mark = (f, u) => fkeys(f).forEach(k => { if (!seenBy.has(k)) seenBy.set(k, new Set()); seenBy.get(k).add(u); });
+    all.forEach((d, i) => { if (d) ((d.diary || []).concat(d.seen || [])).forEach(f => { if (f && typeof f.t === 'string') mark(f, who[i]); }); });
+    const seenByAny = (f, except) => fkeys(f).some(k => [...(seenBy.get(k) || [])].some(u => u !== except));
+    const slot = f => { const k = fkeys(f)[0]; if (!cand.has(k)) cand.set(k, {t: bare(f.t), y: +f.y || 0, tm: +f.tm || 0, p: okPoster(f.p) ? f.p : '', m: +f.m || 0, d: f.d || '', wl: new Set(), loved: []}); const c = cand.get(k); if (!c.p && okPoster(f.p)) c.p = f.p; if (!c.m && f.m) c.m = +f.m; if (!c.d && f.d) c.d = f.d; if (!c.tm && +f.tm > 0) c.tm = +f.tm; return c; };
+    all.forEach((d, i) => {
+      if (!d) return;
+      (Array.isArray(d.wl) ? d.wl : []).forEach(f => { if (f && typeof f.t === 'string' && !seenByAny(f)) slot(f).wl.add(who[i]); });
+      ((d.diary || []).concat(d.seen || [])).forEach(f => { if (f && +f.r >= 8 && !seenByAny(f, who[i])) { const c = slot(f); if (!c.loved.some(x => x[0] === who[i])) c.loved.push([who[i], +f.r]); } });
+    });
+    // titles that are the same film under a TMDB id and a bare title: keep the richer one
+    const list = [...cand.values()].filter(c => c.wl.size || c.loved.length);
+    list.forEach(c => { c.score = c.wl.size * 3 + (c.wl.size === who.length && who.length > 1 ? 4 : 0) + c.loved.reduce((a, [, r]) => a + (r - 6), 0) + Math.random() * 1.5; });
+    list.sort((a, b) => b.score - a.score);
+    tg.names = names; tg.who = who; tg.all = list; tg.i = 0; tg.state = 'done';
+    if (redraw) redraw();
+  }
+  const tgList = () => (tg.all || []).filter(c => tg.len !== 'short' || !c.m || c.m < 120);
+  function why(c) {
+    const n = u => tg.names[u] || '@' + u, out = [];
+    if (c.wl.size && c.wl.size === tg.who.length && tg.who.length > 1) out.push(T.why.all);
+    else if (c.wl.size) out.push(T.why.wl([...c.wl].map(n).join(', ')));
+    c.loved.slice(0, 2).forEach(([u, r]) => out.push(T.why.loved(n(u), stars(r))));
+    return out;
+  }
+  function tonightHtml() {
+    const follows = (people || []).filter(p => p.following);
+    let h = `<section class="fx-card fx-tgcard"><h2 class="fx-tgh">${T.tH}</h2><p class="fx-muted">${T.tP}</p>`;
+    if (!follows.length) return h + `<p class="fx-muted">${T.tNoFriends} <button type="button" class="fx-link" data-seg="p">${T.findPeople}</button></p></section>`;
+    h += `<div class="fx-field"><span>${T.tWho}</span><div class="fx-tgwho"><span class="fx-tgc on" aria-disabled="true">${T.tYou}</span>${follows.map(p => `<button type="button" class="fx-tgc${tg.sel.has(p.username) ? ' on' : ''}" data-tgp="${p.username}" aria-pressed="${tg.sel.has(p.username)}">${esc(p.name || '@' + p.username)}</button>`).join('')}</div></div>`;
+    h += `<div class="fx-field"><span>${T.tLen}</span><div class="fx-years fx-seg">${[['any', T.tAny], ['short', T.tShort]].map(([v, l]) => `<button type="button" data-tglen="${v}" aria-pressed="${tg.len === v}">${l}</button>`).join('')}</div></div>`;
+    h += `<div class="fx-row"><button type="button" class="fx-btn primary" data-tggo${tg.sel.size ? '' : ' disabled'}>${T.tGo}</button></div></section>`;
+    if (tg.state === 'busy') return h + `<p class="fx-note busy">${T.tBusy}</p>`;
+    if (tg.state !== 'done') return h;
+    const list = tgList();
+    if (!list.length) return h + `<section class="fx-card"><p class="fx-muted">${T.tNone}</p></section>`;
+    const c = list[tg.i % list.length], rest = list.filter(x => x !== c).slice(0, 5);
+    const wl = wlHas(c) || c.loved.some(x => x[0] === me);  // nothing to add for a film you've seen
+    h += `<section class="fx-card fx-tgpick"><div class="fx-tgbig">${c.p ? `<img alt="" src="${c.p}">` : `<span class="fx-pt" dir="ltr">${esc(c.t)}</span>`}</div>
+      <div class="fx-tgb"><div class="fx-at"><bdi>${esc(c.t)}</bdi> <span class="fx-y">${c.y || ''}</span></div>${c.d || c.m ? `<div class="fx-muted">${esc(c.d.split(',')[0] || '')}${c.d && c.m ? ' · ' : ''}${c.m ? Math.floor(c.m / 60) + 'h ' + (c.m % 60) + 'm' : ''}</div>` : ''}
+      <ul class="fx-why">${why(c).map(w => `<li>${esc(w)}</li>`).join('')}</ul>
+      <div class="fx-row"><button type="button" class="fx-btn primary" data-tgnext>${T.tAgain}</button>${wl ? '' : `<button type="button" class="fx-btn" data-tgwl>${T.tWant}</button>`}${logger && !c.loved.some(x => x[0] === me) ? `<button type="button" class="fx-btn" data-tglog>${T.logIt}</button>` : ''}</div></div></section>`;
+    if (rest.length) h += `<section class="fx-card"><h2>${T.tAlso}</h2><ul class="fx-wll">${rest.map(x => `<li>${posterBox(x, '#')}<div class="fx-ab"><span class="fx-at"><bdi>${esc(x.t)}</bdi> <span class="fx-y">${x.y || ''}</span></span><span class="fx-muted fx-small">${esc(why(x)[0] || '')}</span></div><span></span></li>`).join('')}</ul></section>`;
+    return h;
+  }
+  // a pick without a poster (a Letterboxd watchlist film, say): look it up once
+  const posterTried = new Set();
+  function fillPoster(c) {
+    if (!c || c.p || posterTried.has(c.t + c.y) || typeof Posters === 'undefined' || !Posters.match) return;
+    posterTried.add(c.t + c.y);
+    Posters.match(c.t, c.y).then(m => { if (m && m.p) { c.p = 'https://image.tmdb.org/t/p/w342' + m.p; if (m.id && !c.tm) c.tm = m.id; if (redraw) redraw(); } }).catch(() => {});
+  }
   const entry = (owner, eid) => feedRows().find(x => x.u === owner && x.id === eid);
   const filmOf = (owner, eid) => {
     const e = entry(owner, eid); if (e) return bare(e.t) + (e.y ? ' (' + e.y + ')' : '');
@@ -190,7 +263,7 @@ function fxFriendsTab(CS) {
       if (!feed && !err) load();
       const n = inbox ? unread() : 0;
       let h = `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${T.h}</h1></div></header>
-        <div class="fx-years fx-seg fx-aseg" role="tablist">${[['f', T.segF], ['n', T.segN], ['p', T.segP]].map(([v, l]) => `<button type="button" role="tab" data-seg="${v}" aria-pressed="${seg === v}">${l}${v === 'n' && n ? ` <b class="fx-ncount">${n}</b>` : ''}</button>`).join('')}</div>`;
+        <div class="fx-years fx-seg fx-aseg" role="tablist">${[['f', T.segF], ['n', T.segN], ['t', T.segT], ['p', T.segP]].map(([v, l]) => `<button type="button" role="tab" data-seg="${v}" aria-pressed="${seg === v}">${l}${v === 'n' && n ? ` <b class="fx-ncount">${n}</b>` : ''}</button>`).join('')}</div>`;
       if (err) return h + `<p class="fx-note bad">${T.fail} <button type="button" class="fx-link" data-fr-retry>${T.retry}</button></p>`;
       if (!feed) return h + `<p class="fx-note busy">${T.loading}</p>`;
       const ix = index(allRe());
@@ -201,11 +274,18 @@ function fxFriendsTab(CS) {
         return h + `<section class="fx-card">${notesHtml(ix)}</section>`;
       }
       if (seg === 'p') return h + `<section class="fx-card">${peopleHtml()}</section>`;
+      if (seg === 't') return h + tonightHtml();
       return h + `<section class="fx-card">${feedHtml(ix)}</section><section class="fx-card">${wlHtml()}</section>`;
     },
     left() { seenBefore = null; },
     click(b, render) {
       redraw = render;
+      if (b.dataset.tgp) { const u = b.dataset.tgp; if (tg.sel.has(u)) tg.sel.delete(u); else if (tg.sel.size < 5) tg.sel.add(u); tg.state = 'pick'; render(); return true; }
+      if (b.dataset.tglen) { tg.len = b.dataset.tglen === 'short' ? 'short' : 'any'; tg.i = 0; render(); return true; }
+      if (b.hasAttribute('data-tggo')) { findTonight().then(() => fillPoster(tgList()[0])); return true; }
+      if (b.hasAttribute('data-tgnext')) { tg.i++; render(); const l = tgList(); fillPoster(l[tg.i % Math.max(1, l.length)]); return true; }
+      if (b.hasAttribute('data-tgwl')) { const l = tgList(), c = l[tg.i % l.length]; if (c) { wlSet(c, true, ''); render(); } return true; }
+      if (b.hasAttribute('data-tglog')) { const l = tgList(), c = l[tg.i % l.length]; if (c && logger) logger(c.t, c.y, {tm: c.tm || 0, t: c.t, y: c.y || 0, p: String(c.p || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '')}); return true; }
       if (b.dataset.seg) { if (seg === 'n' && b.dataset.seg !== 'n') seenBefore = null; seg = b.dataset.seg; render(); window.scrollTo(0, 0); return true; }
       if (b.hasAttribute('data-fr-retry')) { err = false; feed = null; render(); return true; }
       if (b.hasAttribute('data-fr-more')) { shown += 30; render(); return true; }
