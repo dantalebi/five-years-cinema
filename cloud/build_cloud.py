@@ -19,7 +19,7 @@ shutil.copy(TPL + 'sample-plan.json', OUT + 'sample-plan.json')
 shutil.copy('/home/claude/web5/og/og_tpl.jpg', OUT + 'film-diary.jpg')
 
 open(OUT + 'config.js', 'w').write('''// The site's name, and the language a first-time visitor sees (each person picks their own afterwards).
-const FY_CONFIG = {siteName: 'Film Diary', siteNameFa: 'دفتر فیلم', lang: 'fa'};
+const FY_CONFIG = {siteName: 'Film Diary', siteNameFa: 'دفتر فیلم', lang: 'en'};
 ''')
 
 DESC = 'One week of films at a time, a diary of everything you watch, and your friends’.'

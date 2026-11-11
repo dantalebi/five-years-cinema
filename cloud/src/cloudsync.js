@@ -141,6 +141,7 @@ const CloudSync = (() => {
     run, syncNow: run, onStatus: f => subs.push(f), touch, setPayload: f => { payloadFn = f; },
     loadPlan, cachedPlan, savePlan, shareOn, shareOff, shareUrl, previewUrl: u => shareUrl(u),
     follow: (username, on) => api('POST', '/follow', {username, on}), feed: () => api('GET', '/feed'), people: () => api('GET', '/people'), meta: u => api('GET', '/u/' + u + '/meta'),
+    react: o => api('POST', '/react', o), inbox: () => api('GET', '/inbox'),
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

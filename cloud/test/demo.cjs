@@ -20,7 +20,6 @@ async function person(b, name, fn) {
   return {c, p};
 }
 async function signup(p, u, n, lang) {
-  if ((await p.getAttribute('html', 'lang')) !== lang) { await p.click('[data-alang]'); await p.waitForSelector('[data-amode="up"]'); }
   await p.click('[data-amode="up"]');
   await p.fill('input[name=u]', u); await p.fill('input[name=n]', n); await p.fill('input[name=p]', 'demo pass ' + u);
   await p.click('form[data-auth] button[type=submit]');

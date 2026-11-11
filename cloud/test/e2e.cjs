@@ -32,7 +32,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   // Danial signs up and moves his old diary in
   const a = await dev('A');
   await a.goto(B + '/'); await a.waitForSelector('form[data-auth]');
-  ok((await a.getAttribute('html', 'dir')) === 'rtl', 'first visit in Persian');
+  ok((await a.getAttribute('html', 'dir')) === 'ltr' && !(await a.$('[data-alang]')), 'English only, no language switch');
   await a.click('[data-amode="up"]');
   await a.fill('input[name=u]', 'Danial'); await a.fill('input[name=n]', 'Danial Talebi'); await a.fill('input[name=p]', 'correct horse 1');
   await a.click('form[data-auth] button[type=submit]');
@@ -66,12 +66,11 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await x.goto(B + '/'); await x.waitForSelector('form[data-auth]');
   await x.fill('input[name=u]', 'danial'); await x.fill('input[name=p]', 'wrong pass');
   await x.click('form[data-auth] button[type=submit]'); await x.waitForSelector('.fx-note.bad', {timeout: 15000});
-  ok(/درست نیست/.test(await text(x, '.fx-note.bad')), 'wrong password says so', await text(x, '.fx-note.bad'));
+  ok(/Wrong username or password/.test(await text(x, '.fx-note.bad')), 'wrong password says so', await text(x, '.fx-note.bad'));
 
   // Sara: English, sample plan, a couple of films Danial has too
   const s = await dev('S');
   await s.goto(B + '/'); await s.waitForSelector('form[data-auth]');
-  await s.click('[data-alang]'); await s.waitForSelector('[data-amode="up"]');
   await s.click('[data-amode="up"]');
   await s.fill('input[name=u]', 'sara_k'); await s.fill('input[name=n]', 'Sara'); await s.fill('input[name=p]', 'another pass 2');
   await s.screenshot({path: path.join(OUT, 'cl-auth.png'), fullPage: true});
@@ -80,13 +79,14 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await s.click('[data-ostart="sample"]'); await s.waitForSelector('.fx-tabbar', {timeout: 15000});
   await s.evaluate(([k0]) => { Store.set(k0, '2026-11-04'); Store.set('r:' + k0, 8); Store.set('log:s1', 't:Heat (1995)'); Store.set('v:log:s1', '2026-11-05'); Store.set('r:log:s1', 10); Store.set('md:log:s1', JSON.stringify({tm: 949, t: 'Heat', y: 1995})); Store.set('log:s2', 't:Fargo (1996)'); Store.set('v:log:s2', '2026-11-06'); Store.set('r:log:s2', 4); }, [k0]);
   await s.waitForTimeout(2500); await s.evaluate(() => CloudSync.run()); await s.waitForTimeout(800);
-  // Friends tab: find Danial, follow, see his latest
-  await s.click('[data-nav="friends"]'); await s.waitForSelector('.fx-people li', {timeout: 10000});
+  // Activity → People: find Danial, follow, then see his latest under Friends
+  await s.click('[data-nav="friends"]'); await s.click('[data-seg="p"]'); await s.waitForSelector('.fx-people li', {timeout: 10000});
   ok((await text(s, '.fx-people')).includes('@danial'), 'Danial in People', await text(s, '.fx-people'));
   await s.fill('[data-fr-q]', 'zzz'); ok(await s.$$eval('.fx-people li', l => l.length) === 0, 'search filters'); await s.fill('[data-fr-q]', 'dan');
   await s.click('[data-fr-follow="danial"]'); await s.waitForTimeout(800);
   ok(await s.$eval('[data-fr-follow="danial"]', e => e.getAttribute('aria-pressed')) === 'true', 'now following');
-  ok(await s.$$eval('.fx-feed li', l => l.length) >= 3, 'his latest logs in the feed', await s.$$eval('.fx-feed li', l => l.map(e => e.innerText.replace(/\s+/g, ' ')).slice(0, 3)));
+  await s.click('[data-seg="f"]'); await s.waitForSelector('.fx-actv', {timeout: 10000});
+  ok(await s.$$eval('.fx-actv', l => l.length) >= 3, 'his latest logs in the feed', await s.$$eval('.fx-actv', l => l.map(e => e.innerText.replace(/\s+/g, ' ')).slice(0, 3)));
   await s.screenshot({path: path.join(OUT, 'cl-friends.png'), fullPage: true});
   // his profile page, as Sara: follow state, and the taste match against her own diary
   await s.goto(B + '/u/danial'); await s.waitForSelector('.fx-pmeta', {timeout: 10000});

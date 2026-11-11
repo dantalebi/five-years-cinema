@@ -408,7 +408,7 @@ function mountFocus(root, D, S, opts) {
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '', bdPick = null;
-  let shown = null, pickK = null, altOpen = {}, view = 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '';
+  let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
   const posterOn = () => !!(P && P.on());
@@ -558,8 +558,8 @@ function mountFocus(root, D, S, opts) {
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
-    const extra = (opts.tabs || []).map(x => b(x.id, esc(x.label[L()] || x.label.en))).join('');
-    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+    const extra = (opts.tabs || []).map(x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '')).join('');
+    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function syncDot() {
     const st = ST.status();
@@ -764,7 +764,8 @@ function mountFocus(root, D, S, opts) {
         ${opts.letterboxd.friends ? `<label class="fx-field"><span>${t.lbfL}</span><input type="text" data-cfg="cfg:lbf" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="username, another_one" value="${esc(seen()['cfg:lbf'] || '')}"></label><p class="fx-muted fx-small">${t.lbfP}</p>` : ''}
         <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p></section>`;
     }
-    h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p>${lang === 'fa' && typeof FX_JF !== 'undefined' && FX_JF ? `<div class="fx-field"><span>تقویم</span><div class="fx-row"><button type="button" class="fx-btn${seen()['cfg:cal'] !== 'g' ? ' primary' : ''}" data-cal="j">شمسی</button><button type="button" class="fx-btn${seen()['cfg:cal'] === 'g' ? ' primary' : ''}" data-cal="g">میلادی</button></div></div>` : ''}</section>`;
+    if (!opts.noLang) h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p>${lang === 'fa' && typeof FX_JF !== 'undefined' && FX_JF ? `<div class="fx-field"><span>تقویم</span><div class="fx-row"><button type="button" class="fx-btn${seen()['cfg:cal'] !== 'g' ? ' primary' : ''}" data-cal="j">شمسی</button><button type="button" class="fx-btn${seen()['cfg:cal'] === 'g' ? ' primary' : ''}" data-cal="g">میلادی</button></div></div>` : ''}</section>`;
+    if (opts.settingsExtra) h += opts.settingsExtra(lang);
     if (ST.kind === 'cloud') {
       h += `<section class="fx-card"><h2>${t.acctH}</h2><p>${esc(t.acctOn(st.login))} ${st.state === 'err' ? `<span class="fx-bad">${esc(st.msg || '')}</span>` : st.state === 'busy' ? t.syncBusy : st.at ? esc(t.syncAt(ago(st.at))) : ''}</p>
         <div class="fx-row"><button type="button" class="fx-btn" data-sync-now>${t.syncNow}</button><button type="button" class="fx-btn" data-dl-data>${t.dlData}</button><button type="button" class="fx-link" data-disconnect>${t.signOut}</button></div>${msg('gh')}
@@ -1193,7 +1194,7 @@ function mountFocus(root, D, S, opts) {
       if (!note.planReset) { note.planReset = 1; render(); setTimeout(() => { if (note.planReset) { delete note.planReset; render(); } }, 4000); return; }
       delete note.planReset; if (opts.plan) opts.plan.reset(); return;
     }
-    if (t.dataset.nav) { view = t.dataset.nav; note = {}; picker = null; listNote = null; listRm = ''; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
+    if (t.dataset.nav) { const was = (opts.tabs || []).find(x => x.id === view); if (was && was.left && t.dataset.nav !== view) was.left(); view = t.dataset.nav; note = {}; picker = null; listNote = null; listRm = ''; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
     const xt = (opts.tabs || []).find(x => x.id === view);
     if (xt && xt.click && xt.click(t, render)) return;
     if (t.hasAttribute('data-fav')) { picker = {q: '', focus: true, fav: +t.dataset.fav}; render(); const q = root.querySelector('.fx-pick-q'); if (q) q.scrollIntoView({block: 'center'}); return; }
@@ -1281,6 +1282,8 @@ function mountFocus(root, D, S, opts) {
   root.addEventListener('submit', async e => {
     const f = e.target.closest('form'); if (!f) return;
     e.preventDefault();
+    const xs = (opts.tabs || []).find(x => x.id === view);
+    if (xs && xs.submit && await xs.submit(f, render)) return;
     const inp = f.querySelector('input'), v = inp.value.trim(), t = T(); if (!v) return;
     if (f.dataset.alt) { const k = f.dataset.alt; delete altOpen[k]; render(); openSheet({info: {t: v}, create: date => { S.set(k, v); S.set('v:' + k, date); S.set('sk:' + k, null); return k; }}); return; }
     // the multi-user site's account: password change, deleting the account (asks twice)

@@ -8,8 +8,7 @@
   const S = {all: () => Store.data, set: (k, v) => Store.set(k, v)};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const fresh = () => { if (PF) { PF.stop(); PF = null; } FX = null; const r = root.cloneNode(false); root.replaceWith(r); root = r; };
-  const prefLang = () => { try { const v = localStorage.getItem('fd-lang'); if (v) return v; } catch (e) {} return /^fa\b/i.test(navigator.language || '') || C.lang === 'fa' ? 'fa' : 'en'; };
-  const lang = () => Store.data['cfg:lang'] || prefLang();
+  const lang = () => 'en';  // the site is in English (the app's Persian strings stay, unused)
   const num = n => lang() === 'fa' ? Number(n).toLocaleString('fa-IR') : Number(n).toLocaleString('en-US');
   const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -58,7 +57,7 @@
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.site)}</div><button type="button" class="fx-link" data-alang>${t.langL}</button></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
+    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
       <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>
@@ -72,7 +71,6 @@
       </form>`, 'fx-auth');
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.hasAttribute('data-alang')) { const n = lang() === 'fa' ? 'en' : 'fa'; try { localStorage.setItem('fd-lang', n); } catch (er) {} authScreen(); }
       if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authScreen(); }
     });
     root.querySelector('form[data-auth]').addEventListener('submit', async e => {
@@ -224,16 +222,28 @@
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
   async function start() {
     fresh();
+    if (Store.data['cfg:lang'] && Store.data['cfg:lang'] !== 'en') Store.set('cfg:lang', 'en');
     kind = Store.data['cfg:plan'];
     let D;
     try { D = await planData(); } catch (e) { kind = ''; Store.set('cfg:plan', null); onboard(); return; }
     window.D = D;
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
-    FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'}, tabs: FR ? [FR] : []});
+    // the site opens on Friends (unless you chose This week), and Friends comes first in the bar
+    FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
+      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
     if (FR) FR.attach(() => FX && FX.render());
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
+    root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
+    root.addEventListener('click', e => {
+      const b = e.target.closest('[data-home]'); if (!b) return;
+      Store.set('cfg:home', b.dataset.home === 'week' ? 'week' : null); if (FX) FX.render();
+    });
     CloudSync.setPayload(() => fxShare(FX.plan(), Store.data, k => Posters.src(k)));
     enrichSoon(); setTimeout(lbPull, 2500);
+  }
+  function homeChoice(L) {
+    const week = Store.data['cfg:home'] === 'week';
+    return `<section class="fx-card"><h2>Start on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This week</button></div></section>`;
   }
   function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
   let rt = null;
@@ -253,7 +263,7 @@
   function onboard(note, cls) {
     fresh();
     const t = T(), pw = FXL.perWeek(Store.data), me = CloudSync.me();
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div><button type="button" class="fx-link" data-olang>${t.langL}</button></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
+    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
       <section class="fx-card fx-opt"><h2>${t.h4}</h2><p>${t.p4}</p><div class="fx-row"><label class="fx-btn primary fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></section>
       <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-ostart="list">${t.b1}</button></div></section>
       <section class="fx-card fx-opt"><h2>${t.h2}</h2><p>${t.p2}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b2}<input type="file" accept=".csv,text/csv" data-oimport multiple></label></div><p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p></section>
@@ -263,7 +273,6 @@
       <div class="fx-row"><button type="button" class="fx-link" data-osignout>${t.signOut}</button></div>`);
     root.addEventListener('click', async e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.hasAttribute('data-olang')) { Store.set('cfg:lang', lang() === 'fa' ? 'en' : 'fa'); onboard(); return; }
       if (b.hasAttribute('data-osignout')) { await CloudSync.disconnect(); return; }
       if (b.dataset.opw) { S.set('cfg:perweek', Math.max(1, Math.min(14, FXL.perWeek(Store.data) + +b.dataset.opw))); onboard(); return; }
       if (b.dataset.ostart) choose(b.dataset.ostart);
@@ -326,8 +335,7 @@
     PF = fxProfile(root, name, eid, {
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine,
       // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
-      lang: () => (me ? Store.data['cfg:lang'] : null) || (() => { try { return localStorage.getItem('fd-lang'); } catch (e) { return null; } })(),
-      cal: () => (me ? Store.data['cfg:cal'] : null),
+      lang: () => 'en',
       headerExtra: metaHtml,
       onButton: (b, render) => {
         if (!b.hasAttribute('data-pfollow') || !meta) return false;

@@ -18,6 +18,12 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS follows (a INTEGER NOT NULL, b INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (a, b))`,
   `CREATE INDEX IF NOT EXISTS follows_b ON follows(b)`,
   `CREATE TABLE IF NOT EXISTS hits (key TEXT PRIMARY KEY, n INTEGER NOT NULL, since INTEGER NOT NULL)`,
+  // reactions to a diary entry (owner's entry eid): h heart, s seen it too, w want to watch, c a comment (text)
+  // ft: the film's title as the reactor saw it, so notifications can name it
+  `CREATE TABLE IF NOT EXISTS reacts (id INTEGER PRIMARY KEY, owner INTEGER NOT NULL, eid TEXT NOT NULL, uid INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', ft TEXT NOT NULL DEFAULT '', at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS reacts_owner ON reacts(owner, at)`,
+  `CREATE INDEX IF NOT EXISTS reacts_uid ON reacts(uid)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS reacts_one ON reacts(owner, eid, uid, kind) WHERE kind != 'c'`,
 ];
 let ready = null;
 const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).catch(e => { ready = null; throw e; }));
@@ -136,7 +142,8 @@ on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
   await env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
-    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM users WHERE id = ?'].map(s => env.DB.prepare(s).bind(u.id)));
+    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?',
+    'DELETE FROM users WHERE id = ?'].map(s => env.DB.prepare(s).bind(u.id)));
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
 
@@ -182,7 +189,11 @@ on('PUT', '/api/profile', async (req, env, u) => {
   const b = await body(req, 1.9e6), p = b.payload;
   if (!p || typeof p !== 'object' || !Array.isArray(p.diary)) return fail('bad profile', 400);
   const keep = ['id', 't', 'y', 'p', 'r', 'h', 'rw', 'w', 'd', 'tm', 'sp'];
-  const recent = p.diary.slice(0, 30).map(e => { const o = {}; keep.forEach(k => { if (e && e[k] !== undefined && e[k] !== '') o[k] = e[k]; }); if (e && e.rv) o.rv = 1; return o; });
+  const recent = p.diary.slice(0, 30).map(e => {
+    const o = {}; keep.forEach(k => { if (e && e[k] !== undefined && e[k] !== '') o[k] = e[k]; });
+    if (e && e.rv) { o.rv = 1; if (!e.sp && typeof e.rv === 'string') o.rx = e.rv.slice(0, 280); }  // the start of the review, for the feed
+    return o;
+  });
   const name = String(p.name || '').trim().slice(0, 60), now = Date.now(), pub = b.public === false ? 0 : 1;
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
@@ -223,11 +234,65 @@ on('GET', '/api/people', async (req, env, u) => {
       FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ? ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id).all()).results || [];
   return json({people: rows.map(r => ({username: r.username, name: r.name, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
 }, {auth: true});
-// the latest entries of everyone you follow, assembled without unpacking anyone's whole profile
+// the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
+// with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]
+const REACT_DAYS = 180;
+const reactRows = rows => rows.map(r => [r.id, r.ou, r.eid, r.kind, r.text, r.at, r.xu, r.xn || '', r.ft || '']);
 on('GET', '/api/feed', async (req, env, u) => {
-  const rows = (await env.DB.prepare(`SELECT x.username, x.name, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
-      WHERE f.a = ? AND p.public = 1 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all()).results || [];
-  return raw('{"feed":[' + rows.map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
+  const [rows, re] = await Promise.all([
+    env.DB.prepare(`SELECT x.username, x.name, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
+      WHERE f.a = ? AND p.public = 1 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
+    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
+      JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
+      WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY).all(),
+  ]);
+  return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
+}, {auth: true});
+// your notifications: reactions to your own entries, new followers, and replies after your comments on others' entries
+on('GET', '/api/inbox', async (req, env, u) => {
+  const cut = Date.now() - REACT_DAYS * DAY;
+  const [re, fol, thr] = await Promise.all([
+    env.DB.prepare(`SELECT r.id, ? AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r JOIN users x ON x.id = r.uid
+      WHERE r.owner = ? AND r.at > ? ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut).all(),
+    env.DB.prepare(`SELECT x.username, x.name, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS back FROM follows f JOIN users x ON x.id = f.a
+      WHERE f.b = ? AND f.at > ? ORDER BY f.at DESC LIMIT 100`).bind(u.id, u.id, cut).all(),
+    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
+      JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
+      WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ?
+        AND EXISTS (SELECT 1 FROM reacts m WHERE m.owner = r.owner AND m.eid = r.eid AND m.uid = ? AND m.kind = 'c' AND m.at < r.at)
+      ORDER BY r.at DESC LIMIT 200`).bind(u.id, u.id, cut, u.id).all(),
+  ]);
+  return json({re: reactRows(re.results || []), thr: reactRows(thr.results || []), fol: (fol.results || []).map(f => [f.username, f.name || '', f.at, !!f.back])});
+}, {auth: true});
+// react to an entry, or take it back; comments can be deleted by whoever wrote them and by the entry's owner
+const EID = /^[a-z0-9-]{1,120}$/i;
+on('POST', '/api/react', async (req, env, u) => {
+  const b = await body(req, 4000);
+  if (b.del !== undefined) {
+    const r = await env.DB.prepare('SELECT uid, owner FROM reacts WHERE id = ?').bind(+b.del || 0).first();
+    if (!r || (r.uid !== u.id && r.owner !== u.id)) return fail('none', 404);
+    await env.DB.prepare('DELETE FROM reacts WHERE id = ?').bind(+b.del).run();
+    return json({ok: true});
+  }
+  const owner = String(b.owner || '').toLowerCase(), eid = String(b.eid || ''), kind = String(b.kind || '');
+  const ft = String(b.ft || '').replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 200);
+  if (!USERNAME.test(owner) || !EID.test(eid) || !/^[hswc]$/.test(kind)) return fail('bad', 400);
+  const o = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(owner).first();
+  if (!o) return fail('none', 404);
+  if (kind === 'c') {
+    const text = String(b.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 500);
+    if (!text) return fail('empty', 400);
+    if (await limited(env.DB, 'c:' + u.id, 60, 36e5)) return fail('slow', 429);
+    const r = await env.DB.prepare('INSERT INTO reacts (owner, eid, uid, kind, text, ft, at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, at').bind(o.id, eid, u.id, 'c', text, ft, Date.now()).first();
+    return json({id: r.id, at: r.at});
+  }
+  if (o.id === u.id) return fail('self', 400);
+  if (b.on === false) await env.DB.prepare('DELETE FROM reacts WHERE owner = ? AND eid = ? AND uid = ? AND kind = ?').bind(o.id, eid, u.id, kind).run();
+  else {
+    if (await limited(env.DB, 'r:' + u.id, 600, 36e5)) return fail('slow', 429);
+    await env.DB.prepare('INSERT OR IGNORE INTO reacts (owner, eid, uid, kind, text, ft, at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(o.id, eid, u.id, kind, '', ft, Date.now()).run();
+  }
+  return json({ok: true});
 }, {auth: true});
 
 // Letterboxd RSS for any username (the taste match and each member's own new logs), kept for half an hour

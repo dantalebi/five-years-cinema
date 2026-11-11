@@ -611,3 +611,89 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 /* Solar Hijri calendar: Persian month names, joined letters, no caps spacing */
 .fx-cal[dir="rtl"] .fx-calm > span{font-family:"Vazirmatn", Tahoma, sans-serif; letter-spacing:0; text-transform:none; font-size:11px}
 .fx-callegend[dir="rtl"] span{font-family:"Vazirmatn", Tahoma, sans-serif; letter-spacing:0}
+
+/* ---- Friends: activity with reactions (multi-user site) ---- */
+.fx-tabbar button .fx-ndot{position:absolute; top:11px; inset-inline-end:calc(50% - 30px); width:7px; height:7px; border-radius:50%; background:var(--heart)}
+.fx-afeed{list-style:none; margin:0; padding:0; display:grid}
+.fx-actv{display:grid; grid-template-columns:78px minmax(0,1fr); gap:14px; padding:16px 0; border-bottom:1px solid var(--line)}
+.fx-actv:first-child{padding-top:4px}
+.fx-actv:last-child{border-bottom:0}
+.fx-apos{position:relative; display:block; width:78px; aspect-ratio:2/3; border-radius:5px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px rgba(127,127,127,.18); text-decoration:none; align-self:start}
+.fx-apos img{position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:cover; display:block}
+.fx-apos.none{background:repeating-linear-gradient(135deg, var(--sunk) 0 6px, transparent 6px 12px)}
+.fx-ab{display:grid; grid-template-columns:minmax(0,1fr); gap:4px; min-width:0; align-content:start}
+.fx-aw{font-size:12.5px; color:var(--muted)}
+.fx-aw a{color:var(--ink); text-decoration:none}
+.fx-aw b{font-weight:600}
+.fx-at, .fx-card a.fx-at{font-family:var(--serif); font-size:21px; line-height:1.15; color:var(--ink); text-decoration:none; direction:ltr; text-align:start; overflow-wrap:anywhere}
+.fx[dir="rtl"] .fx-at{text-align:right}
+.fx-at .fx-y{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.fx-ab .fx-fm{display:flex; gap:8px; align-items:center; flex-wrap:wrap; min-height:18px}
+.fx-mine{font-size:12px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 8px}
+.fx-mine span{color:var(--star); letter-spacing:1px}
+.fx-arx{margin:2px 0 0; font-size:14px; line-height:1.55; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden}
+.fx-rx{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.fx-rxb{font:inherit; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:4px 10px 4px 9px; line-height:1.2}
+.fx-rxb:hover{color:var(--ink); border-color:var(--muted)}
+.fx-rxb b{font-weight:600; color:var(--ink)}
+.fx-rxb i, .fx-rwho i{display:inline-block; width:13px; height:13px; background:currentColor; -webkit-mask:var(--rv-mask) center/contain no-repeat; mask:var(--rv-mask) center/contain no-repeat}
+.rx-h i{-webkit-mask-image:var(--heart-mask); mask-image:var(--heart-mask)}
+.rx-s i{-webkit-mask-image:var(--eye-mask); mask-image:var(--eye-mask)}
+.rx-w i{-webkit-mask-image:var(--mark-mask); mask-image:var(--mark-mask)}
+.rx-c i{-webkit-mask-image:var(--bubble-mask); mask-image:var(--bubble-mask)}
+.fx-rxb[aria-pressed="true"]{color:var(--ink); border-color:transparent; background:var(--sunk)}
+.fx-rxb.rx-h[aria-pressed="true"] i, .fx-rwho .rx-h i{background:var(--heart)}
+.fx-rxb.rx-s[aria-pressed="true"] i, .fx-rwho .rx-s i{background:var(--star)}
+.fx-rxb.rx-w[aria-pressed="true"] i, .fx-rwho .rx-w i{background:var(--accent, var(--star))}
+.fx-rxb[disabled]{opacity:.6; cursor:default}
+.fx{--eye-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.8 12S5.6 5 12 5s10.2 7 10.2 7-3.8 7-10.2 7S1.8 12 1.8 12z'/%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3C/svg%3E");
+  --mark-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linejoin='round'%3E%3Cpath d='M6 3.5h12v17l-6-4.2-6 4.2z'/%3E%3C/svg%3E");
+  --bubble-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linejoin='round'%3E%3Cpath d='M4 5h16v11H9l-5 4z'/%3E%3C/svg%3E")}
+.fx-rwho{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--muted); margin-top:2px}
+.fx-rwho span{display:inline-flex; align-items:center; gap:5px}
+.fx-cm{list-style:none; margin:4px 0 0; padding:0; display:grid; gap:6px}
+.fx-cm li{font-size:14px; line-height:1.5; overflow-wrap:anywhere; background:var(--sunk); border-radius:10px; padding:7px 11px}
+.fx-cm a{color:var(--ink); text-decoration:none}
+.fx-cmt{font-size:11px; color:var(--faint); white-space:nowrap}
+.fx-cmdel{font-size:15px; padding:0 4px; line-height:1}
+.fx-cform{display:flex; gap:8px; margin-top:6px; min-width:0}
+.fx-cform input{flex:1; min-width:0; font:inherit; font-size:15px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink)}
+.fx-cform .fx-btn{padding:6px 14px; font-size:13px}
+.fx-inbox{list-style:none; margin:0; padding:0; display:grid}
+.fx-inbox > li{display:grid; gap:4px; padding:12px 0; border-bottom:1px solid var(--line)}
+.fx-inbox > li:first-child{padding-top:2px}
+.fx-inbox > li:last-child{border-bottom:0}
+.fx-inbox > li.fresh .fx-at::after{content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--heart); margin-inline-start:8px; vertical-align:middle}
+.fx-inbox .fx-at, .fx-card .fx-inbox a.fx-at{font-size:18px}
+.fx-wl > summary{font-weight:600}
+.fx-wll{list-style:none; margin:10px 0 0; padding:0; display:grid}
+.fx-wll li{display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line)}
+.fx-wll li:last-child{border-bottom:0}
+.fx-wll .fx-apos{width:42px; border-radius:3px}
+.fx-wll .fx-pt{font-size:7px}
+.fx-wll .fx-at{font-size:17px}
+@media (min-width:700px){ .fx-actv{grid-template-columns:92px minmax(0,1fr); gap:18px} .fx-apos{width:92px} }
+/* phones: the reaction buttons are icons (their names are in aria-label and in the line under them) */
+@media (max-width:520px){ .fx-actv{grid-template-columns:66px minmax(0,1fr); gap:12px} .fx-apos{width:66px} .fx-rxb > span{display:none} .fx-rxb{padding:5px 11px; gap:6px} .fx-rxb i{width:15px; height:15px} }
+/* ---- Activity: segments and notifications ---- */
+.fx-aseg{margin-top:-6px}
+.fx-ncount{display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--heart); color:#fff; font:600 11px/1 var(--sans); letter-spacing:0; vertical-align:1px}
+.fx-notes{list-style:none; margin:0; padding:0; display:grid}
+.fx-note-i{display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:10px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line)}
+.fx-note-i:first-child{padding-top:2px}
+.fx-note-i:last-child{border-bottom:0}
+.fx-note-i.fresh{background:linear-gradient(90deg, color-mix(in srgb, var(--heart) 9%, transparent), transparent 70%); margin:0 -10px; padding-left:10px; padding-right:10px; border-radius:8px}
+.fx-nico{width:18px; height:18px; margin-top:2px; background:var(--muted); -webkit-mask:var(--bubble-mask) center/contain no-repeat; mask:var(--bubble-mask) center/contain no-repeat}
+.fx-note-i.nh .fx-nico{background:var(--heart); -webkit-mask-image:var(--heart-mask); mask-image:var(--heart-mask)}
+.fx-note-i.ns .fx-nico{background:var(--star); -webkit-mask-image:var(--eye-mask); mask-image:var(--eye-mask)}
+.fx-note-i.nw .fx-nico{background:var(--accent, var(--star)); -webkit-mask-image:var(--mark-mask); mask-image:var(--mark-mask)}
+.fx-note-i.nf .fx-nico{background:var(--ink); -webkit-mask-image:var(--person-mask); mask-image:var(--person-mask)}
+.fx{--person-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c1-4.4 4.2-6.6 8-6.6s7 2.2 8 6.6'/%3E%3C/svg%3E")}
+.fx-nb{display:grid; gap:5px; min-width:0}
+.fx-nb > p{margin:0; font-size:14.5px; line-height:1.45; overflow-wrap:anywhere}
+.fx-nb a{color:var(--ink); text-decoration:none}
+.fx-card .fx-nb a.fx-nfilm{color:var(--ink); font-family:var(--serif); font-size:17px; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px}
+.fx-nq{margin:0; font-size:14px; line-height:1.5; color:var(--ink); border-inline-start:2px solid var(--line); padding-inline-start:10px; white-space:pre-wrap; overflow-wrap:anywhere}
+.fx-nb > .fx-link{justify-self:start; font-size:13px}
+.fx-nthread{margin-top:2px}
+.fx-note-i .fx-btn{padding:5px 12px; font-size:13px}
