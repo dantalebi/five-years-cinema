@@ -1,5 +1,5 @@
 // Games on the public profile, for whoever visits it:
-//  «این یا اون»       a bracket of the owner's favourite films: pick one of two until a champion is left
+//  «این یا اون»       a bracket of the owner's favorite films: pick one of two until a champion is left
 //  «امشب چی ببینم؟»   one film from those they rated 3.5★ and up, filtered by length, decade and genre
 //  «هم‌سلیقگی»        how close the visitor's Letterboxd ratings are to the owner's
 // It all runs in the visitor's browser. The only things fetched are the owner's friends' public Letterboxd logs,
@@ -8,26 +8,26 @@
 function fxPlay(ctx) {
   const TX = {
     en: {
-      intro: 'Three small games with this diary.',
-      duelT: 'This or that', duelP: n => 'Two of ' + n + '’s favourite films at a time: pick one, until your champion is left.',
-      nightT: 'What should I watch tonight?', nightP: (n, k) => 'One film from the ' + k + ' that ' + n + ' gave 3.5★ or more.',
-      matchT: 'How close is your taste?', matchP: n => 'Your Letterboxd ratings next to ' + n + '’s.', matchMine: n => 'Your diary next to ' + n + '’s.',
-      back: '← All games', size: n => n + ' films', start: 'Start', or: 'or', undo: '↶ Back one', again: 'Play again with', share: 'Share', copied: 'Copied',
-      rounds: {32: 'Round of 32', 16: 'Round of 16', 8: 'Quarter-finals', 4: 'Semi-finals', 2: 'Final'}, of: (a, b) => a + ' / ' + b,
+      intro: 'Three games to play with this diary.',
+      duelT: 'This or That', duelP: n => 'Two of ' + n + '’s favorite films at a time. Keep picking until one is left standing.',
+      nightT: 'What should I watch tonight?', nightP: (n, k) => 'A random pick from the ' + k + ' films ' + n + ' rated 3.5★ or higher.',
+      matchT: 'How close are your tastes?', matchP: n => 'Your Letterboxd ratings vs. ' + n + '’s.', matchMine: n => 'Your ratings vs. ' + n + '’s.',
+      back: '← All games', size: n => n + ' films', start: 'Start', or: 'or', undo: '↶ Undo', again: 'Play again with', share: 'Share', copied: 'Copied',
+      rounds: {32: 'Round of 32', 16: 'Round of 16', 8: 'Quarterfinals', 4: 'Semifinals', 2: 'Final'}, of: (a, b) => a + ' / ' + b,
       champ: 'Your champion', theirs: (n, s) => n + ' gave it ' + s, unrated: n => n + ' hasn’t rated it', ranking: 'Your ranking', fewDuel: 'There aren’t enough highly rated films with posters yet.',
-      duelShare: (n, c) => 'My champion of ' + n + '’s favourite films: ' + c + ' 🏆',
-      anyLen: 'Any length', short: 'Under 1½ h', mid: '1½–2 h', long: 'Over 2 h', anyDec: 'Any decade', anyGenre: 'Any genre', inPool: n => n + (n === 1 ? ' film' : ' films'),
-      spin: 'Pick one', another: 'Another one', none: 'Nothing here — loosen a filter.', seenN: (n, k) => n + ' has watched it ' + k + ' times', onLb: 'On Letterboxd ↗', readMore: 'Read the full entry →',
-      who: 'Your Letterboxd username', withMine: 'Compare with my diary', more: k => '+ ' + k + ' more — type your username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
-      exportSteps: 'On letterboxd.com: Settings → Data → Export your data. Then pick the .zip here. It stays on your device.', exportPick: 'Pick the export (.zip)', exportOpen: 'Open the export page ↗',
-      notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Follow ' + n + ' on Letterboxd and ask to be added, or compare with your export below.',
+      duelShare: (n, c) => 'My winner from ' + n + '’s favorite films: ' + c + ' 🏆',
+      anyLen: 'Any length', short: 'Under 90 min', mid: '90 min–2 hrs', long: 'Over 2 hrs', anyDec: 'Any decade', anyGenre: 'Any genre', inPool: n => n + (n === 1 ? ' film' : ' films'),
+      spin: 'Spin', another: 'Spin again', none: 'Nothing matches. Try loosening a filter.', seenN: (n, k) => n + ' has watched it ' + k + ' times', onLb: 'View on Letterboxd ↗', readMore: 'Read the full entry →',
+      who: 'Your Letterboxd username', withMine: 'Compare with my diary', more: k => '+ ' + k + ' more. Type your username.', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare your full history with your Letterboxd export',
+      exportSteps: 'On letterboxd.com, go to Settings → Data → Export your data, then choose the .zip here. It never leaves your device.', exportPick: 'Choose the export (.zip)', exportOpen: 'Open the export page ↗',
+      notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Follow ' + n + ' on Letterboxd and ask to be added, or compare using your export below.',
       follow: n => 'Not on the list yet? Follow ' + n + ' on Letterboxd ↗', followNote: n => 'then ask ' + n + ' to add you.',
-      notYet: (n) => 'Not ready yet: a few hours after ' + n + ' adds you, it’ll be here.', noUser: 'There’s no Letterboxd user by that name.', badFile: 'That isn’t a Letterboxd export.', loading: 'Reading…', failed: 'Couldn’t load that now. Try again in a bit.',
-      score: (a, n) => 'You and ' + n + ': ' + a + '% alike', tooFew: n => 'Too few films you both rated to say yet. Log a few more on Letterboxd.',
-      basis: (k, m) => 'From ' + k + ' films you both watched' + (m === 'rss' ? ' (your recent Letterboxd logs)' : '') + '.',
-      tiers: [[85, 'Film twins'], [70, 'Very close'], [55, 'On the same road'], [40, 'Now and then'], [0, 'Two different worlds']],
-      bothLoved: 'You both loved', apart: 'Where you disagree', recs: n => 'From ' + n + ' for you', recsNote: m => m === 'rss' ? 'Not in your recent logs.' : 'Not in your watched films.',
-      you: 'you', matchShare: (n, a) => 'Me and ' + n + ': ' + a + '% alike in films 🎬 How about you?', tryOther: 'Try another username',
+      notYet: (n) => 'Not ready yet. It’ll show up a few hours after ' + n + ' adds you.', noUser: 'No Letterboxd user by that name.', badFile: 'That isn’t a Letterboxd export.', loading: 'Loading…', failed: 'Couldn’t load that. Try again in a bit.',
+      score: (a, n) => 'You and ' + n + ' are ' + a + '% alike', tooFew: n => 'Not enough films you’ve both rated yet. Log a few more and check back.',
+      basis: (k, m) => 'Based on ' + k + ' films you’ve both seen' + (m === 'rss' ? ' (from your recent Letterboxd logs)' : '') + '.',
+      tiers: [[85, 'Film twins'], [70, 'Very close'], [55, 'On the same wavelength'], [40, 'Some overlap'], [0, 'Worlds apart']],
+      bothLoved: 'You both loved', apart: 'Where you disagree', recs: n => n + ' recommends', recsNote: m => m === 'rss' ? 'Not in your recent logs.' : 'You haven’t seen these yet.',
+      you: 'you', matchShare: (n, a) => n + ' and I are ' + a + '% alike in movies 🎬 What about you?', tryOther: 'Try another username',
     },
     fa: {
       intro: 'سه تا بازی کوچیک با این دفتر.',

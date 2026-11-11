@@ -107,7 +107,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(await v.$$eval('.fx-tabs button', l => l.length) === 5, 'all five tabs on a member’s profile');
   await v.screenshot({path: path.join(OUT, 'cl-profile.png')});
   await v.goto(B + '/u/nobody_here'); await v.waitForTimeout(800);
-  ok(/published|منتشر/.test(await text(v, 'h1')), 'unknown profile: no longer published', await text(v, 'h1'));
+  ok(/isn’t public|published/.test(await text(v, 'h1')), 'unknown profile: no longer published', await text(v, 'h1'));
 
   // Danial's settings: account section, sign out wipes this device
   await a.click('[data-nav="settings"]'); await a.waitForTimeout(300);
@@ -116,7 +116,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await a.screenshot({path: path.join(OUT, 'cl-settings.png'), fullPage: true});
   await a.click('[data-share-off]'); await a.waitForTimeout(800);
   await v.goto(B + '/u/danial'); await v.waitForTimeout(800);
-  ok(/منتشر|published/.test(await text(v, 'h1')), 'profile off → not readable');
+  ok(/isn’t public|published/.test(await text(v, 'h1')), 'profile off → not readable');
   await a.click('[data-disconnect]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
   ok(await a.evaluate(() => !localStorage.getItem('fy-state') && !localStorage.getItem('fd-me')), 'signing out leaves nothing on the device');
   // nothing went straight to TMDB or Letterboxd

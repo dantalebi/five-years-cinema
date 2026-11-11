@@ -52,21 +52,21 @@ function fxWrappedOpen(data, year, opts) {
   const mx = Math.max(1, ...s.months);
   const html = `<div class="fw-scrim" data-fwclose></div><div class="fw" role="dialog" aria-modal="true" aria-label="${esc(s.year)} in film">
     <button type="button" class="fw-x" data-fwclose aria-label="Close">×</button>
-    <header class="fw-hero"><div class="fw-eye">${esc(opts.site || 'Film Diary')} · year in film</div><h2>${esc(s.year)}</h2><p>${who ? esc(who) + '’s' : 'Your'} year at the movies</p></header>
-    <section class="fw-big">${[[num(s.n), s.n === 1 ? 'film' : 'films'], [num(s.hours), 'hours'], [num(s.days), 'days at the movies'], [num(s.streak), 'days in a row, at best']].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</section>
-    ${s.top.length ? `<section class="fw-card"><h3>${s.five >= 3 ? 'Five stars' : 'Rated highest'}</h3><div class="fw-posters">${s.top.map(e => `<figure>${pos(e)}<figcaption>${film(e)}<i>${stars(+e.r)}</i></figcaption></figure>`).join('')}</div></section>` : ''}
-    <section class="fw-card"><h3>Month by month</h3><div class="fw-months">${s.months.map((n, i) => `<div class="${i === s.busy ? 'on' : ''}"><i style="height:${Math.round(n / mx * 100)}%"></i><span>${FX_WMON[i][0]}</span></div>`).join('')}</div><p class="fw-note">${FX_WMONL[s.busy]} was the big one: ${num(s.months[s.busy])} films.${s.perDay > 1 ? ` Most in one day: ${num(s.perDay)}.` : ''}</p></section>
-    ${rank('Directors you kept coming back to', s.dirs.filter(([, n]) => n > 1))}
-    <div class="fw-two">${rank('Genres', s.genres)}${rank('Countries', s.countries)}</div>
-    <section class="fw-card fw-facts"><h3>And also</h3><ul>
+    <header class="fw-hero"><div class="fw-eye">${esc(opts.site || 'Film Diary')} · Year in Film</div><h2>${esc(s.year)}</h2><p>${who ? esc(who) + '’s' : 'Your'} year in film</p></header>
+    <section class="fw-big">${[[num(s.n), s.n === 1 ? 'film' : 'films'], [num(s.hours), 'hours'], [num(s.days), s.days === 1 ? 'day with a film' : 'days with a film'], [num(s.streak), 'day streak']].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</section>
+    ${s.top.length ? `<section class="fw-card"><h3>${s.five >= 3 ? 'Five-star films' : 'Top rated'}</h3><div class="fw-posters">${s.top.map(e => `<figure>${pos(e)}<figcaption>${film(e)}<i>${stars(+e.r)}</i></figcaption></figure>`).join('')}</div></section>` : ''}
+    <section class="fw-card"><h3>Month by month</h3><div class="fw-months">${s.months.map((n, i) => `<div class="${i === s.busy ? 'on' : ''}"><i style="height:${Math.round(n / mx * 100)}%"></i><span>${FX_WMON[i][0]}</span></div>`).join('')}</div><p class="fw-note">${FX_WMONL[s.busy]} was your busiest month, with ${num(s.months[s.busy])} ${s.months[s.busy] === 1 ? 'film' : 'films'}.${s.perDay > 1 ? ` Most in a single day: ${num(s.perDay)}.` : ''}</p></section>
+    ${rank('Most-watched directors', s.dirs.filter(([, n]) => n > 1))}
+    <div class="fw-two">${rank('Top genres', s.genres)}${rank('Top countries', s.countries)}</div>
+    <section class="fw-card fw-facts"><h3>Odds and ends</h3><ul>
       <li><span>First film of the year</span>${film(s.first)}</li>
-      <li><span>Last one so far</span>${film(s.last)}</li>
+      <li><span>Most recent</span>${film(s.last)}</li>
       ${s.oldest ? `<li><span>Oldest film</span>${film(s.oldest)}</li>` : ''}
-      ${s.decades.length ? `<li><span>Favourite decade</span><bdi>${esc(s.decades[0][0])}</bdi></li>` : ''}
+      ${s.decades.length ? `<li><span>Favorite decade</span><bdi>${esc(s.decades[0][0])}</bdi></li>` : ''}
       ${s.avg ? `<li><span>Average rating</span><bdi>${s.avg.toFixed(1)} ★</bdi></li>` : ''}
       <li><span>Rewatches · likes · reviews</span><bdi>${num(s.rewatches)} · ${num(s.likes)} · ${num(s.reviews)}</bdi></li>
     </ul></section>
-    <footer class="fw-foot"><button type="button" class="fw-btn" data-fwimg>Picture for your story</button><p class="fw-note" data-fwnote hidden></p><div class="fw-prev" data-fwprev hidden></div></footer>
+    <footer class="fw-foot"><button type="button" class="fw-btn" data-fwimg>Make a story image</button><p class="fw-note" data-fwnote hidden></p><div class="fw-prev" data-fwprev hidden></div></footer>
   </div>`;
   const wrap = document.body.appendChild(document.createElement('div'));
   wrap.className = 'fw-wrap fx'; wrap.innerHTML = html;
@@ -83,7 +83,7 @@ function fxWrappedOpen(data, year, opts) {
       try { await navigator.share({files: [new File([blob], 'year-in-film-' + s.year + '.png', {type: 'image/png'})], title: s.year + ' in film'}); } catch (er) {}
       return;
     }
-    busy = true; b.disabled = true; note.hidden = false; note.textContent = 'Drawing…';
+    busy = true; b.disabled = true; note.hidden = false; note.textContent = 'Making your image…';
     try {
       blob = await fxWrappedImage(s, {who, url: opts.url || '', site: opts.site || 'Film Diary'});
       if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -93,7 +93,7 @@ function fxWrappedOpen(data, year, opts) {
       prev.innerHTML = `<img alt="Your ${esc(s.year)} in film" src="${blobUrl}"><div class="fw-row">${canShare ? '<button type="button" class="fw-btn" data-fwshare>Share</button>' : ''}<a class="fw-btn${canShare ? ' ghost' : ''}" href="${blobUrl}" download="year-in-film-${esc(s.year)}.png">Save image</a></div>`;
       note.hidden = true;
       prev.scrollIntoView({block: 'nearest', behavior: 'smooth'});
-    } catch (er) { note.textContent = 'Couldn’t draw the picture. Try again.'; }
+    } catch (er) { note.textContent = 'Couldn’t make the image. Try again.'; }
     busy = false; b.disabled = false;
   });
   return true;
@@ -113,15 +113,15 @@ async function fxWrappedImage(s, o) {
   const X = 84;
   const text = (t, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.fillText(t, x, y); };
   const fit = (t, max, font) => { g.font = font; if (g.measureText(t).width <= max) return t; while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
-  text((o.site + ' · year in film').toUpperCase(), X, 140, `500 26px ${mono}`, '#8fa0b0');
+  text((o.site + ' · Year in Film').toUpperCase(), X, 140, `500 26px ${mono}`, '#8fa0b0');
   text(s.year, X - 6, 390, `400 300px ${serif}`, '#f2f5f7');
-  text(fit(o.who ? o.who + '’s year at the movies' : 'My year at the movies', W - 2 * X, `400 52px ${serif}`), X, 470, `400 52px ${serif}`, '#c9d3dc');
+  text(fit(o.who ? o.who + '’s year in film' : 'My year in film', W - 2 * X, `400 52px ${serif}`), X, 470, `400 52px ${serif}`, '#c9d3dc');
   // the big numbers
   const big = [[s.n, s.n === 1 ? 'film' : 'films'], [s.hours, 'hours'], [s.days, 'days']];
   big.forEach(([n, l], i) => { const x = X + i * 310; text(Number(n).toLocaleString('en-US'), x, 650, `400 128px ${serif}`, i === 0 ? '#00e054' : '#f2f5f7'); text(l.toUpperCase(), x + 4, 700, `500 26px ${mono}`, '#8fa0b0'); });
   // five posters
   const pw = 168, ph = 252, gap = (W - 2 * X - 5 * pw) / 4, py = 800;
-  text((s.five >= 3 ? 'Five stars' : 'Rated highest').toUpperCase(), X, py - 30, `500 26px ${mono}`, '#8fa0b0');
+  text((s.five >= 3 ? 'Five-star films' : 'Top rated').toUpperCase(), X, py - 30, `500 26px ${mono}`, '#8fa0b0');
   s.top.slice(0, 5).forEach((e, i) => {
     const x = X + i * (pw + gap), im = posters[i];
     g.save(); g.beginPath(); if (g.roundRect) g.roundRect(x, py, pw, ph, 12); else g.rect(x, py, pw, ph); g.clip();
@@ -132,9 +132,9 @@ async function fxWrappedImage(s, o) {
   // a few lines of facts
   let fy = py + ph + 100;
   const fact = (label, value) => { if (!value) return; text(label.toUpperCase(), X, fy, `500 25px ${mono}`, '#8fa0b0'); text(fit(value, W - 2 * X, `400 54px ${serif}`), X, fy + 62, `400 54px ${serif}`, '#f2f5f7'); fy += 140; };
-  fact('Top director', s.dirs[0] && s.dirs[0][1] > 1 ? s.dirs[0][0] + ' · ' + s.dirs[0][1] + ' films' : '');
-  fact('Top genre', s.genres[0] ? s.genres.map(x => x[0]).slice(0, 2).join(', ') : '');
-  fact('Busiest month', FX_WMONL[s.busy] + ' · ' + s.months[s.busy] + ' films');
+  fact('Most-watched director', s.dirs[0] && s.dirs[0][1] > 1 ? s.dirs[0][0] + ' · ' + s.dirs[0][1] + ' films' : '');
+  fact('Top genres', s.genres[0] ? s.genres.map(x => x[0]).slice(0, 2).join(' & ') : '');
+  fact('Busiest month', FX_WMONL[s.busy] + ' · ' + s.months[s.busy] + (s.months[s.busy] === 1 ? ' film' : ' films'));
   // month bars
   const by = Math.max(fy + 10, 1560), bw = (W - 2 * X - 11 * 14) / 12, mxm = Math.max(1, ...s.months);
   s.months.forEach((n, i) => { const h = Math.max(6, Math.round(n / mxm * 150)), x = X + i * (bw + 14); g.fillStyle = i === s.busy ? '#00e054' : '#2c3844'; if (g.roundRect) { g.beginPath(); g.roundRect(x, by + 150 - h, bw, h, 6); g.fill(); } else g.fillRect(x, by + 150 - h, bw, h); text(FX_WMON[i][0], x + bw / 2, by + 190, `500 22px ${mono}`, '#6f7f8f', 'center'); });

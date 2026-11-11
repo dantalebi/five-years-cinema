@@ -7,21 +7,26 @@
 function fxFriendsTab(CS) {
   const T = {
     h: 'Activity', segF: 'Friends', segN: 'Notifications', segP: 'People', segT: 'Tonight',
-    tH: 'What should we watch tonight?', tP: 'Pick who’s watching. Films on more than one watchlist come first, then ones somebody loved that nobody else has seen.',
-    tWho: 'Who’s watching', tYou: 'You', tNoFriends: 'Follow a few people first.', tGo: 'Find a film', tBusy: 'Looking through your diaries…', tNone: 'Nothing fits. Add films to your watchlists (the bookmark on a friend’s film), or pick other people.',
-    tAgain: 'Another one', tAlso: 'Also good', tLen: 'Length', tAny: 'Any', tShort: 'Under 2h', tWant: 'Want to watch',
-    why: {all: 'On everyone’s watchlist', wl: names => 'On the watchlist of ' + names, loved: (n, r) => n + ' gave it ' + r + (r === '★★★★★' ? '' : '') + ', nobody else has seen it'},
-    none: 'Follow people and their latest logs show up here.', findPeople: 'Find people to follow',
-    find: 'Find someone', follow: 'Follow', following: 'Following', followBack: 'Follow back', followsYou: 'follows you', loading: 'Loading…', fail: 'Couldn’t load.', retry: 'Try again',
-    alone: 'Nobody else is here yet. Send your link to a friend.', more: 'Show more',
-    heart: 'Like', seen: 'Seen it', want: 'Want to watch', comment: 'Comment', reply: 'Reply', send: 'Send', cPh: 'Say something…', del: 'Delete', you: 'you',
-    nNone: 'Nothing yet. When friends like or comment on your films, or follow you, it shows up here.',
+    tH: 'What are we watching tonight?', tP: 'Pick who’s watching. Films on more than one of your watchlists come first, then films one of you loved that the others haven’t seen.',
+    tWho: 'Who’s watching', tYou: 'You', tNoFriends: 'Follow a few people first.', tGo: 'Find something', tBusy: 'Going through everyone’s diaries…', tNone: 'Nothing fits yet. Add more to your watchlists, or try a different group.',
+    tAgain: 'Show me another', tAlso: 'Other options', tLen: 'Running time', tAny: 'Any', tShort: 'Under 2 hours', tWant: 'Add to watchlist',
+    // whose watchlist: "your watchlist", "Sara’s watchlist", "your watchlist and Sara’s", "Sara’s and Negin’s watchlists"
+    why: {all: 'On everyone’s watchlist', wl: (mine, others) => {
+      const poss = n => n + '’s', list = a => a.length < 3 ? a.join(' and ') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+      if (mine) return others.length ? 'On your watchlist and ' + list(others.map(poss)) : 'On your watchlist';
+      return others.length === 1 ? 'On ' + poss(others[0]) + ' watchlist' : 'On ' + list(others.map(poss)) + ' watchlists';
+    }, loved: (n, r) => n + ' gave it ' + r + ', and nobody else has seen it'},
+    none: 'Follow people to see what they’re watching.', findPeople: 'Find people to follow',
+    find: 'Search people', follow: 'Follow', following: 'Following', followBack: 'Follow back', followsYou: 'Follows you', loading: 'Loading…', fail: 'Couldn’t load this.', retry: 'Try again',
+    alone: 'No one else is here yet. Send a friend your link.', more: 'Show more',
+    heart: 'Like', seen: 'Seen it', want: 'Add to watchlist', comment: 'Comment', reply: 'Reply', send: 'Post', cPh: 'Add a comment…', del: 'Delete', you: 'you',
+    nNone: 'Nothing yet. Likes, comments and new followers will show up here.',
     did: {
-      h: (w, f) => `${w} liked your log of ${f}`, s: (w, f) => `${w} has seen ${f} too`, w: (w, f) => `${w} wants to watch ${f}, from your diary`,
-      c: (w, f) => `${w} commented on ${f}`, r: (w, f, o) => `${w} replied on ${o ? o + '’s ' : ''}${f}`, f: w => `${w} started following you`,
+      h: (w, f) => `${w} liked your entry for ${f}`, s: (w, f) => `${w} has seen ${f} too`, w: (w, f) => `${w} added ${f} to their watchlist from your diary`,
+      c: (w, f) => `${w} commented on your entry for ${f}`, r: (w, f) => `${w} replied to your comment on ${f}`, f: w => `${w} started following you`,
     },
-    spoil: 'Review hidden: spoilers', aFilm: 'a film',
-    logIt: 'Log', wlH: 'Your watchlist', wlNone: 'Tap the bookmark on a friend’s film and it lands here.', wlFrom: u => 'from @' + u, remove: 'Remove', wlCount: n => n + (n === 1 ? ' film' : ' films'),
+    spoil: 'Review hidden (contains spoilers)', aFilm: 'a film',
+    logIt: 'Log', wlH: 'Watchlist', wlNone: 'Tap the bookmark on a friend’s entry to save it here.', wlFrom: u => 'via @' + u, remove: 'Remove', wlCount: n => n + (n === 1 ? ' film' : ' films'),
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const okPoster = p => typeof p === 'string' && /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+\/[A-Za-z0-9._-]+$/.test(p);
@@ -148,7 +153,7 @@ function fxFriendsTab(CS) {
       }
       const k = x.owner + '/' + x.eid, href = '/u/' + x.owner + (okId(x.eid) ? '#' + x.eid : '');
       const film = `<a class="fx-nfilm" href="${href}"><bdi>${esc(x.film || T.aFilm)}</bdi></a>`;
-      const line = x.kind === 'r' ? T.did.r(who, film, x.owner !== me && x.owner !== x.u ? '@' + esc(x.owner) : '') : T.did[x.kind](who, film);
+      const line = T.did[x.kind](who, film);
       const thread = openN.has(x.id) ? `<div class="fx-nthread">${reactBar(x.owner, x.eid, null, ix, true, true)}</div>` : '';
       return `<li class="fx-note-i n${x.kind}${x.at > before ? ' fresh' : ''}"><i class="fx-nico" aria-hidden="true"></i><div class="fx-nb"><p>${line} <span class="fx-cmt">${esc(ago(x.at))}</span></p>
         ${x.text ? `<p class="fx-nq" dir="auto">${esc(x.text)}</p>` : ''}${(x.kind === 'c' || x.kind === 'r') && !openN.has(x.id) ? `<button type="button" class="fx-link" data-rn="${x.id}">${T.reply}</button>` : ''}${thread}</div></li>`;
@@ -219,7 +224,7 @@ function fxFriendsTab(CS) {
   function why(c) {
     const n = u => tg.names[u] || '@' + u, out = [];
     if (c.wl.size && c.wl.size === tg.who.length && tg.who.length > 1) out.push(T.why.all);
-    else if (c.wl.size) out.push(T.why.wl([...c.wl].map(n).join(', ')));
+    else if (c.wl.size) out.push(T.why.wl(c.wl.has(me), [...c.wl].filter(u => u !== me).map(n)));
     c.loved.slice(0, 2).forEach(([u, r]) => out.push(T.why.loved(n(u), stars(r))));
     return out;
   }

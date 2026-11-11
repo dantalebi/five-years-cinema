@@ -21,7 +21,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const chip = await z.$eval('.fx-tchip', e => e.innerText.replace(/\s+/g, ' '));
   ok(/87% taste match · 3 films in common/.test(chip), 'taste match in the header', chip);
   await z.click('.fx-tchip'); await z.waitForSelector('.fx-score');
-  ok(/87/.test(await z.$eval('.fx-score', e => e.innerText)) && /Your diary next to/.test(await z.$eval('.fx-gintro', e => e.innerText)), 'opens the full comparison');
+  ok(/87/.test(await z.$eval('.fx-score', e => e.innerText)) && /Your ratings vs./.test(await z.$eval('.fx-gintro', e => e.innerText)), 'opens the full comparison');
   await a.goto(B + '/u/amy'); await a.waitForSelector('.fx-pmeta', {timeout: 10000}); await a.waitForTimeout(800);
   ok(await a.$('.fx-tchip') === null, 'not on your own profile');
   await b.close();

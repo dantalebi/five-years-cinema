@@ -27,7 +27,7 @@ const FY_CONFIG = {{siteName: '{NAME}', siteNameFa: '{NAME}', lang: 'en'}};
 if (location.hostname === '{MOVED_FROM}') location.replace('{MOVED_TO}' + location.pathname + location.search + location.hash);
 ''' if MOVED_TO else ''))
 
-DESC = 'A film diary with friends: log what you watch, see what your friends watch, and pick tonight’s film together.'
+DESC = 'Log what you watch. See what your friends are watching. Pick tonight’s movie together.'
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
        # connect-src: the offline worker fetches posters and fonts itself, and the worker obeys the policy sent with sw.js
        "img-src 'self' data: blob: https://image.tmdb.org; connect-src 'self' https://image.tmdb.org https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")

@@ -18,18 +18,18 @@
 
   const GT = {
     en: {
-      site: C.siteName || 'Film Diary', tag: 'A film diary with friends: log what you watch, see what your friends watch, and pick tonight’s film together.', langL: 'فارسی',
-      about: 'Named after David Bowie’s “TVC 15”, a song about a television that swallows people whole.',
-      signin: 'Sign in', signup: 'Create an account', user: 'Username', userPh: 'letters, numbers, _', pass: 'Password', passNew: 'Password (8+ characters)', name: 'Your name', namePh: 'shown on your profile', code: 'Invite code',
-      pub: 'Public profile (others can see your diary and follow you)', go: 'Sign in', make: 'Create my account', working: 'One moment…', short: 'The password needs at least 8 characters.',
-      privacy: 'Your password is scrambled on this device before it’s sent; the site never sees it. No email or phone number needed.',
-      h1: 'Make your own list', p1: 'Search any film and add it. Your list is split into weeks, so you only ever look at this week’s films.', b1: 'Start a list',
-      h2: 'Bring your Letterboxd watchlist', p2: 'Export from letterboxd.com (Settings → Data → Export your data) and upload watchlist.csv or any list. Your full history (the .zip) can come in from Settings afterwards.', b2: 'Upload a .csv',
-      h3: 'Take the sample plan', p3: n => '“Five Years of Cinema”: ' + n + ' films over 260 weeks, from silent cinema to now.', b3: 'Use the sample plan',
-      h4: 'Moving from the old site?', p4: 'On the old site: Settings → Backup → “Download everything”. Then pick that file here: diary, plan and settings all come over.', b4: 'Pick the file',
-      per: 'Films a week', importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, bad: 'That doesn’t look like a Letterboxd export.', nodates: 'This file has no viewing dates; for your history use the .zip in Settings.',
-      moving: n => 'Bringing ' + n + ' entries over…', moved: 'Everything’s here.', badMove: 'That isn’t a file from the old site.', signOut: 'Sign out', hi: u => 'Signed in as @' + u,
-      followers: n => n + (n === 1 ? ' follower' : ' followers'), following: n => n + ' following', follow: 'Follow', unfollow: 'Following', join: 'Sign in to follow', mine: 'Open my diary',
+      site: C.siteName || 'Film Diary', tag: 'Log what you watch. See what your friends are watching. Pick tonight’s movie together.', eyebrow: 'A film diary for friends', langL: 'فارسی',
+      about: 'Named after David Bowie’s “TVC 15,” a song about a TV set that swallows people whole.',
+      signin: 'Sign in', signup: 'Create an account', user: 'Username', userPh: 'Letters, numbers and underscores', pass: 'Password', passNew: 'Password (at least 8 characters)', name: 'Your name', namePh: 'Shown on your profile', code: 'Invite code',
+      pub: 'Make my profile public (people can see your diary and follow you)', go: 'Sign in', make: 'Create account', working: 'One moment…', short: 'Your password needs at least 8 characters.',
+      privacy: 'Your password is scrambled on your device before it’s sent, so the site never sees it. No email or phone number required.',
+      h1: 'Make your own list', p1: 'Search for films and add them. Your list is split into weeks, so you only ever see this week’s films.', b1: 'Start a list',
+      h2: 'Start from your Letterboxd watchlist', p2: 'Export your data on letterboxd.com (Settings → Data → Export your data), then upload watchlist.csv or any list. You can bring in your full history (the .zip) from Settings later.', b2: 'Upload a .csv',
+      h3: 'Try the sample plan', p3: n => '“Five Years of Cinema”: ' + n + ' films over 260 weeks, from the silent era to today.', b3: 'Use the sample plan',
+      h4: 'Coming from the old site?', p4: 'On the old site, go to Settings → Backup → “Download everything,” then choose that file here. Your diary, plan and settings all come with you.', b4: 'Choose file',
+      per: 'Films per week', importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, bad: 'That doesn’t look like a Letterboxd export.', nodates: 'This file has no watch dates. To bring in your history, use the .zip in Settings.',
+      moving: n => 'Moving ' + n + ' entries…', moved: 'Everything’s here.', badMove: 'That file isn’t from the old site.', signOut: 'Sign out', hi: u => 'Signed in as @' + u,
+      followers: n => n + (n === 1 ? ' follower' : ' followers'), following: n => n + ' following', follow: 'Follow', unfollow: 'Following', join: 'Sign in to follow', mine: 'Go to my diary',
     },
     fa: {
       site: C.siteNameFa || 'دفتر فیلم', tag: 'هر هفته فقط فیلم‌های همون هفته، یه دفتر از هر چی می‌بینی، و دفتر دوستات.', langL: 'English',
@@ -58,7 +58,7 @@
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
+    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.eyebrow || t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
       <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>
@@ -270,7 +270,7 @@
   }
   function homeChoice(L) {
     const week = Store.data['cfg:home'] === 'week';
-    return `<section class="fx-card"><h2>Start on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This week</button></div></section>`;
+    return `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This Week</button></div></section>`;
   }
   function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
   let rt = null;

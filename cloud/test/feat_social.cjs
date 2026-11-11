@@ -41,7 +41,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(await a.$eval('.fx-ncount', e => e.innerText) === '4', 'Notifications (4): heart, want, comment, follow', await a.$eval('.fx-ncount', e => e.innerText));
   await a.click('[data-seg="n"]'); await a.waitForSelector('.fx-note-i', {timeout: 8000});
   const ib = await a.$eval('.fx-notes', e => e.innerText);
-  ok(/ZED liked your log of Close-Up/.test(ib) && /ZED commented on Close-Up/.test(ib) && /great pick/.test(ib) && /ZED started following you/.test(ib) && /wants to watch Close-Up/.test(ib), 'what happened, in words', ib.replace(/\s+/g, ' '));
+  ok(/ZED liked your entry for Close-Up/.test(ib) && /ZED commented on your entry for Close-Up/.test(ib) && /great pick/.test(ib) && /ZED started following you/.test(ib) && /added Close-Up to their watchlist/.test(ib), 'what happened, in words', ib.replace(/\s+/g, ' '));
   ok(await a.$$eval('.fx-note-i.fresh', l => l.length) === 4, 'all four marked new');
   await a.click('.fx-note-i.nc [data-rn]'); await a.fill('.fx-note-i.nc form[data-rcf] input', 'thanks!'); await a.press('.fx-note-i.nc form[data-rcf] input', 'Enter'); await a.waitForTimeout(800);
   ok(/thanks!/.test(await a.$eval('.fx-notes', e => e.innerText)), 'she replies from the notification');
@@ -54,7 +54,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(/thanks!/.test(await z.$eval('.fx-actv:has-text("Close-Up")', e => e.innerText)), 'her reply reaches his feed');
   await z.click('[data-seg="n"]'); await z.waitForSelector('.fx-note-i', {timeout: 8000});
   const zn = await z.$eval('.fx-notes', e => e.innerText);
-  ok(/ANA replied on Close-Up/.test(zn) && /ANA started following you/.test(zn), 'he’s told about her reply and her follow', zn.replace(/\s+/g, ' '));
+  ok(/ANA replied to your comment on Close-Up/.test(zn) && /ANA started following you/.test(zn), 'he’s told about her reply and her follow', zn.replace(/\s+/g, ' '));
   await a.click('[data-nav="friends"]'); await a.click('[data-seg="n"]'); await a.waitForSelector('.fx-note-i.nc');
   if (!(await a.$('.fx-note-i.nc .fx-nthread'))) await a.click('.fx-note-i.nc [data-rn]');
   await a.waitForSelector('.fx-note-i.nc [data-rcdel]');

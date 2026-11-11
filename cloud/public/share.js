@@ -10,15 +10,15 @@ function fxProfile(root, id, focusId, opts) {
   const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink, lbProxy: opts.lbProxy || '', mine: opts.mine || null}) : null;
   let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
-    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'updated ' + a,
-      prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
-      watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
-      allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show review anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
-      big: {films: 'Films', hours: 'Hours', dirs: 'Directors', countries: 'Countries', multi: '2+ film days'},
+    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'Updated ' + a,
+      prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
+      watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => Number(n).toLocaleString('en-US') + (n === 1 ? ' hour' : ' hours'), avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
+      allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show it anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      big: {films: 'Films', hours: 'Hours', dirs: 'Directors', countries: 'Countries', multi: 'Double-feature days'},
       most: 'Most watched', best: 'Highest rated', gcl: 'Genres, countries & languages', genres: 'Genres', countries: 'Countries', languages: 'Languages',
-      dirsH: 'Directors', cast: 'Cast', few: 'Not enough rated films here yet.',
+      dirsH: 'Directors', cast: 'Cast', few: 'Not enough ratings yet.',
       spread: 'Ratings', byYear: 'Films per year', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
-      bad: 'This link is incomplete', gone: 'This profile is no longer published', fail: 'Couldn’t load', later: 'Try again in a few minutes.',
+      bad: 'This link is broken', gone: 'This profile isn’t public', fail: 'Couldn’t load this page', later: 'Try again in a few minutes.',
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
       inApp: 'app', links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},

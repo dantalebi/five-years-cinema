@@ -26,7 +26,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await kim.click('[data-tgp="lou"]'); await kim.click('[data-tggo]'); await kim.waitForSelector('.fx-tgpick', {timeout: 15000});
   const pick = await kim.$eval('.fx-tgpick', e => e.innerText.replace(/\s+/g, ' '));
   ok(/Stalker/.test(pick) && /everyone’s watchlist/.test(pick), 'Stalker first: on both watchlists, seen by neither', pick);
-  ok(!/Want to watch/.test(pick), 'already on her watchlist: no “Want to watch”');
+  ok(!/Add to watchlist/.test(pick), 'already on her watchlist: no “Add to watchlist”');
   const also = await kim.$eval('.fx-tgcard ~ .fx-card:last-child', e => e.innerText.replace(/\s+/g, ' ')).catch(() => '');
   const all = await kim.$eval('.fx-app', e => e.innerText);
   ok(/Jaws/.test(all) && /Lou gave it ★★★★★/.test(all), 'Jaws: Lou loved it, Kim hasn’t seen it', also);

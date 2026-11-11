@@ -12,8 +12,8 @@ const CloudSync = (() => {
   let langFn = () => (typeof fxLang === 'function' ? fxLang(Store.data) : 'en');
   const L = () => langFn() === 'fa' ? 'fa' : 'en';
   const MSG = {
-    en: {net: 'Couldn’t reach the site; it will try again on its own.', slow: 'Too many tries. Wait a few minutes.', wrong: 'Wrong username or password.', taken: 'That username is taken.',
-      username: 'Usernames are 3–24 letters, numbers or _.', code: 'That invite code isn’t right.', full: 'This account is full.', signin: 'Signed out. Sign in again.', other: 'Something went wrong'},
+    en: {net: 'Can’t connect right now. Trying again automatically.', slow: 'Too many attempts. Try again in a few minutes.', wrong: 'Wrong username or password.', taken: 'That username’s already taken.',
+      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code doesn’t work.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', other: 'Something went wrong'},
     fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
       username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
   };
