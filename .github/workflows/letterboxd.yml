@@ -21,7 +21,7 @@ concurrency:
 jobs:
   feed:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       LB_USER: talebi
       SHARE_GIST: 56766f0b717fcfd3ae003461afbba821

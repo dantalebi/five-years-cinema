@@ -208,7 +208,7 @@ function fxPlay(ctx) {
 
   // ---------- «هم‌سلیقگی» ----------
   const match = {state: 'start', user: '', note: '', res: null};
-  const friendsList = () => { const d = ctx.data() || {}; return (Array.isArray(d.lbf) ? d.lbf : []).filter(okUser).slice(0, 100); };
+  const friendsList = () => { const d = ctx.data() || {}; return (Array.isArray(d.lbf) ? d.lbf : []).filter(okUser).slice(0, 300); };
   // the visitor's films: Map key → {t, y, tm, r}; key by TMDB id when known, else title|year
   function theirFromRss(items) {
     const m = new Map();

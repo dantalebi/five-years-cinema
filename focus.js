@@ -290,7 +290,7 @@ function fxWatched(D, seen) {
   return out;
 }
 // Letterboxd usernames of friends, from whatever was typed: profile links, @names, commas or spaces
-const fxFriends = v => [...new Set(String(v || '').split(/[\s,،]+/).map(x => x.trim().replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '')).filter(x => /^[A-Za-z0-9_]{1,40}$/.test(x)))].slice(0, 100);
+const fxFriends = v => [...new Set(String(v || '').split(/[\s,،]+/).map(x => x.trim().replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '')).filter(x => /^[A-Za-z0-9_]{1,40}$/.test(x)))].slice(0, 300);
 function fxFav(seen) { try { const a = JSON.parse(seen['cfg:fav'] || '[]'); return Array.isArray(a) ? a.slice(0, 4) : []; } catch (e) { return []; } }
 const fxTmdbImg = p => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : '';
 const fxTmdbBd = (p, w) => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/' + (w || 'w1280') + p : '';

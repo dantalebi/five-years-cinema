@@ -39,7 +39,7 @@ async function rss(user) {
   let list = [];
   try {
     const r = await fetch(`https://gist.githubusercontent.com/${owner}/${gist}/raw/five-years-share.json?t=${Date.now()}`);
-    if (r.ok) list = ((await r.json()).lbf || []).filter(okUser).map(u => u.toLowerCase()).slice(0, 100);
+    if (r.ok) list = ((await r.json()).lbf || []).filter(okUser).map(u => u.toLowerCase()).slice(0, 300);
     else { console.log('Profile not readable (HTTP ' + r.status + '); friends left as they are.'); return; }
   } catch (e) { console.log('Profile not readable; friends left as they are.'); return; }
   const fdir = path.join(dir, 'friends');
