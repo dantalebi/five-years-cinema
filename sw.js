@@ -2,7 +2,8 @@
 // GitHub and TMDB API calls always go to the network.
 const V = 'fy-521db6a8fbd3';
 const SHELL = ["./", "index.html", "profile.js", "plan.html", "share.html", "share.js", "planload.js", "store.js", "sync.js", "websync.js", "posters.js", "fxcal.js", "focus.js", "focus.css", "fxlb.js", "app.js", "app.css", "plan.js", "manifest.webmanifest", "icon32.png", "apple-touch-icon.png", "icon192.png", "icon512.png", "maskable512.png"];
-self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+// fetch past the browser's HTTP cache, so a new version never stores a file from the previous one
+self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('fy-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
