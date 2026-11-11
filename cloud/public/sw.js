@@ -1,7 +1,7 @@
 // Offline shell: the app's own files come from the cache; posters and fonts are kept once fetched.
 // GitHub and TMDB API calls always go to the network.
 const V = 'fd-94f67f233484';
-const SHELL = ["/", "/index.html", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/friends.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
+const SHELL = ["/", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/friends.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
 // fetch past the browser's HTTP cache, so a new version never stores a file from the previous one
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
@@ -13,7 +13,10 @@ self.addEventListener('fetch', e => {
   const u = new URL(req.url);
   if (u.origin === self.location.origin) {
     if (u.pathname.startsWith('/api/')) return;
-    if (req.mode === 'navigate') { e.respondWith(caches.open(V).then(c => c.match('/index.html')).then(hit => hit || fetch(req))); return; }
+    if (req.mode === 'navigate') {
+      e.respondWith(fetch(req).catch(() => caches.open(V).then(c => c.match('/')).then(hit => hit ? new Response(hit.body, {status: 200, headers: hit.headers}) : Response.error())));
+      return;
+    }
     e.respondWith(caches.open(V).then(c => c.match(req, {ignoreSearch: true}).then(hit => hit || fetch(req))));
     return;
   }

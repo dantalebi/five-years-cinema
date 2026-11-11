@@ -62,7 +62,9 @@ http.createServer(async (req, res) => {
     return;
   }
   let p = url.pathname;
-  if (/^\/u\/[^/]+\/?$/.test(p)) p = '/index.html';      // as public/_redirects says
+  // like Cloudflare Pages: "pretty URLs" (/index.html → /, /x.html → /x) and the /u/* rewrite from public/_redirects
+  if (/\.html$/.test(p)) { res.writeHead(308, {location: p.replace(/index\.html$/, '').replace(/\.html$/, '')}); res.end(); return; }
+  if (/^\/u\/[^/]+\/?$/.test(p)) p = '/index.html';
   if (p.endsWith('/')) p += 'index.html';
   const f = path.join(PUB, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
   if (!f.startsWith(PUB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('not found'); return; }

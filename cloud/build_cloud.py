@@ -86,17 +86,22 @@ open(OUT + '_headers', 'w').write(f'''/*
 ''')
 
 # ---- offline shell: the app's files from the cache; pages (/, /u/<name>) are the same index.html; /api never cached ----
-shell = ['/', '/index.html'] + ['/' + s for s in scripts] + ['/focus.css', '/app.css', '/sample-plan.json', '/manifest.webmanifest', '/icon32.png', '/apple-touch-icon.png', '/icon192.png', '/icon512.png', '/maskable512.png']
+# no /index.html in the list: Pages answers it with a redirect to /, and a page served from a stored redirect fails to open
+shell = ['/'] + ['/' + s for s in scripts] + ['/focus.css', '/app.css', '/sample-plan.json', '/manifest.webmanifest', '/icon32.png', '/apple-touch-icon.png', '/icon192.png', '/icon512.png', '/maskable512.png']
 h = hashlib.sha256()
-for f in shell[1:]:
+for f in ['/index.html'] + shell[1:]:
     h.update(open(OUT + f.lstrip('/'), 'rb').read())
 sw = open(SRC + 'sw.js').read()
 sw = sw.replace("'fy-__HASH__'", f"'fd-{h.hexdigest()[:12]}'").replace('__SHELL__', json.dumps(shell))
 sw = sw.replace("k.startsWith('fy-')", "k.startsWith('fd-')")
 old = "  if (u.origin === self.location.origin) {\n"
 assert sw.count(old) == 1
+# pages (/, /u/<name>): the network first, so a new version shows at once; offline, the stored page, rebuilt so it's never a redirect
 sw = sw.replace(old, old + "    if (u.pathname.startsWith('/api/')) return;\n"
-                "    if (req.mode === 'navigate') { e.respondWith(caches.open(V).then(c => c.match('/index.html')).then(hit => hit || fetch(req))); return; }\n")
+                "    if (req.mode === 'navigate') {\n"
+                "      e.respondWith(fetch(req).catch(() => caches.open(V).then(c => c.match('/')).then(hit => hit ? new Response(hit.body, {status: 200, headers: hit.headers}) : Response.error())));\n"
+                "      return;\n"
+                "    }\n")
 open(OUT + 'sw.js', 'w').write(sw)
 for f in sorted(os.listdir(OUT)):
     print(f, os.path.getsize(OUT + f))
