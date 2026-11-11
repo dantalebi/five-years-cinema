@@ -4,11 +4,15 @@
 function fxProfile(root, id, focusId, opts) {
   opts = opts || {};
   let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
+  const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n'};  // which way each stats card is showing
   const TX = {
     en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
       allYears: 'All time', favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show review anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      big: {films: 'Films', hours: 'Hours', dirs: 'Directors', countries: 'Countries', multi: '2+ film days'},
+      most: 'Most watched', best: 'Highest rated', gcl: 'Genres, countries & languages', genres: 'Genres', countries: 'Countries', languages: 'Languages',
+      dirsH: 'Directors', cast: 'Cast', few: 'Not enough rated films here yet.',
       spread: 'Ratings', byYear: 'Films per year', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
       bad: 'This link is incomplete', gone: 'This profile is no longer published', fail: 'Couldn’t load', later: 'Try again in a few minutes.',
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
@@ -18,6 +22,9 @@ function fxProfile(root, id, focusId, opts) {
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
       discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو ممکنه داستان رو لو بده.', reveal: 'با این حال نشونم بده', readReview: 'خوندن ریویو', open: 'باز کردن', backTo: n => '→ ' + n, reviewBy: n => 'ریویوی ' + n, entryBy: n => 'از دفتر ' + n, entry: 'از دفتر', watchedOn: 'دیده‌شده', rewatchedOn: 'دوباره دیده‌شده', spoilerTag: 'اسپویل', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
+      big: {films: 'فیلم', hours: 'ساعت', dirs: 'کارگردان', countries: 'کشور', multi: 'روزِ چندفیلمی'},
+      most: 'بیشترین', best: 'بالاترین امتیاز', gcl: 'ژانر، کشور و زبان', genres: 'ژانرها', countries: 'کشورها', languages: 'زبان‌ها',
+      dirsH: 'کارگردان‌ها', cast: 'بازیگرها', few: 'هنوز فیلم امتیازدارِ کافی این‌جا نیست.',
       spread: 'پخش امتیازها', byYear: 'فیلم‌ها در هر سال', decades: 'به تفکیک دهه', directors: 'کارگردان‌های پرتکرار', totals: 'جمع', rated: 'امتیازدار', liked: 'قلب‌دار', reviewed: 'ریویودار', runtime: 'زمان کل',
       bad: 'این لینک کامل نیست', gone: 'این صفحه دیگه منتشر نمی‌شه', fail: 'الان باز نشد', later: 'چند دقیقه‌ی دیگه دوباره امتحان کن.',
       ago: m => m < 1 ? 'همین الان' : m < 60 ? m + ' دقیقه پیش' : m < 1440 ? Math.round(m / 60) + ' ساعت پیش' : Math.round(m / 1440) + ' روز پیش',
@@ -139,24 +146,75 @@ function fxProfile(root, id, focusId, opts) {
     if (!d.length) return `<p class="fx-muted">${T().noReviews}</p>`;
     return '<ul class="fx-dl fx-revs">' + d.map(e => entry(e, true)).join('') + '</ul>';
   }
+  // TMDB genre ids → names (the film list; TV genres were mapped onto these when looked up)
+  const GEN = {28: ['Action', 'اکشن'], 12: ['Adventure', 'ماجرایی'], 16: ['Animation', 'انیمیشن'], 35: ['Comedy', 'کمدی'], 80: ['Crime', 'جنایی'], 99: ['Documentary', 'مستند'],
+    18: ['Drama', 'درام'], 10751: ['Family', 'خانوادگی'], 14: ['Fantasy', 'فانتزی'], 36: ['History', 'تاریخی'], 27: ['Horror', 'وحشت'], 10402: ['Music', 'موسیقی'],
+    9648: ['Mystery', 'معمایی'], 10749: ['Romance', 'عاشقانه'], 878: ['Science Fiction', 'علمی‌تخیلی'], 10770: ['TV Movie', 'فیلم تلویزیونی'], 53: ['Thriller', 'هیجان‌انگیز'],
+    10752: ['War', 'جنگی'], 37: ['Western', 'وسترن']};
+  const dn = (type, code) => { try { return new Intl.DisplayNames([lang], {type}).of(code) || code; } catch (e) { return code; } };
+  const label = {g: id => (GEN[id] || [])[lang === 'fa' ? 1 : 0] || '', c: code => dn('region', code), l: code => dn('language', code === 'cn' ? 'yue' : code)};
+  const avgTxt = v => '★ ' + (lang === 'fa' ? Number(v).toLocaleString('fa-IR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) : v.toFixed(1));
+  const seg = (key, opts) => `<div class="fx-years fx-seg" role="group">${opts.map(([v, l]) => `<button type="button" data-st="${key}:${v}" aria-pressed="${stv[key] === v}">${esc(l)}</button>`).join('')}</div>`;
+  // one film per title, with its latest rating — Letterboxd counts films, not viewings
+  function filmsOf(d) {
+    const m = new Map();
+    d.forEach(e => { const k = String(e.t) + '|' + (e.y || 0), f = m.get(k); if (!f) m.set(k, Object.assign({}, e)); else if (!f.r && e.r) f.r = e.r; });
+    return [...m.values()];
+  }
+  // count and average rating per bucket, e.g. per genre: [[bucket, films, average or 0]]
+  function tally(films, keys) {
+    const a = {};
+    films.forEach(f => [...new Set(keys(f))].forEach(k => { if (k === '' || k == null) return; const o = a[k] = a[k] || [0, 0, 0]; o[0]++; if (f.r) { o[1] += f.r; o[2]++; } }));
+    return Object.entries(a).map(([k, [n, sum, rn]]) => [k, n, rn, rn ? sum / rn / 2 : 0]);
+  }
+  const minR = () => year === 'all' ? 3 : 2;
+  function ranked(rows, mode, max) {
+    if (mode === 'n') return rows.sort((x, y) => y[1] - x[1] || y[3] - x[3]).slice(0, max);
+    return rows.filter(r => r[2] >= minR()).sort((x, y) => y[3] - x[3] || y[2] - x[2]).slice(0, max);
+  }
+  function barList(rows, mode, name) {
+    if (!rows.length) return `<p class="fx-muted fx-few">${T().few}</p>`;
+    const mx = mode === 'n' ? Math.max(...rows.map(r => r[1])) : 5;
+    return `<div class="fx-rows fx-wide">${rows.map(r => `<div class="fx-rowbar"><span class="fx-rk"><bdi>${esc(name(r[0]))}</bdi></span><span class="fx-rb"><i style="width:${Math.max(2, Math.round((mode === 'n' ? r[1] : r[3]) / mx * 100))}%"></i></span><span class="fx-rn" dir="ltr">${mode === 'n' ? fa(r[1]) : avgTxt(r[3])}</span></div>`).join('')}</div>`;
+  }
+  function nameList(rows, mode) {
+    if (!rows.length) return `<p class="fx-muted fx-few">${T().few}</p>`;
+    return `<ol class="fx-top">${rows.map(r => `<li><bdi>${esc(r[0])}</bdi><span class="fx-rn"><bdi>${mode === 'n' ? esc(faDigits(T().films(r[1]))) : avgTxt(r[3]) + ' · ' + fa(r[2])}</bdi></span></li>`).join('')}</ol>`;
+  }
+  const card = (title, tools, body) => `<section class="fx-card"><div class="fx-cardh"><h2>${title}</h2>${tools || ''}</div>${body}</section>`;
+  const dirsOf = f => String(f.d || '').split(/,\s*|،\s*/).filter(Boolean);
   function statsView() {
-    const t = T(), d = inYear();
-    let cal = '';
-    if (typeof fxCalendar === 'function') cal = `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang])}</section>`;
+    const t = T(), d = inYear(), films = filmsOf(d), mw = [['n', t.most], ['r', t.best]];
+    const hasMeta = films.some(f => Array.isArray(f.g) || Array.isArray(f.c));
+    // the headline numbers
+    const days = {}; d.forEach(e => { if (day.test(e.w)) days[e.w] = (days[e.w] || 0) + 1; });
+    const num = n => Number(n).toLocaleString(lang === 'fa' ? 'fa-IR' : 'en-US');
+    const big = [[num(films.length), t.big.films], [num(Math.round(d.reduce((a, e) => a + (+e.m || 0), 0) / 60)), t.big.hours],
+      [num(new Set(films.flatMap(dirsOf)).size), t.big.dirs]];
+    if (hasMeta) big.push([num(new Set(films.flatMap(f => f.c || [])).size), t.big.countries]);
+    big.push([num(Object.values(days).filter(n => n > 1).length), t.big.multi]);
+    let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
+    if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang])}</section>`;
     const hist = Array(11).fill(0); d.forEach(e => { if (e.r) hist[e.r]++; });
-    const mx = Math.max(1, ...hist);
-    let h = cal + `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / mx * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
-    const dec = {}; d.forEach(e => { if (e.y) { const k = Math.floor(e.y / 10) * 10; dec[k] = (dec[k] || 0) + 1; } });
-    const dk = Object.keys(dec).sort(), dm = Math.max(1, ...Object.values(dec));
-    h += `<section class="fx-card"><h2>${t.decades}</h2><div class="fx-rows">${dk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}s</span><span class="fx-rb"><i style="width:${Math.round(dec[k] / dm * 100)}%"></i></span><span class="fx-rn">${faDigits(dec[k])}</span></div>`).join('')}</div></section>`;
+    const hm = Math.max(1, ...hist);
+    h += `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / hm * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
+    // decades: how many, or how well liked
+    const dec = tally(films, f => f.y ? [Math.floor(f.y / 10) * 10] : []);
+    const decRows = stv.dec === 'n' ? dec.sort((x, y) => x[0] - y[0]) : ranked(dec, 'r', 12);
+    h += card(t.decades, seg('dec', mw), barList(decRows, stv.dec, k => faDigits(k) + (lang === 'fa' ? '' : 's')));
     if (year === 'all') {
       const yc = {}; d.forEach(e => { const y = String(e.w || '').slice(0, 4); if (/^\d{4}$/.test(y)) yc[y] = (yc[y] || 0) + 1; });
       const yk = Object.keys(yc).sort(), ym = Math.max(1, ...Object.values(yc));
-      if (yk.length > 1) h += `<section class="fx-card"><h2>${t.byYear}</h2><div class="fx-rows">${yk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}</span><span class="fx-rb"><i style="width:${Math.round(yc[k] / ym * 100)}%"></i></span><span class="fx-rn">${fa(yc[k])}</span></div>`).join('')}</div></section>`;
+      if (yk.length > 1) h += `<section class="fx-card"><h2>${t.byYear}</h2><div class="fx-rows fx-wide">${yk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}</span><span class="fx-rb"><i style="width:${Math.round(yc[k] / ym * 100)}%"></i></span><span class="fx-rn">${fa(yc[k])}</span></div>`).join('')}</div></section>`;
     }
-    const dir = {}; d.forEach(e => { (e.d || '').split(/,\s*|،\s*/).filter(Boolean).forEach(x => { dir[x] = (dir[x] || 0) + 1; }); });
-    const top = Object.entries(dir).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    if (top.length) h += `<section class="fx-card"><h2>${t.directors}</h2><ol class="fx-top">${top.map(([n, c]) => `<li><bdi>${esc(n)}</bdi><span class="fx-rn">${fa(c)}</span></li>`).join('')}</ol></section>`;
+    // genres, countries and languages, the way Letterboxd groups them
+    if (hasMeta) {
+      const pick = {g: f => f.g || [], c: f => f.c || [], l: f => f.lg && f.lg !== 'xx' ? [f.lg] : []}[stv.gcl];
+      const rows = ranked(tally(films, pick), stv.gm, 10);
+      h += card(t.gcl, `<div class="fx-segs">${seg('gcl', [['g', t.genres], ['c', t.countries], ['l', t.languages]])}${seg('gm', mw)}</div>`, barList(rows, stv.gm, label[stv.gcl]));
+    }
+    h += card(t.dirsH, seg('dir', mw), nameList(ranked(tally(films, dirsOf), stv.dir, 10), stv.dir));
+    if (hasMeta) h += card(t.cast, seg('cast', mw), nameList(ranked(tally(films, f => f.ca || []), stv.cast, 10), stv.cast));
     const mins = d.reduce((a, e) => a + (+e.m || 0), 0);
     h += `<section class="fx-card"><h2>${t.totals}</h2><div class="fx-eye fx-strip">${esc(faDigits([t.films(d.length), t.runtime + ' ' + t.hmf(mins), d.filter(e => e.r).length + ' ' + t.rated, d.filter(e => e.h).length + ' ' + t.liked, d.filter(e => e.rv).length + ' ' + t.reviewed].join(' · ')))}</div></section>`;
     return h;
@@ -206,6 +264,7 @@ function fxProfile(root, id, focusId, opts) {
     }
     if (b.dataset.tab) { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
     else if (b.dataset.year) { year = b.dataset.year; render(); }
+    else if (b.dataset.st) { const [k, v] = b.dataset.st.split(':'); if (k in stv) { stv[k] = v; render(); } }
     else if (b.dataset.spoil) { open['sp:' + b.dataset.spoil] = true; render(); }
     else if (b.dataset.more) { open[b.dataset.more] = !open[b.dataset.more]; render(); }
     else if (b.dataset.perma) {

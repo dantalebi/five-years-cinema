@@ -230,6 +230,48 @@ function fxDiary(D, seen) {
   return out;
 }
 function fxMd(seen, k) { try { const o = JSON.parse(seen['md:' + k] || 'null'); return o && typeof o === 'object' ? o : null; } catch (e) { return null; } }
+// a film's TMDB details for stats (genres, countries, language, cast) live under one key per film, shared by every viewing
+const fxNorm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+function fxMetaKey(D, e) {
+  if (e.i != null) { const f = D.F[e.i]; return f[16] ? 'mx:tm' + f[16] : 'mx:t' + fxNorm(f[0]) + '|' + (f[1] || 0); }
+  const md = e.md || {};
+  if (md.tm) return 'mx:tm' + md.tm;
+  return 'mx:t' + fxNorm(md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (md.y || e.y || 0);
+}
+function fxMeta(seen, k) { try { const o = JSON.parse(seen[k] || 'null'); return o && typeof o === 'object' && !o.x ? o : null; } catch (e) { return null; } }
+// look up the films that have no details yet, three at a time, writing in small batches; a film TMDB doesn't know is tried again after a month
+let fxMetaBusy = false;
+async function fxMetaFill(D, seen, set, P) {
+  if (fxMetaBusy || !P || !P.on() || !P.meta) return 0;
+  fxMetaBusy = true;
+  const s = seen(), d0 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10), todo = new Map();
+  try {
+    fxDiary(D, s).forEach(e => {
+      const k = fxMetaKey(D, e);
+      if (todo.has(k)) return;
+      if (s[k]) { try { const o = JSON.parse(s[k]); if (!o.x || o.x > d0) return; } catch (er) { return; } }
+      todo.set(k, e);
+    });
+    const list = [...todo.entries()], out = [];
+    let i = 0, n = 0;
+    const flush = () => { out.splice(0).forEach(([k, v]) => set(k, v)); };
+    const one = async ([k, e]) => {
+      let tm = k.startsWith('mx:tm') ? +k.slice(5) : 0, tv = 0;
+      if (!tm) {
+        const md = e.md || {}, t = e.i != null ? D.F[e.i][0] : md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y = e.i != null ? D.F[e.i][1] : md.y || e.y || 0;
+        const m = await P.match(t, y);
+        if (m) { tm = m.id || 0; tv = m.tv || 0; }
+      }
+      const o = tm || tv ? await P.meta(tm || tv, !tm) : null;
+      out.push([k, JSON.stringify(o || {x: new Date().toISOString().slice(0, 10)})]); n++;
+      if (out.length >= 25) flush();
+    };
+    const worker = async () => { while (i < list.length && !P.failed()) { const it = list[i++]; try { await one(it); } catch (er) {} } };
+    await Promise.all([worker(), worker(), worker()]);
+    flush();
+    return n;
+  } finally { fxMetaBusy = false; }
+}
 function fxFav(seen) { try { const a = JSON.parse(seen['cfg:fav'] || '[]'); return Array.isArray(a) ? a.slice(0, 4) : []; } catch (e) { return []; } }
 const fxTmdbImg = p => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : '';
 const fxTmdbBd = (p, w) => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/' + (w || 'w1280') + p : '';
@@ -284,8 +326,10 @@ function fxShare(D, seen, posterUrl) {
   if (seen['cfg:pubdiary'] !== '0') out.diary = fxDiary(D, seen).map(e => {
     const md = e.md || {};
     const base = e.i != null ? film(e.i, e.date) : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0, p: ovp('tx:' + e.t) || fxTmdbImg(md.p) || pos('tx:' + e.t), l: '', tm: md.tm || 0, w: e.date};
+    const mx = fxMeta(seen, fxMetaKey(D, e));
     return Object.assign(base, {id: fxEntryId(e.k), r: e.r || 0, h: e.l ? 1 : 0, rv: String(e.rv || '').slice(0, 20000), sp: e.sp ? 1 : 0, rw: e.rw ? 1 : 0,
-      ww: String(e.ww || '').slice(0, 80), tg: String(e.tg || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8)});
+      ww: String(e.ww || '').slice(0, 80), tg: String(e.tg || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8)},
+      mx ? {g: (mx.g || []).slice(0, 5), c: (mx.c || []).slice(0, 4), lg: mx.l || '', ca: (mx.a || []).slice(0, 6)} : {});
   });
   out.fav = fxFav(seen).map(f => {
     if (f && f.k && KEYIDX[f.k] !== undefined) { const i = KEYIDX[f.k]; return {t: F[i][0], y: F[i][1], d: dir(i), p: pos(F[i][8]), l: F[i][5] || ''}; }

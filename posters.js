@@ -114,7 +114,17 @@ const Posters = (() => {
     return {posters: sortP(j.posters || []).map(p => p.file_path).filter(okPath).slice(0, 60),
       backdrops: (j.backdrops || []).slice().sort((x, y) => (x.iso_639_1 ? 1 : 0) - (y.iso_639_1 ? 1 : 0) || (y.vote_count || 0) - (x.vote_count || 0)).map(p => p.file_path).filter(okPath).slice(0, 40)};
   }
+  // what stats are made of: genres, production countries, original language and top-billed cast
+  const TVG = {10759: [28, 12], 10765: [878, 14], 10768: [10752], 10762: [10751]};  // TV-only genres → the film ones
+  async function meta(id, tv) {
+    const j = await api('/' + (tv ? 'tv/' : 'movie/') + encodeURIComponent(id) + '?append_to_response=credits&language=en-US');
+    let g = (j.genres || []).map(x => +x.id).filter(Boolean);
+    if (tv) g = [].concat(...g.map(x => TVG[x] || (x < 10759 ? [x] : [])));
+    const c = tv ? (j.origin_country || []) : (j.production_countries || []).map(x => x.iso_3166_1);
+    const cast = ((j.credits && j.credits.cast) || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0)).slice(0, 6).map(x => String(x.name || '').slice(0, 60)).filter(Boolean);
+    return {g: [...new Set(g)].slice(0, 5), c: c.filter(x => /^[A-Z]{2}$/.test(x)).slice(0, 4), l: /^[a-z]{2}$/.test(j.original_language || '') ? j.original_language : '', a: cast};
+  }
   function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
   const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
-  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, put, url};
+  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, meta, put, url};
 })();

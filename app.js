@@ -29,7 +29,7 @@
       res.sets.forEach(([k, v]) => Store.set(k, v));
       Store.set('lbsync:at', new Date().toISOString());
       if (res.added + res.ticked + res.merged) Store.set('lbsync:n', res.added + res.ticked + res.merged);
-      if (FX && (res.added + res.ticked + res.merged)) FX.render();
+      if (FX && (res.added + res.ticked + res.merged)) { FX.render(); enrichSoon(); }
     } catch (e) {} finally { lbPulling = false; }
   }
   async function pool(list, n, fn) { let i = 0; await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => { while (i < list.length) await fn(list[i++]); })); }
@@ -65,6 +65,7 @@
       });
       const res = FXLB.merge(rows, Store.data, D.F, LB_SINCE);
       res.sets.forEach(([k, v]) => Store.set(k, v));
+      enrichSoon();
       return res;
     },
   };
@@ -87,6 +88,8 @@
       });
     } finally { enriching = false; }
     if (n && FX) FX.render();
+    // genres, countries, language and cast for the stats; once per film, synced, so other devices don't repeat it
+    if (window.D) fxMetaFill(window.D, () => Store.data, Store.set, Posters).catch(() => {});
   }
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
   function start(D) {
