@@ -82,7 +82,9 @@ const FXLB = (() => {
     const filmId = (pk, t, y, tm) => pk ? 'k:' + pk : tm ? 'tm:' + tm : 't:' + norm(t) + '|' + (y || 0);
     // what's already in the diary: film → [entry key, date]
     const idx = {};
-    const note = (fid, k, d) => { (idx[fid] = idx[fid] || []).push([k, d]); };
+    // entries already there match within a day (time zones); entries this import adds match only the same day,
+    // so two real watches on consecutive days stay two, while reviews.csv still folds into its diary.csv row
+    const note = (fid, k, d, fresh) => { (idx[fid] = idx[fid] || []).push([k, d, fresh]); };
     for (const k in cur) {
       if (k.startsWith('log:') && !k.slice(4).includes(':') && isDate(cur['v:' + k])) {
         const v = String(cur[k]);
@@ -97,7 +99,7 @@ const FXLB = (() => {
       }
     }
     for (const f of F || []) if (isDate(cur[f[8]])) note('k:' + f[8], f[8], cur[f[8]]);
-    const near = (fid, date) => (idx[fid] || []).find(([, d]) => Math.abs(dayN(d) - dayN(date)) <= 1);
+    const near = (fid, date) => (idx[fid] || []).find(([, d, fresh]) => fresh ? d === date : Math.abs(dayN(d) - dayN(date)) <= 1);
     function fill(k, r) {
       let ch = false;
       const put = (p, v) => { if (v && !cur[p + k]) { set(p + k, v); ch = true; } };
@@ -118,12 +120,12 @@ const FXLB = (() => {
       const hit = near(fid, r.date) || (r.tm && !pk ? near('tm:' + r.tm, r.date) : null);
       if (hit) { if (fill(hit[0], r)) res.merged++; else res.same++; }
       else if (pk && !isDate(cur[pk]) && r.date >= since) {
-        set(pk, r.date); set('sk:' + pk, null); fill(pk, r); note(fid, pk, r.date); res.ticked++;
+        set(pk, r.date); set('sk:' + pk, null); fill(pk, r); note(fid, pk, r.date, 1); res.ticked++;
       } else {
         const id = r.guid ? 'log:lb' + String(r.guid).replace(/[^a-z0-9]/gi, '').slice(-24) : 'log:' + base + (n++).toString(36).padStart(4, '0');
         set(id, pk ? 'k:' + pk : 't:' + r.t + (r.y ? ' (' + r.y + ')' : '')); set('v:' + id, r.date);
         if (!pk && (r.tm || r.md)) set('md:' + id, JSON.stringify(Object.assign({tm: r.tm || 0, t: r.t, y: r.y || 0}, r.md || {})));
-        fill(id, r); note(fid, id, r.date); res.added++;
+        fill(id, r); note(fid, id, r.date, 1); if (!pk && r.tm) note('tm:' + r.tm, id, r.date, 1); res.added++;
       }
       if (r.guid) set('lb:' + r.guid, r.date);
     });
