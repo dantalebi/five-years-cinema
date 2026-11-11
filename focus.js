@@ -25,7 +25,8 @@ const FX_STR = {
     add: '+ Add film', addH: 'Add a film', replace: 'Replace', replaceH: t => 'Replace ' + t, insteadOf: t => 'Instead of ' + t, added: 'Added',
     remove: 'Remove', cancel: 'Cancel', addPh: 'Search films…', addAsIs: t => 'Add “' + t + '”', noMatch: 'Not in your plan — you can still add it.',
     diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ' · ' + h + (avg ? ' · ★ ' + avg + ' average' : ''),
-    diaryEmpty: 'Your diary is empty. Films you mark as watched show up here.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
+    logFilm: '+ Log a film', logH: 'Log a film', allYears: 'All', watchedLbl: 'Watched',
+    diaryEmpty: 'Your diary is empty. Films you mark as watched show up here — or log one yourself.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
     logOnLb: 'Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
     syncH: 'Sync', syncOn: login => 'Connected' + (login ? ' as ' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last synced ' + a + '.',
     syncNow: 'Sync now', disconnect: 'Disconnect this device',
@@ -66,7 +67,8 @@ const FX_STR = {
     add: '+ یه فیلم اضافه کن', addH: 'یه فیلم به این هفته اضافه کن', replace: 'عوض کن', replaceH: t => 'به‌جای ' + t + '…', insteadOf: t => 'به‌جای ' + t, added: 'اضافه',
     remove: 'بردار', cancel: 'بی‌خیال', addPh: 'تو برنامه بگرد یا هر اسمی رو بنویس', addAsIs: t => '«' + t + '» رو همین‌طوری اضافه کن', noMatch: 'تو برنامه چیزی با این اسم نیست؛ همین‌طوری اضافه‌ش کن.',
     diaryH: 'دفتر', diaryEye: (n, h, avg) => n + ' فیلم · ' + h + (avg ? ' · میانگین ★' + avg : ''),
-    diaryEmpty: 'هنوز چیزی ثبت نشده. هر فیلمی که تیک بزنی خودش اینجا میاد.', edit: 'ویرایش', watchedOn: 'تاریخ دیدن', done: 'تموم', unlog: 'حذف از دفتر',
+    logFilm: '+ ثبت یه فیلم', logH: 'ثبت یه فیلم', allYears: 'همه', watchedLbl: 'دیدم',
+    diaryEmpty: 'هنوز چیزی ثبت نشده. هر فیلمی که تیک بزنی خودش اینجا میاد، یا خودت یکی ثبت کن.', edit: 'ویرایش', watchedOn: 'تاریخ دیدن', done: 'تموم', unlog: 'حذف از دفتر',
     logOnLb: 'لترباکس ↗', copyPost: 'کپی پست', postCopied: 'کپی شد؛ تو کانالت بچسبون.',
     syncH: 'همگام‌سازی', syncOn: login => 'وصلی به گیت‌هاب' + (login ? ' با حساب ' + login : '') + '.', syncBusy: 'در حال همگام‌سازی…', syncAt: a => 'آخرین همگام‌سازی: ' + a + '.',
     syncNow: 'الان همگام کن', disconnect: 'قطع اتصال همین دستگاه',
@@ -175,7 +177,7 @@ function fxDiary(D, seen) {
     else if (k.startsWith('v:') && day.test(v)) {
       const base = k.slice(2), bv = seen[base];
       if (!bv) continue;
-      if (base.startsWith('add:') && bv.startsWith('t:')) out.push({k: base, i: null, t: bv.slice(2), y: fxYear(bv), date: v});
+      if ((base.startsWith('add:') || base.startsWith('log:')) && bv.startsWith('t:')) out.push({k: base, i: null, t: bv.slice(2), y: fxYear(bv), date: v});
       else if (base.startsWith('free:') && !bv.startsWith('k:')) out.push({k: base, i: null, t: bv, y: fxYear(bv), date: v});
     }
   }
@@ -254,7 +256,7 @@ function mountFocus(root, D, S, opts) {
   const STK = {wl: 'ok', done: 'ok', dl: 'dl', need: 'need'};
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
-  let shown = null, pickK = null, altOpen = {}, view = 'week', note = {}, picker = null, editK = null, reviewOpen = {}, rvTimer = null;
+  let shown = null, pickK = null, altOpen = {}, view = 'week', note = {}, picker = null, editK = null, reviewOpen = {}, rvTimer = null, diaryYear = null;
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
   const posterOn = () => !!(P && P.on());
@@ -333,6 +335,12 @@ function mountFocus(root, D, S, opts) {
     else if (!done) links = `<button type="button" class="fx-link fx-al" data-skip title="${esc(t.skipTitle)}">${t.skip}</button><button type="button" class="fx-link fx-al" data-replace>${t.replace}</button>`;
     return `<div class="fx-acts">${skipped ? '<span class="fx-chk ghost" aria-hidden="true"></span>' : chk(done)}${links}</div>`;
   }
+  // the logged date, editable in place: plan films keep it on their own key, custom entries on v:<key>
+  function whenLine(dk) {
+    const s = seen(), v = /^(add|free|log):/.test(dk) ? s['v:' + dk] : s[dk];
+    if (!/^\d{4}-\d\d-\d\d$/.test(v || '')) return '';
+    return `<label class="fx-when"><span>${T().watchedLbl}</span><input type="date" class="fx-date fx-date-in" data-dk="${esc(dk)}" value="${v}" max="${today()}" aria-label="${esc(T().watchedOn)}"></label>`;
+  }
   const tonightTag = k => pickK === k ? `<span class="fx-tonight">${T().tonightTag}</span>` : '';
   function card(w, it, n) {
     const s = seen(), t = T();
@@ -341,7 +349,7 @@ function mountFocus(root, D, S, opts) {
       const orig = it.rp ? origTitle(it.rp) : '';
       const extra = esc(orig ? t.insteadOf(orig) : t.added);
       return `<li class="fx-i fx-add ${done ? 'done' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(it.i, it.i == null ? it.title : '')}
-        <div class="fx-b">${tonightTag(it.k)}${titleLine(it.i, it.title)}${subLine(it.i)}${tagLine(it.i, '', extra)}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
+        <div class="fx-b">${tonightTag(it.k)}${titleLine(it.i, it.title)}${subLine(it.i)}${tagLine(it.i, '', extra)}${done ? whenLine(it.i != null ? rk : it.k) + rateRow(rk) + reviewBlock(rk) : ''}</div>
         ${actions(done, false, 'add')}</li>`;
     }
     if (it.free) {
@@ -352,12 +360,12 @@ function mountFocus(root, D, S, opts) {
       const body = txt ? titleLine(null, txt) + tagLine(null, '', esc(t.yourPick)) : i != null ? titleLine(i) + subLine(i) + tagLine(i, 'F') : `<div class="fx-tl"><span class="fx-film">${t.anything}</span></div>`;
       const alt = !done && !skipped ? (altOpen[it.k] ? `<form class="fx-alt" data-alt="${esc(it.k)}"><input type="text" dir="auto" placeholder="${esc(t.otherPh)}" aria-label="${esc(t.otherPh)}" required><button type="submit">${t.save}</button></form>` : `<button type="button" class="fx-link fx-other" data-open-alt="${esc(it.k)}">${t.other}</button>`) : '';
       return `<li class="fx-i ${cls}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}" data-sug="${i != null ? i : ''}">${poster(txt ? null : i, txt)}
-        <div class="fx-b">${tonightTag(it.k)}${body}${alt}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
+        <div class="fx-b">${tonightTag(it.k)}${body}${alt}${done ? whenLine(v.startsWith('k:') ? rk : it.k) + rateRow(rk) + reviewBlock(rk) : ''}</div>
         ${actions(done, skipped, 'film')}</li>`;
     }
     const i = it.i, done = !!s[it.k], skipped = !done && !!s['sk:' + it.k];
     return `<li class="fx-i ${done ? 'done' : skipped ? 'skip' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(i)}
-      <div class="fx-b">${tonightTag(it.k)}${titleLine(i)}${subLine(i)}${tagLine(i, it.lane)}${done ? rateRow(it.k) + reviewBlock(it.k) : ''}</div>
+      <div class="fx-b">${tonightTag(it.k)}${titleLine(i)}${subLine(i)}${tagLine(i, it.lane)}${done ? whenLine(it.k) + rateRow(it.k) + reviewBlock(it.k) : ''}</div>
       ${actions(done, skipped, 'film')}</li>`;
   }
   function origTitle(k) {
@@ -397,7 +405,7 @@ function mountFocus(root, D, S, opts) {
     return `<i class="fx-sd ${st.state === 'err' ? 'err' : st.state === 'busy' ? 'busy' : 'ok'}" aria-hidden="true"></i>`;
   }
   function pickerBox() {
-    const t = T(), head = picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
+    const t = T(), head = picker.log ? t.logH : picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
     return `<div class="fx-picker fx-card"><div class="fx-pick-h">${esc(head)}</div>
       <input type="search" class="fx-pick-q" dir="auto" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(t.addPh)}" aria-label="${esc(t.addPh)}" value="${esc(picker.q || '')}">
       <ul class="fx-res">${pickerResults()}</ul><div class="fx-row"><button type="button" class="fx-link" data-pick-cancel>${t.cancel}</button></div></div>`;
@@ -453,11 +461,18 @@ function mountFocus(root, D, S, opts) {
     return [head, [stars, e.l ? '♥' : ''].filter(Boolean).join(' '), e.rv || '', url].filter(Boolean).join('\n\n');
   }
   function renderDiary() {
-    const t = T(), list = fxDiary(D, seen());
+    const t = T(), all = fxDiary(D, seen());
+    const years = [...new Set(all.map(e => e.date.slice(0, 4)))].sort().reverse();
+    if (diaryYear === null || (diaryYear !== 'all' && !years.includes(diaryYear))) diaryYear = years.length > 1 ? (years.includes(today().slice(0, 4)) ? today().slice(0, 4) : years[0]) : 'all';
+    const list = diaryYear === 'all' ? all : all.filter(e => e.date.startsWith(diaryYear));
     const mins = list.reduce((a, e) => a + (e.i != null ? F[e.i][3] || 0 : 0), 0), rated = list.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
-    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diaryEye(fa(list.length), t.hm(mins).replace(/\d+/g, d => fa(d)), avg ? (L() === 'fa' ? fa1(+avg) : avg) : ''))}</div><div class="fx-hrow"><h1 class="fx-h1">${t.diaryH}</h1></div></header>`;
-    if (!list.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-back>${t.back}</button></div>`;
+    const hmFa = m => L() === 'fa' ? t.hm(m).replace(/\d+/g, d => fa(d)) : t.hm(m);
+    const nfmt = n => L() === 'fa' ? fa(n) : Number(n).toLocaleString('en-US');
+    let h = `<header class="fx-head">${all.length ? `<div class="fx-eye">${esc(t.diaryEye(nfmt(list.length), hmFa(mins).replace(/\b\d{4,}\b/g, n => L() === 'fa' ? n : Number(n).toLocaleString('en-US')), avg ? (L() === 'fa' ? fa1(+avg) : avg) : ''))}</div>` : ''}<div class="fx-hrow"><h1 class="fx-h1">${t.diaryH}</h1></div></header>`;
+    h += picker && picker.log ? pickerBox() : `<div class="fx-act"><button type="button" class="fx-btn" data-log>${t.logFilm}</button></div>`;
+    if (years.length > 1) h += `<nav class="fx-years">${years.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${diaryYear === y}">${y === 'all' ? t.allYears : fa(y).replace(/[٬,]/g, '')}</button>`).join('')}</nav>`;
+    if (!all.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-back>${t.back}</button></div>`;
     const mf = new Intl.DateTimeFormat(L() === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', {month: 'long', year: 'numeric'});
     const dayN = new Intl.DateTimeFormat(L() === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', {day: 'numeric'});
     let month = '';
@@ -544,6 +559,11 @@ function mountFocus(root, D, S, opts) {
     S.set(a, null);
   }
   function pick(val) {
+    if (picker.log) {
+      if (val.startsWith('k:')) { const fk = val.slice(2); if (!seen()[fk]) S.set(fk, today()); S.set('sk:' + fk, null); editK = fk; }
+      else { const id = 'log:' + Date.now().toString(36); S.set(id, val); S.set('v:' + id, today()); editK = id; }
+      diaryYear = today().slice(0, 4); picker = null; return;
+    }
     const a = 'add:' + shown + ':' + Date.now().toString(36);
     S.set(a, val);
     if (picker.replace) { S.set('rp:' + a, picker.replace); S.set('sk:' + picker.replace, today()); }
@@ -567,7 +587,7 @@ function mountFocus(root, D, S, opts) {
     }
     if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
     const d = e.target.closest('input.fx-date');
-    if (d && /^\d{4}-\d\d-\d\d$/.test(d.value)) { const k = d.closest('[data-dk]').dataset.dk; if (k.startsWith('add:') || k.startsWith('free:')) S.set('v:' + k, d.value); else S.set(k, d.value); render(); }
+    if (d && /^\d{4}-\d\d-\d\d$/.test(d.value)) { const k = d.dataset.dk || d.closest('[data-dk]').dataset.dk; if (/^(add|free|log):/.test(k)) S.set('v:' + k, d.value); else S.set(k, d.value); if (view === 'diary') { if (diaryYear !== 'all') diaryYear = d.value.slice(0, 4); render(); } }
   });
   root.addEventListener('focusout', e => {
     const rv = e.target.closest && e.target.closest('textarea[data-rv]');
@@ -581,12 +601,15 @@ function mountFocus(root, D, S, opts) {
     const t = e.target.closest('button'); if (!t || !root.contains(t)) return;
     const li = t.closest('.fx-i'), k = li && li.dataset.k, tt = T();
     if (t.hasAttribute('data-rvopen')) { reviewOpen[t.dataset.rvopen] = true; render(); const ta = root.querySelector('textarea[data-rv="' + CSS.escape(t.dataset.rvopen) + '"]'); if (ta) ta.focus(); return; }
+    if (t.hasAttribute('data-log')) { picker = {q: '', focus: true, log: true}; editK = null; render(); return; }
+    if (t.hasAttribute('data-year')) { diaryYear = t.dataset.year; editK = null; render(); return; }
     if (t.hasAttribute('data-diary')) { view = 'diary'; editK = null; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     if (t.hasAttribute('data-dedit')) { editK = t.closest('[data-dk]').dataset.dk; note = {}; render(); return; }
     if (t.hasAttribute('data-dedone')) { const ta = root.querySelector('.fx-ded textarea'); if (ta) { clearTimeout(rvTimer); S.set('rv:' + ta.dataset.rv, ta.value.trim() ? ta.value : null); } editK = null; render(); return; }
     if (t.hasAttribute('data-unlog')) {
       const k2 = t.closest('[data-dk]').dataset.dk;
-      if (k2.startsWith('add:') || k2.startsWith('free:')) ['v:', 'r:', 'l:', 'rv:'].forEach(p => S.set(p + k2, null)); else { setFilm(k2, false); S.set('rv:' + k2, null); }
+      if (k2.startsWith('log:')) ['', 'v:', 'r:', 'l:', 'rv:'].forEach(p => S.set(p + k2, null));
+      else if (k2.startsWith('add:') || k2.startsWith('free:')) ['v:', 'r:', 'l:', 'rv:'].forEach(p => S.set(p + k2, null)); else { setFilm(k2, false); S.set('rv:' + k2, null); }
       editK = null; render(); return;
     }
     if (t.hasAttribute('data-post')) {
@@ -649,7 +672,7 @@ function mountFocus(root, D, S, opts) {
     }
     else if (t.hasAttribute('data-full')) { opts.openFull && opts.openFull(shown); return; }
     else if (t.hasAttribute('data-settings')) { view = 'settings'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
-    else if (t.hasAttribute('data-back')) { view = 'week'; note = {}; render(); window.scrollTo(0, 0); return; }
+    else if (t.hasAttribute('data-back')) { view = 'week'; note = {}; picker = null; editK = null; render(); window.scrollTo(0, 0); return; }
     else if (t.hasAttribute('data-lang')) { S.set('cfg:lang', t.dataset.lang === 'fa' ? 'fa' : 'en'); }
     else if (t.hasAttribute('data-sync-now')) { ST.syncNow(); }
     else if (t.hasAttribute('data-disconnect')) { ST.disconnect(); note.gh = ['ok', tt.disconnected]; }

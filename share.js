@@ -4,13 +4,13 @@
   const root = document.getElementById('root');
   const hm = (location.hash.match(/^#([0-9a-f]{20,40})(?:\/([a-z0-9-]{1,120}))?$/i) || []);
   const id = hm[1], focusId = hm[2] || '';
-  let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, jumped = false, withP = false;
+  let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, jumped = false, withP = false, year = null;
   const TX = {
     en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
-      perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
-      spread: 'Ratings', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
+      allYears: 'All time', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      spread: 'Ratings', byYear: 'Films per year', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
       bad: 'This link is incomplete', gone: 'This profile is no longer published', fail: 'Couldn’t load', later: 'Try again in a few minutes.',
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
@@ -18,8 +18,8 @@
     fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
-      discuss: 'گفت‌وگو تو کانال ↗', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
-      spread: 'پخش امتیازها', decades: 'به تفکیک دهه', directors: 'کارگردان‌های پرتکرار', totals: 'جمع', rated: 'امتیازدار', liked: 'قلب‌دار', reviewed: 'ریویودار', runtime: 'زمان کل',
+      discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
+      spread: 'پخش امتیازها', byYear: 'فیلم‌ها در هر سال', decades: 'به تفکیک دهه', directors: 'کارگردان‌های پرتکرار', totals: 'جمع', rated: 'امتیازدار', liked: 'قلب‌دار', reviewed: 'ریویودار', runtime: 'زمان کل',
       bad: 'این لینک کامل نیست', gone: 'این صفحه دیگه منتشر نمی‌شه', fail: 'الان باز نشد', later: 'چند دقیقه‌ی دیگه دوباره امتحان کن.',
       ago: m => m < 1 ? 'همین الان' : m < 60 ? m + ' دقیقه پیش' : m < 1440 ? Math.round(m / 60) + ' ساعت پیش' : Math.round(m / 1440) + ' روز پیش',
       links: {lb: 'لترباکس', tg: 'تلگرام', sp: 'اسپاتیفای', ig: 'اینستاگرام', web: 'وب‌سایت'},
@@ -27,7 +27,7 @@
   };
   const T = () => TX[lang];
   const fa = n => lang === 'fa' ? Number(n).toLocaleString('fa-IR') : String(n);
-  const faDigits = s => lang === 'fa' ? String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(s);
+  const faDigits = s => lang === 'fa' ? String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(s).replace(/\b\d{4,}\b/g, n => (n.length === 4 && /^(18|19|20)\d\d$/.test(n)) ? n : Number(n).toLocaleString('en-US'));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const day = /^\d{4}-\d\d-\d\d$/;
   const fmt = (o) => new Intl.DateTimeFormat(lang === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', o);
@@ -86,8 +86,14 @@
       <div class="fx-b">${titleOf(e, true)}${subOf(e)}${dm}${rv}</div>
       <button type="button" class="fx-perma" data-perma="${esc(e.id)}" title="${t.perma}" aria-label="${t.perma}">#</button></li>`;
   }
+  const years = () => [...new Set((data.diary || []).map(e => String(e.w || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
+  const inYear = () => { const ys = years(); if (year === null || (year !== 'all' && !ys.includes(year))) year = ys.length > 1 ? ys[0] : 'all'; return year === 'all' ? (data.diary || []) : (data.diary || []).filter(e => String(e.w).startsWith(year)); };
+  function yearNav() {
+    const ys = years();
+    return ys.length > 1 ? `<nav class="fx-years">${ys.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${year === y}">${y === 'all' ? T().allYears : faDigits(y)}</button>`).join('')}</nav>` : '';
+  }
   function diaryView() {
-    const d = data.diary || [];
+    const d = inYear();
     if (!d.length) return `<p class="fx-muted">${T().noDiary}</p>`;
     const mf = fmt({month: 'long', year: 'numeric'});
     let h = '<div class="fx-diary">', month = '';
@@ -99,18 +105,23 @@
     return h + '</ul></div>';
   }
   function reviewsView() {
-    const d = (data.diary || []).filter(e => e.rv);
+    const d = inYear().filter(e => e.rv);
     if (!d.length) return `<p class="fx-muted">${T().noReviews}</p>`;
     return '<ul class="fx-dl fx-revs">' + d.map(e => entry(e, true)).join('') + '</ul>';
   }
   function statsView() {
-    const t = T(), d = data.diary || [];
+    const t = T(), d = inYear();
     const hist = Array(11).fill(0); d.forEach(e => { if (e.r) hist[e.r]++; });
     const mx = Math.max(1, ...hist);
     let h = `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / mx * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
     const dec = {}; d.forEach(e => { if (e.y) { const k = Math.floor(e.y / 10) * 10; dec[k] = (dec[k] || 0) + 1; } });
     const dk = Object.keys(dec).sort(), dm = Math.max(1, ...Object.values(dec));
-    h += `<section class="fx-card"><h2>${t.decades}</h2><div class="fx-rows">${dk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}s</span><span class="fx-rb"><i style="width:${Math.round(dec[k] / dm * 100)}%"></i></span><span class="fx-rn">${fa(dec[k])}</span></div>`).join('')}</div></section>`;
+    h += `<section class="fx-card"><h2>${t.decades}</h2><div class="fx-rows">${dk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}s</span><span class="fx-rb"><i style="width:${Math.round(dec[k] / dm * 100)}%"></i></span><span class="fx-rn">${faDigits(dec[k])}</span></div>`).join('')}</div></section>`;
+    if (year === 'all') {
+      const yc = {}; d.forEach(e => { const y = String(e.w || '').slice(0, 4); if (/^\d{4}$/.test(y)) yc[y] = (yc[y] || 0) + 1; });
+      const yk = Object.keys(yc).sort(), ym = Math.max(1, ...Object.values(yc));
+      if (yk.length > 1) h += `<section class="fx-card"><h2>${t.byYear}</h2><div class="fx-rows">${yk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}</span><span class="fx-rb"><i style="width:${Math.round(yc[k] / ym * 100)}%"></i></span><span class="fx-rn">${fa(yc[k])}</span></div>`).join('')}</div></section>`;
+    }
     const dir = {}; d.forEach(e => { (e.d || '').split(/,\s*|،\s*/).filter(Boolean).forEach(x => { dir[x] = (dir[x] || 0) + 1; }); });
     const top = Object.entries(dir).sort((a, b) => b[1] - a[1]).slice(0, 10);
     if (top.length) h += `<section class="fx-card"><h2>${t.directors}</h2><ol class="fx-top">${top.map(([n, c]) => `<li><bdi>${esc(n)}</bdi><span class="fx-rn">${fa(c)}</span></li>`).join('')}</ol></section>`;
@@ -123,8 +134,9 @@
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
     document.title = (data && data.name ? data.name + ' · ' : '') + t.title;
     const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : nowView();
+    const yn = tab === 'now' ? '' : yearNav();
     const hasP = withP;
-    root.innerHTML = `<div class="fx fx-share fx-pub${hasP ? ' fx-hasp' : ''}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${header()}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
+    root.innerHTML = `<div class="fx fx-share fx-pub${hasP ? ' fx-hasp' : ''}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
@@ -133,6 +145,7 @@
   root.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.tab) { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
+    else if (b.dataset.year) { year = b.dataset.year; render(); }
     else if (b.dataset.more) { open[b.dataset.more] = !open[b.dataset.more]; render(); }
     else if (b.dataset.perma) {
       const url = permalink(b.dataset.perma);
@@ -156,7 +169,7 @@
       withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
       updated = g.updated_at;
       render();
-      if (focusId && !jumped) { jumped = true; const el = document.getElementById('e-' + focusId); if (el) el.scrollIntoView({block: 'center'}); }
+      if (focusId && !jumped) { const fe = data.diary.find(e => e.id === focusId); if (fe && year !== 'all' && !String(fe.w).startsWith(year)) { year = String(fe.w).slice(0, 4); render(); } jumped = true; const el = document.getElementById('e-' + focusId); if (el) el.scrollIntoView({block: 'center'}); }
     } catch (e) {
       if (!data) shell(T().fail, T().later);
     }

@@ -213,7 +213,8 @@ a.fx-film:hover{text-decoration:underline; text-decoration-thickness:1px; text-u
 .fx-rb{height:6px; background:var(--sunk); border-radius:3px; overflow:hidden}
 .fx-rb i{display:block; height:100%; background:var(--muted); border-radius:3px}
 .fx-top{margin:0; padding-inline-start:22px; display:grid; gap:5px; font-size:14px}
-.fx-top li{display:flex; justify-content:space-between; gap:12px}
+.fx-top li{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.fx-top .fx-rn{font-size:12px}
 
 @media (max-width:420px){
   .fx{gap:18px; padding-top:22px}
@@ -224,3 +225,15 @@ a.fx-film:hover{text-decoration:underline; text-decoration-thickness:1px; text-u
   .fx-film{font-size:20px}
   .fx-links-ed label{grid-template-columns:1fr}
 }
+/* watched-on date, editable in place */
+.fx-when{display:inline-flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px; color:var(--muted); justify-self:start}
+.fx[dir="ltr"] .fx-when > span{font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase}
+.fx-date-in{font:inherit; font-size:13.5px; color:var(--ink); background:transparent; border:0; border-bottom:1px dashed var(--faint); border-radius:0; padding:1px 0; min-height:24px; cursor:pointer; -webkit-appearance:none; appearance:none}
+.fx-date-in:focus{outline:none; border-bottom-color:var(--accent)}
+.fx-date-in::-webkit-calendar-picker-indicator{opacity:.5; cursor:pointer}
+/* year filter, like Letterboxd's diary years */
+.fx-years{display:flex; flex-wrap:wrap; gap:6px}
+.fx-years button{all:unset; cursor:pointer; padding:4px 11px; border-radius:999px; font-size:13px; color:var(--muted); box-shadow:inset 0 0 0 1px var(--line); font-variant-numeric:tabular-nums}
+.fx[dir="ltr"] .fx-years button{font-family:var(--mono); font-size:11px; letter-spacing:.06em}
+.fx-years button[aria-pressed="true"]{background:var(--ink); color:var(--bg); box-shadow:none}
+.fx-years button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
