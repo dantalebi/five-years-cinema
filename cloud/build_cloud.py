@@ -20,7 +20,7 @@ shutil.copy(HERE + 'og/og.jpg', OUT + 'og.jpg')
 
 # The site's name. MOVED: an old address that now sends everyone to the new one (empty: none).
 NAME = 'TVC15'
-MOVED_FROM, MOVED_TO = 'film-diary-cdo.pages.dev', ''
+MOVED_FROM, MOVED_TO = 'film-diary-cdo.pages.dev', 'https://tvc15.pages.dev'
 open(OUT + 'config.js', 'w').write(f'''// The site's name and language.
 const FY_CONFIG = {{siteName: '{NAME}', siteNameFa: '{NAME}', lang: 'en'}};
 ''' + (f'''// the site moved: the old address sends you to the same page at the new one
