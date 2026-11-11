@@ -11,7 +11,7 @@ function fxPlay(ctx) {
       intro: 'Three small games with this diary.',
       duelT: 'This or that', duelP: n => 'Two of ' + n + '’s favourite films at a time: pick one, until your champion is left.',
       nightT: 'What should I watch tonight?', nightP: (n, k) => 'One film from the ' + k + ' that ' + n + ' gave 3.5★ or more.',
-      matchT: 'How close is your taste?', matchP: n => 'Your Letterboxd ratings next to ' + n + '’s.',
+      matchT: 'How close is your taste?', matchP: n => 'Your Letterboxd ratings next to ' + n + '’s.', matchMine: n => 'Your diary next to ' + n + '’s.',
       back: '← All games', size: n => n + ' films', start: 'Start', or: 'or', undo: '↶ Back one', again: 'Play again with', share: 'Share', copied: 'Copied',
       rounds: {32: 'Round of 32', 16: 'Round of 16', 8: 'Quarter-finals', 4: 'Semi-finals', 2: 'Final'}, of: (a, b) => a + ' / ' + b,
       champ: 'Your champion', theirs: (n, s) => n + ' gave it ' + s, unrated: n => n + ' hasn’t rated it', ranking: 'Your ranking', fewDuel: 'There aren’t enough highly rated films with posters yet.',
@@ -283,7 +283,7 @@ function fxPlay(ctx) {
   }
   function matchView() {
     const t = T(), n = first(), fl = ctx.feed && !ctx.lbProxy ? friendsList() : [], byName = !!(ctx.feed || ctx.lbProxy);
-    let h = `<div class="fx-gintro"><h2 class="fx-gh">${t.matchT}</h2><p class="fx-muted">${esc(t.matchP(n))}</p></div>`;
+    let h = `<div class="fx-gintro"><h2 class="fx-gh">${t.matchT}</h2><p class="fx-muted">${esc(match.res && match.res.mode === 'mine' && t.matchMine ? t.matchMine(n) : t.matchP(n))}</p></div>`;
     if (match.state === 'busy') return h + `<p class="fx-note busy fx-center">${t.loading}</p>`;
     if (match.state === 'done' && match.res) {
       const r = match.res, tier = r.score == null ? '' : t.tiers.find(([min]) => r.score >= min)[1];
@@ -357,5 +357,15 @@ function fxPlay(ctx) {
     loadFriend(u, !!ctx.lbProxy || friendsList().some(x => x.toLowerCase() === u.toLowerCase()));
     return true;
   }
-  return {view, click, change, submit, open, game: () => game};
+  // the header's one-line taste match: the visitor's own films against this profile (kept until either changes)
+  let qMemo = null, qKey = '';
+  function quick() {
+    const m = ctx.mine && ctx.mine(), d = ctx.data();
+    if (!m || !m.size || !d) return null;
+    const key = m.size + '|' + (d.diary || []).length + '|' + (d.seen || []).length;
+    if (key !== qKey) { qMemo = compare(m, 'mine'); qKey = key; }
+    return qMemo;
+  }
+  function showMine() { const r = quick(); if (!r) return false; open('match'); match.res = Object.assign({}, r, {who: T().you}); match.state = 'done'; return true; }
+  return {view, click, change, submit, open, game: () => game, quick, showMine};
 }

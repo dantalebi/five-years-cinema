@@ -230,8 +230,8 @@
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
     // the site opens on Friends (unless you chose This week), and Friends comes first in the bar
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
-    if (FR) FR.attach(() => FX && FX.render());
+      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, quickLog: true, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
+    if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger((t, y, md) => FX && FX.logFilm(t, y, md)); }
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {
@@ -380,6 +380,11 @@
   CloudSync.onSignOut(() => { location.href = '/'; });
   CloudSync.onStatus(() => FX && FX.render());
   Store.onChange(() => { planChanged(); enrichSoon(); });
+  Store.onLocalChange(k => {  // logging a film (or ticking it in the plan) takes it off the watchlist
+    if (!FR || !/^\d{4}-\d\d-\d\d$/.test(Store.data[k] || '')) return;
+    if (/^v:/.test(k)) setTimeout(() => FR.wlSeen(k.slice(2)), 0);
+    else if (window.D && fxKeyIdx(window.D)[k] !== undefined) setTimeout(() => FR.wlSeen(k), 0);
+  });
   Store.onLocalChange(k => { if (k === 'cfg:plan' || k === 'cfg:perweek' || String(k).startsWith('pl:')) planChanged(); if (k === 'cfg:lb') setTimeout(lbPull, 500); });
   setInterval(() => { if (document.visibilityState === 'visible') lbPull(); }, 30 * 60e3);
   home();

@@ -559,7 +559,8 @@ function mountFocus(root, D, S, opts) {
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
     const extra = (opts.tabs || []).map(x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '')).join('');
-    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+    const plus = opts.quickLog ? `<button type="button" class="fx-tplus" data-qlog aria-label="${esc(t.logFilm.replace(/^\+\s*/, ''))}" title="${esc(t.logFilm.replace(/^\+\s*/, ''))}"><i aria-hidden="true"></i></button>` : '';
+    return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function syncDot() {
     const st = ST.status();
@@ -694,13 +695,22 @@ function mountFocus(root, D, S, opts) {
     if (all.length && typeof fxCalendar === 'function') h += `<details class="fx-more fx-calwrap"${calOpen ? ' open' : ''}><summary>${t.calH}</summary>${fxCalendar(all.map(e => e.date), diaryYear === 'all' || diaryYear === null ? 'all' : diaryYear, L(), today(), FX_CAL_L[L()], jal)}</details>`;
     if (years.length > 1) h += `<nav class="fx-years">${years.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${diaryYear === y}">${y === 'all' ? t.allYears : fa(y).replace(/[٬,]/g, '')}</button>`).join('')}</nav>`;
     if (!all.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p>`;
+    // a list, or a wall of posters
+    const grid = posterOn() && seen()['cfg:dview'] === 'grid';
+    if (posterOn()) h += `<div class="fx-years fx-seg fx-dview" role="group">${[['list', t.dvList || 'List'], ['grid', t.dvGrid || 'Posters']].map(([v, l]) => `<button type="button" data-dview="${v}" aria-pressed="${(v === 'grid') === grid}">${l}</button>`).join('')}</div>`;
     const mf = new Intl.DateTimeFormat(L() === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', {month: 'long', year: 'numeric'});
     const dayN = new Intl.DateTimeFormat(L() === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', {day: 'numeric'});
     let month = '';
     h += '<div class="fx-diary">';
     list.forEach(e => {
       const d = new Date(e.date + 'T12:00:00'), mk = mf.format(d);
-      if (mk !== month) { if (month) h += '</ul>'; month = mk; h += `<h2 class="fx-mon">${esc(mk)}</h2><ul class="fx-dl">`; }
+      if (mk !== month) { if (month) h += '</ul>'; month = mk; h += `<h2 class="fx-mon">${esc(mk)}</h2><ul class="${grid ? 'fx-dgrid' : 'fx-dl'}">`; }
+      if (grid) {
+        const img = poster(e.i, e.i == null ? e.t : '', e.md).replace(/^<a class="fx-pos"[^>]*>/, '<span class="fx-pos" aria-hidden="true">').replace(/<\/a>$/, '</span>');
+        const name = e.i != null ? F[e.i][0] : String(e.t || '').replace(/\s*\(\d{4}\)\s*$/, '');
+        h += `<li><button type="button" class="fx-gcell" data-open="${esc(e.k)}" title="${esc(name)}" aria-label="${esc(name)}">${img}<span class="fx-gday">${dayN.format(d)}</span></button><div class="fx-gmeta">${e.r ? `<span class="fx-mini" dir="ltr">${'★'.repeat(Math.floor(e.r / 2))}${e.r % 2 ? '½' : ''}</span>` : ''}${e.l ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}${e.rv ? '<i class="fx-ico rv"></i>' : ''}</div></li>`;
+        return;
+      }
       const meta = e.r || e.l || e.rv || e.rw || e.ww || e.tg ? `<div class="fx-dm">${starsText(e.k)}${e.rw ? `<i class="fx-ico rw" title="${esc(t.rewatch)}"></i>` : ''}${e.rv ? `<i class="fx-ico rv" title="${esc(t.reviewed)}"></i>` : ''}${e.ww ? `<span class="fx-ww">${esc(t.withShort(e.ww))}</span>` : ''}${e.tg ? e.tg.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).map(x => `<span class="fx-tagc">${esc(x)}</span>`).join('') : ''}</div>` : '';
       h += `<li class="fx-de fx-tap" data-dk="${esc(e.k)}"><span class="fx-dday">${dayN.format(d)}</span>${posterOn() ? poster(e.i, e.i == null ? e.t : '', e.md) : ''}
         <div class="fx-b">${titleLine(e.i, e.t, e.md)}${subLine(e.i, e.md)}${meta}</div>
@@ -802,7 +812,9 @@ function mountFocus(root, D, S, opts) {
   function render() {
     applyLang();
     const xt = (opts.tabs || []).find(x => x.id === view);
-    const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : xt ? xt.view(L()) : renderWeek();
+    let html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : xt ? xt.view(L()) : renderWeek();
+    // the + in the bar: log a film from wherever you are
+    if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
     const bd = view === 'week' ? fxBd(seen()) : null;
     root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
@@ -1194,6 +1206,7 @@ function mountFocus(root, D, S, opts) {
       if (!note.planReset) { note.planReset = 1; render(); setTimeout(() => { if (note.planReset) { delete note.planReset; render(); } }, 4000); return; }
       delete note.planReset; if (opts.plan) opts.plan.reset(); return;
     }
+    if (t.hasAttribute('data-qlog')) { picker = picker && picker.log ? null : {q: '', focus: true, log: true}; if (view === 'settings' || view === 'list') view = 'diary'; render(); window.scrollTo(0, 0); return; }
     if (t.dataset.nav) { const was = (opts.tabs || []).find(x => x.id === view); if (was && was.left && t.dataset.nav !== view) was.left(); view = t.dataset.nav; note = {}; picker = null; listNote = null; listRm = ''; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
     const xt = (opts.tabs || []).find(x => x.id === view);
     if (xt && xt.click && xt.click(t, render)) return;
@@ -1208,6 +1221,7 @@ function mountFocus(root, D, S, opts) {
     }
     if (t.hasAttribute('data-log')) { picker = {q: '', focus: true, log: true}; render(); return; }
     if (t.hasAttribute('data-year')) { diaryYear = t.dataset.year; render(); return; }
+    if (t.dataset.dview) { S.set('cfg:dview', t.dataset.dview === 'grid' ? 'grid' : null); render(); return; }
     if (t.hasAttribute('data-diary')) { view = 'diary'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     if (t.hasAttribute('data-tick')) { tickItem(li); return; }
     if (t.hasAttribute('data-skip')) { S.set('sk:' + k, today()); if (pickK === k) pickK = null; }
@@ -1330,5 +1344,7 @@ function mountFocus(root, D, S, opts) {
     lang: L,
     setPlan,
     plan: () => D,
+    // log a film you already know (from the watchlist, say): straight to the "I watched…" sheet
+    logFilm(title, year, md) { picker = {log: true}; pick('t:' + title + (year ? ' (' + year + ')' : ''), md || null); },
   };
 }

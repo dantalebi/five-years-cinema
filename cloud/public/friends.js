@@ -17,7 +17,7 @@ function fxFriendsTab(CS) {
       c: (w, f) => `${w} commented on ${f}`, r: (w, f, o) => `${w} replied on ${o ? o + '’s ' : ''}${f}`, f: w => `${w} started following you`,
     },
     spoil: 'Review hidden: spoilers', aFilm: 'a film',
-    wlH: 'Your watchlist', wlNone: 'Tap the bookmark on a friend’s film and it lands here.', wlFrom: u => 'from @' + u, remove: 'Remove', wlCount: n => n + (n === 1 ? ' film' : ' films'),
+    logIt: 'Log', wlH: 'Your watchlist', wlNone: 'Tap the bookmark on a friend’s film and it lands here.', wlFrom: u => 'from @' + u, remove: 'Remove', wlCount: n => n + (n === 1 ? ' film' : ' films'),
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const okPoster = p => typeof p === 'string' && /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+\/[A-Za-z0-9._-]+$/.test(p);
@@ -27,7 +27,7 @@ function fxFriendsTab(CS) {
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   const bare = t => String(t || '').replace(/\s*\(\d{4}\)\s*$/, '');
   let feed = null, re = [], inbox = null, people = null, me = '', err = false, loading = false, q = '', shown = 30, nShown = 30, redraw = null;
-  let seg = 'f', openC = new Set(), openN = new Set(), seenBefore = null, wlOpen = false, busyKeys = new Set();
+  let logger = null, seg = 'f', openC = new Set(), openN = new Set(), seenBefore = null, wlOpen = false, busyKeys = new Set();
   const when = d => { try { return /^\d{4}-\d\d-\d\d$/.test(d) ? new Intl.DateTimeFormat('en-US', {day: 'numeric', month: 'short'}).format(new Date(d + 'T12:00:00')) : ''; } catch (e) { return ''; } };
   const ago = ms => {
     const m = Math.max(0, (Date.now() - ms) / 6e4);
@@ -153,7 +153,7 @@ function fxFriendsTab(CS) {
     const list = wlList();
     let h = `<details class="fx-more fx-wl"${wlOpen ? ' open' : ''}><summary>${T.wlH} · ${T.wlCount(list.length)}</summary>`;
     if (!list.length) return h + `<p class="fx-muted">${T.wlNone}</p></details>`;
-    h += `<ul class="fx-wll">${list.map(x => `<li>${posterBox(x, '#')}<div class="fx-ab"><span class="fx-at"><bdi>${esc(x.t)}</bdi> <span class="fx-y">${x.y || ''}</span></span>${x.u ? `<span class="fx-muted fx-small">${esc(T.wlFrom(x.u))}</span>` : ''}</div><button type="button" class="fx-link" data-wl-rm="${esc(x.k)}">${T.remove}</button></li>`).join('')}</ul>`;
+    h += `<ul class="fx-wll">${list.map(x => `<li>${posterBox(x, '#')}<div class="fx-ab"><span class="fx-at"><bdi>${esc(x.t)}</bdi> <span class="fx-y">${x.y || ''}</span></span>${x.u ? `<span class="fx-muted fx-small">${esc(T.wlFrom(x.u))}</span>` : ''}</div><div class="fx-wla">${logger ? `<button type="button" class="fx-btn" data-wl-log="${esc(x.k)}">${T.logIt}</button>` : ''}<button type="button" class="fx-link" data-wl-rm="${esc(x.k)}" aria-label="${esc(T.remove)}">${T.remove}</button></div></li>`).join('')}</ul>`;
     return h + '</details>';
   }
   function peopleHtml() {
@@ -227,6 +227,11 @@ function fxFriendsTab(CS) {
         return true;
       }
       if (b.dataset.wlRm) { Store.set(b.dataset.wlRm, null); render(); return true; }
+      if (b.dataset.wlLog && logger) {
+        const x = wlList().find(w => w.k === b.dataset.wlLog); if (!x) return true;
+        logger(x.t, x.y, {tm: x.tm || 0, t: x.t, y: x.y || 0, p: String(x.p || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '')});
+        return true;
+      }
       if (b.dataset.frFollow) {
         const u = b.dataset.frFollow, p = (people || []).find(x => x.username === u), on = p ? !p.following : true;
         if (p) p.following = on;
@@ -259,6 +264,17 @@ function fxFriendsTab(CS) {
     attach(render) { redraw = render; loadInbox(); setInterval(() => { if (document.visibilityState === 'visible') loadInbox(); }, 3 * 60e3); },
     reset() { feed = null; people = null; inbox = null; },
     wlOpen(v) { wlOpen = !!v; },
+    setLogger(fn) { logger = fn; },
+    // a film you've now logged comes off your watchlist (diary key, e.g. log:… or a plan film's key)
+    wlSeen(base) {
+      try {
+        const data = S(), D = window.D, KI = fxKeyIdx(D), md = fxMd(data, base) || {};
+        let t = md.t, y = md.y, tm = md.tm;
+        if (KI[base] !== undefined) { const f = D.F[KI[base]]; t = f[0]; y = f[1]; tm = f[16] || 0; }
+        else if (!t) { const v = String(data[base] || ''); if (!v.startsWith('t:')) return; t = bare(v.slice(2)); y = +(v.match(/\((\d{4})\)\s*$/) || [])[1] || 0; }
+        [wlKey({t, y, tm}), wlKey({t, y, tm: 0})].forEach(k => { if (data[k]) Store.set(k, null); });
+      } catch (e) {}
+    },
     wl: {list: wlList, set: wlSet, has: wlHas, key: wlKey},
   };
 }
