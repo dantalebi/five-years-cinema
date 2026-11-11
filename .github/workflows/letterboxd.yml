@@ -1,11 +1,11 @@
 name: Letterboxd feed
 
-# Every three hours, the latest logs from letterboxd.com/<you>/rss/ go to feed.json on the
+# Every hour, the latest logs from letterboxd.com/<you>/rss/ go to feed.json on the
 # "letterboxd-feed" branch; the app picks new ones up from there. Friends listed on your published
 # profile get their public logs kept there too (friends/<name>.json), for the taste match. No secrets needed.
 on:
   schedule:
-    - cron: '23 */3 * * *'
+    - cron: '23 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
