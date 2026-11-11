@@ -68,6 +68,13 @@ http.createServer(async (req, res) => {
   if (p.endsWith('/')) p += 'index.html';
   const f = path.join(PUB, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
   if (!f.startsWith(PUB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
-  res.writeHead(200, {'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': 'no-store'});
+  // like Pages: the headers from public/_headers (the /* block, then the file's own block)
+  const H = {}, rules = fs.readFileSync(path.join(PUB, '_headers'), 'utf8').split(/\n(?=\S)/);
+  for (const block of rules) {
+    const [pat, ...lines] = block.trim().split('\n');
+    if (pat !== '/*' && pat !== url.pathname) continue;
+    lines.forEach(l => { const i = l.indexOf(':'); if (i > 0) H[l.slice(0, i).trim().toLowerCase()] = l.slice(i + 1).trim(); });
+  }
+  res.writeHead(200, {...H, 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': H['cache-control'] || 'no-store'});
   res.end(fs.readFileSync(f));
 }).listen(PORT, () => console.log('film-diary local on http://localhost:' + PORT));
