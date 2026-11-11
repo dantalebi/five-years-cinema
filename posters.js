@@ -14,8 +14,12 @@ const Posters = (() => {
   const DEF = () => (typeof FY_CONFIG !== 'undefined' && FY_CONFIG.tmdb) || '';
   let usingDef = false;
   function setToken(t) { const own = t && /^eyJ/.test(String(t).trim()) ? String(t).trim() : null, d = DEF(), n = own || (d && /^eyJ/.test(d) ? d : null); usingDef = !own && !!n; if (n !== token) { token = n; authFail = false; } }
+  // a site with its own server asks TMDB through it (the key stays there): Posters.setProxy('/api/tmdb')
+  let proxy = '';
   async function api(path) {
-    const r = await fetch('https://api.themoviedb.org/3' + path, {headers: {Authorization: 'Bearer ' + token, accept: 'application/json'}});
+    const r = proxy ? await fetch(proxy + path, {headers: {accept: 'application/json'}, credentials: 'same-origin'})
+      : await fetch('https://api.themoviedb.org/3' + path, {headers: {Authorization: 'Bearer ' + token, accept: 'application/json'}});
+    if (proxy && r.status === 401) throw new Error('signin');
     if (r.status === 401) { authFail = true; throw new Error('auth'); }
     if (!r.ok) throw new Error('http');
     return r.json();
@@ -71,7 +75,7 @@ const Posters = (() => {
     const o = chosen(key); if (okPath(o)) { cb(IMG + o); return; }
     const c = cache[key];
     if (fresh(c)) { cb(c[0] ? IMG + c[0] : ''); return; }
-    if (!token || authFail) { cb(''); return; }
+    if ((!token && !proxy) || authFail) { cb(''); return; }
     if (waiting[key]) { waiting[key].push(p => cb(p ? IMG + p : '')); return; }
     waiting[key] = [p => cb(p ? IMG + p : '')]; queue.push([key, t, y]); pump();
   }
@@ -87,7 +91,7 @@ const Posters = (() => {
   }
   // the whole TMDB catalogue, for films outside the plan
   async function search(q) {
-    if (!token) return [];
+    if (!token && !proxy) return [];
     const j = await api('/search/movie?query=' + encodeURIComponent(q) + '&include_adult=false&language=en-US&page=1');
     return (j.results || []).slice(0, 8).map(m => ({id: m.id, t: m.title, y: +(m.release_date || '').slice(0, 4) || 0, p: m.poster_path || ''}));
   }
@@ -98,7 +102,7 @@ const Posters = (() => {
   }
   // best TMDB match for a title and year (for imports): {id, t, y, p} or null
   async function match(t, y) {
-    if (!token) return null;
+    if (!token && !proxy) return null;
     const q = encodeURIComponent(String(t).replace(/\s*\(\d{4}\)\s*$/, ''));
     let j = await api('/search/movie?query=' + q + (y ? '&year=' + y : '') + '&include_adult=false&language=en-US');
     let m = pick(j.results, t, y);
@@ -126,5 +130,5 @@ const Posters = (() => {
   }
   function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
   const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
-  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, meta, put, url};
+  return {setToken, setProxy: p => { proxy = p || ''; }, proxied: () => !!proxy, on: () => !!(token || proxy), failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, meta, put, url};
 })();

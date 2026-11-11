@@ -7,7 +7,7 @@ function fxProfile(root, id, focusId, opts) {
   const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n'};  // which way each stats card is showing
   // the games (play.js), when the page has them; ?play=duel|tonight|match opens one straight away
   const playLink = g => opts.clean ? opts.base + '?play=' + g : location.href.replace(/[?#].*$/, '') + '?play=' + g + '#' + id;
-  const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink}) : null;
+  const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink, lbProxy: opts.lbProxy || '', mine: opts.mine || null}) : null;
   let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
     en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'updated ' + a,
@@ -77,7 +77,7 @@ function fxProfile(root, id, focusId, opts) {
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
     const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(faDigits).join('  ·  ') : '';
-    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}</header>`;
+    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const link = okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : ''); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
     if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].concat(PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
@@ -263,6 +263,7 @@ function fxProfile(root, id, focusId, opts) {
     const b = e.target.closest('button');
     if (!b) { const row = !e.target.closest('a') && e.target.closest('[data-entry]'); if (row) openEntry(row.dataset.entry); return; }
     if (PL && b.dataset.pl !== undefined) { PL.click(b); return; }
+    if (opts.onButton && opts.onButton(b, render)) return;
     if (b.dataset.entry) { openEntry(b.dataset.entry); return; }
     if (b.hasAttribute('data-back')) {
       if (pushed) { pushed = false; history.back(); return; }
@@ -283,20 +284,27 @@ function fxProfile(root, id, focusId, opts) {
   async function load() {
     if (!id) { shell(TX.en.bad); return; }
     try {
-      const r = await fetch('https://api.github.com/gists/' + id, {cache: 'no-store', headers: {Accept: 'application/vnd.github+json'}});
-      if (r.status === 404) { shell(T().gone); return; }
-      if (!r.ok) throw new Error('http');
-      const g = await r.json(), f = g.files && g.files['five-years-share.json'];
-      if (!f) throw new Error('nofile');
-      let txt = f.content || '{}';
-      if (f.truncated && f.raw_url) txt = await fetch(f.raw_url, {cache: 'no-store'}).then(x => x.text());
-      data = JSON.parse(txt);
+      if (opts.source) {  // the multi-user site: {updated, data} from its own server
+        const r = await fetch(opts.source, {cache: 'no-store'});
+        if (r.status === 404) { shell(T().gone); return; }
+        if (!r.ok) throw new Error('http');
+        const j = await r.json();
+        data = j.data || {}; updated = new Date(+j.updated || Date.now()).toISOString();
+      } else {
+        const r = await fetch('https://api.github.com/gists/' + id, {cache: 'no-store', headers: {Accept: 'application/vnd.github+json'}});
+        if (r.status === 404) { shell(T().gone); return; }
+        if (!r.ok) throw new Error('http');
+        const g = await r.json(), f = g.files && g.files['five-years-share.json'];
+        if (!f) throw new Error('nofile');
+        let txt = f.content || '{}';
+        if (f.truncated && f.raw_url) txt = await fetch(f.raw_url, {cache: 'no-store'}).then(x => x.text());
+        data = JSON.parse(txt); updated = g.updated_at;
+      }
       lang = data.lang === 'fa' ? 'fa' : 'en';
       if (!Array.isArray(data.diary)) data.diary = [];
       data.diary = data.diary.filter(e => e && typeof e.t === 'string');
       data.seen = (Array.isArray(data.seen) ? data.seen : []).filter(e => e && typeof e.t === 'string');
       withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
-      updated = g.updated_at;
       if (cur && !data.diary.some(x => x.id === cur)) cur = '';
       if (wantPlay && PL && !cur) { tab = 'play'; PL.open(wantPlay); wantPlay = ''; }
       if (cur) { const fe = data.diary.find(x => x.id === cur); if (fe && year !== 'all' && !String(fe.w).startsWith(year || '')) year = String(fe.w).slice(0, 4); }
@@ -307,7 +315,7 @@ function fxProfile(root, id, focusId, opts) {
   }
   load();
   const timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 300000);
-  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }};
+  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data};
 }
 // share.html#<gist id>[/<entry>] — the original address, still valid for links already shared
 if (document.documentElement.dataset.page === 'share') {

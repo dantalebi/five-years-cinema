@@ -18,7 +18,7 @@ function fxPlay(ctx) {
       duelShare: (n, c) => 'My champion of ' + n + '’s favourite films: ' + c + ' 🏆',
       anyLen: 'Any length', short: 'Under 1½ h', mid: '1½–2 h', long: 'Over 2 h', anyDec: 'Any decade', anyGenre: 'Any genre', inPool: n => n + (n === 1 ? ' film' : ' films'),
       spin: 'Pick one', another: 'Another one', none: 'Nothing here — loosen a filter.', seenN: (n, k) => n + ' has watched it ' + k + ' times', onLb: 'On Letterboxd ↗', readMore: 'Read the full entry →',
-      who: 'Your Letterboxd username', more: k => '+ ' + k + ' more — type your username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
+      who: 'Your Letterboxd username', withMine: 'Compare with my diary', more: k => '+ ' + k + ' more — type your username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
       exportSteps: 'On letterboxd.com: Settings → Data → Export your data. Then pick the .zip here. It stays on your device.', exportPick: 'Pick the export (.zip)', exportOpen: 'Open the export page ↗',
       notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Follow ' + n + ' on Letterboxd and ask to be added, or compare with your export below.',
       follow: n => 'Not on the list yet? Follow ' + n + ' on Letterboxd ↗', followNote: n => 'then ask ' + n + ' to add you.',
@@ -40,7 +40,7 @@ function fxPlay(ctx) {
       duelShare: (n, c) => 'قهرمانِ من بین فیلم‌های محبوب ' + n + ': ' + c + ' 🏆',
       anyLen: 'هر مدتی', short: 'کمتر از ۱٫۵ ساعت', mid: '۱٫۵ تا ۲ ساعت', long: 'بیشتر از ۲ ساعت', anyDec: 'هر دهه‌ای', anyGenre: 'هر ژانری', inPool: n => n + ' فیلم',
       spin: 'یکی دربیار', another: 'یکی دیگه', none: 'چیزی پیدا نشد؛ یه فیلتر رو بازتر کن.', seenN: (n, k) => n + ' ' + k + ' بار دیدتش', onLb: 'تو لترباکسد ↗', readMore: 'خوندن کامل ←',
-      who: 'یوزرنیم لترباکسدت', more: k => '+ ' + k + ' نفر دیگه؛ یوزرنیمت رو بنویس', compare: 'مقایسه کن', friends: n => 'دوستای ' + n, exportH: 'یا مقایسه‌ی کامل با خروجی لترباکسدت',
+      who: 'یوزرنیم لترباکسدت', withMine: 'مقایسه با دفتر خودم', more: k => '+ ' + k + ' نفر دیگه؛ یوزرنیمت رو بنویس', compare: 'مقایسه کن', friends: n => 'دوستای ' + n, exportH: 'یا مقایسه‌ی کامل با خروجی لترباکسدت',
       exportSteps: 'توی letterboxd.com: ‏Settings ← Data ← Export your data. بعد فایل zip رو این‌جا انتخاب کن. فایل از دستگاهت بیرون نمی‌ره.', exportPick: 'انتخاب خروجی (.zip)', exportOpen: 'باز کردن صفحه‌ی خروجی ↗',
       notListed: (n, u) => '@' + u + ' هنوز تو لیست دوستای ' + n + ' نیست. ' + n + ' رو تو لترباکسد فالو کن و بگو اضافه‌ت کنه، یا با خروجی لترباکسدت پایین مقایسه کن.',
       follow: n => 'هنوز تو لیست نیستی؟ ' + n + ' رو تو لترباکسد فالو کن ↗', followNote: n => 'و بگو اضافه‌ت کنه.',
@@ -234,6 +234,17 @@ function fxPlay(ctx) {
   }
   async function loadFriend(u, listed = true) {
     match.state = 'busy'; match.user = u; match.note = ''; ctx.render();
+    if (ctx.lbProxy && typeof FXLB !== 'undefined') {  // a site with its own server reads anyone's feed on the spot
+      try {
+        const r = await fetch(ctx.lbProxy + encodeURIComponent(u));
+        if (r.status === 404) { match.state = 'start'; match.note = T().noUser; ctx.render(); return; }
+        if (!r.ok) throw new Error('http');
+        const xml = await r.text(), nm = (xml.match(/<channel>[\s\S]*?<title>(?:<!\[CDATA\[)?\s*Letterboxd\s*-\s*([^<\]]+)/) || [])[1] || '';
+        match.res = compare(theirFromRss(FXLB.fromRss(xml).map(x => ({t: x.t, y: x.y, tm: x.tm, r: x.r, d: x.date}))), 'rss');
+        match.res.who = nm.trim().slice(0, 60) || '@' + u; match.state = 'done';
+      } catch (e) { match.state = 'start'; match.note = T().failed; }
+      ctx.render(); return;
+    }
     try {
       const r = await fetch(ctx.feed + 'friends/' + u.toLowerCase() + '.json?t=' + Math.floor(Date.now() / 6e5), {cache: 'no-store'});
       if (r.status === 404) { match.state = 'start'; match.note = listed ? T().notYet(first()) : T().notListed(first(), u); ctx.render(); return; }
@@ -271,7 +282,7 @@ function fxPlay(ctx) {
     ctx.render();
   }
   function matchView() {
-    const t = T(), n = first(), fl = ctx.feed ? friendsList() : [];
+    const t = T(), n = first(), fl = ctx.feed && !ctx.lbProxy ? friendsList() : [], byName = !!(ctx.feed || ctx.lbProxy);
     let h = `<div class="fx-gintro"><h2 class="fx-gh">${t.matchT}</h2><p class="fx-muted">${esc(t.matchP(n))}</p></div>`;
     if (match.state === 'busy') return h + `<p class="fx-note busy fx-center">${t.loading}</p>`;
     if (match.state === 'done' && match.res) {
@@ -287,12 +298,15 @@ function fxPlay(ctx) {
     }
     // a long list shows a handful of names; anyone on it can still type their username below
     const shown = fl.length > 16 ? shuffle(fl).slice(0, 12) : fl;
+    // a signed-in member of the same site compares with their own diary, nothing to type
+    const mine = ctx.mine && ctx.mine();
+    if (mine && mine.size) h += `<div class="fx-row fx-center"><button type="button" class="fx-btn primary" data-pl="mine">${t.withMine}</button></div>`;
     if (fl.length) h += `<div class="fx-eye">${esc(t.friends(n))}</div><div class="fx-years fx-friends">${shown.map(u => `<button type="button" data-pl="friend" data-u="${esc(u)}">@${esc(u)}</button>`).join('')}${fl.length > shown.length ? `<span class="fx-muted fx-small">${esc(digits(t.more(fl.length - shown.length)))}</span>` : ''}</div>`;
-    if (ctx.feed) h += `<form class="fx-row fx-uform" data-pl-form="user"><input type="text" name="u" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${esc(t.who)}" value="${esc(match.user)}" aria-label="${esc(t.who)}"><button type="submit" class="fx-btn primary">${t.compare}</button></form>`;
+    if (byName) h += `<form class="fx-row fx-uform" data-pl-form="user"><input type="text" name="u" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${esc(t.who)}" value="${esc(match.user)}" aria-label="${esc(t.who)}"><button type="submit" class="fx-btn primary">${t.compare}</button></form>`;
     if (match.note) h += `<p class="fx-note">${esc(match.note)}</p>`;
     // the way onto the list: follow the owner on Letterboxd, then they add you
     const lb = (((ctx.data() || {}).links) || {}).lb;
-    if (ctx.feed && okUser(lb)) h += `<p class="fx-small fx-follow"><a class="fx-link" href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${esc(t.follow(n))}</a> <span class="fx-muted">${esc(t.followNote(n))}</span></p>`;
+    if (ctx.feed && !ctx.lbProxy && okUser(lb)) h += `<p class="fx-small fx-follow"><a class="fx-link" href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${esc(t.follow(n))}</a> <span class="fx-muted">${esc(t.followNote(n))}</span></p>`;
     h += `<div class="fx-exp"><h3 class="fx-gh2">${t.exportH}</h3><p class="fx-muted fx-small">${t.exportSteps}</p>
       <div class="fx-row"><a class="fx-btn" href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener noreferrer">${t.exportOpen}</a><label class="fx-btn primary fx-file">${t.exportPick}<input type="file" accept=".zip,.csv,application/zip,text/csv" multiple data-pl-file></label></div></div>`;
     return h;
@@ -319,6 +333,7 @@ function fxPlay(ctx) {
     if (v.startsWith('len:')) { night.len = v.slice(4); night.pick = null; ctx.render(); return true; }
     if (v === 'spin') { spin(); return true; }
     if (v === 'friend') { loadFriend(b.dataset.u); return true; }
+    if (v === 'mine') { const m = ctx.mine && ctx.mine(); if (m && m.size) { match.res = compare(m, 'mine'); match.res.who = T().you; match.state = 'done'; ctx.render(); } return true; }
     if (v === 'mreset') { match.state = 'start'; match.res = null; match.note = ''; ctx.render(); return true; }
     if (v === 'share') {
       const text = b.dataset.text + '\n' + link(b.dataset.game);
@@ -339,7 +354,7 @@ function fxPlay(ctx) {
     match.user = u;
     if (!okUser(u)) { match.note = T().noUser; ctx.render(); return true; }
     // anyone whose logs the site keeps can compare, whether they're in the profile's list or in friends.txt
-    loadFriend(u, friendsList().some(x => x.toLowerCase() === u.toLowerCase()));
+    loadFriend(u, !!ctx.lbProxy || friendsList().some(x => x.toLowerCase() === u.toLowerCase()));
     return true;
   }
   return {view, click, change, submit, open, game: () => game};

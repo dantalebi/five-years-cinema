@@ -39,7 +39,7 @@ const FX_STR = {
     importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, imported: (a, s2) => a + ' films added' + (s2 ? ' · ' + s2 + ' already there' : '') + '.', importedDiary: (a, s2, u) => a + ' diary entries added' + (u ? ' · ' + u + ' filled in' : '') + (s2 ? ' · ' + s2 + ' already there' : '') + '.',
     importBad: 'That doesn’t look like a Letterboxd export (a .csv with Name and Year).', importNoDates: 'This file has no viewing dates. For your history, use diary.csv from the export.',
     importHelp: 'On letterboxd.com: Settings → Data → Export your data. Use watchlist.csv or a list for your list, diary.csv (or reviews.csv) for your history.',
-    inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + n + ' films', planSample: 'Sample plan · Five Years of Cinema', planReset: 'Start over with another plan', planReset2: 'Tap again to start over — your diary stays',
+    inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + n + ' films', planSample: 'Sample plan · Five Years of Cinema', planOwn: n => 'Your own plan · ' + n + ' films', planReset: 'Start over with another plan', planReset2: 'Tap again to start over — your diary stays',
     lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, then pick the .zip it gives you (or diary.csv and reviews.csv from inside it). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import Letterboxd export', lbfL: 'Friends on Letterboxd', lbfP: 'Their usernames, separated by commas. Every few hours their public Letterboxd logs are read too, so on your page they can see how close your tastes are.',
     lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m, lk, u) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in' + (lk ? ' · ' + lk + ' hearts' : '') + (u ? ' · ' + u + ' films without a date, counted in the stats' : '') + '.', lbBad: 'That isn’t the Letterboxd export: pick the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
     lbAuto: (ago, n) => 'What you log on Letterboxd shows up here by itself within a few hours. Last check ' + ago + (n ? ' · ' + n + ' new last time' : '') + '.', lbAutoOff: 'What you log on Letterboxd will show up here by itself within a few hours.',
@@ -50,6 +50,10 @@ const FX_STR = {
     logOnLb: 'Letterboxd ↗', logToLb: 'Log on Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
     syncH: 'Sync', syncOn: login => 'Connected' + (login ? ' as ' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last synced ' + a + '.',
     syncNow: 'Sync now', disconnect: 'Disconnect this device',
+    acctH: 'Account', acctOn: u => 'Signed in as @' + u + '. Your diary is kept on this site’s server and stays the same on every device.', signOut: 'Sign out of this device',
+    pwH: 'Change password', pwCur: 'Current password', pwNew: 'New password (8+ characters)', pwSave: 'Change', pwDone: 'Password changed. Other devices will need to sign in again.',
+    delH: 'Delete my account', delP: 'Everything goes: your diary, plan, profile and follows. This can’t be undone. Download a backup first if you want one.', delPw: 'Your password', delGo: 'Delete everything', delSure: 'Tap again to delete for good',
+    dlData: 'Download my data', dlAll: 'Download everything (a file)', postersSite: 'Posters and film details come from TMDB through this site.',
     syncIntro: 'Your diary — watched films, ratings, likes and reviews — is kept in a private Gist on your GitHub account, so every device stays in step. Add the same token once on each device.',
     syncSteps: ['Open <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">GitHub’s token page</a>. The name and gist-only access are already filled in.', 'Set Expiration to <b>No expiration</b>, then Generate token.', 'Paste it here — and keep a copy in your password manager.'],
     connect: 'Connect', tokenNote: 'The token stays on this device and is only sent to api.github.com. With gist access alone, it can’t touch your repositories or account.',
@@ -101,7 +105,7 @@ const FX_STR = {
     importing: (d, n) => 'دارم فیلم‌ها رو با TMDB تطبیق می‌دم… ' + d + ' از ' + n, imported: (a, s2) => a + ' فیلم اضافه شد' + (s2 ? ' · ' + s2 + ' تا از قبل بود' : '') + '.', importedDiary: (a, s2, u) => a + ' مورد به دفتر اضافه شد' + (u ? ' · ' + u + ' تا کامل شد' : '') + (s2 ? ' · ' + s2 + ' تا از قبل بود' : '') + '.',
     importBad: 'این فایل خروجی لترباکس به نظر نمیاد (یه فایل csv با ستون‌های Name و Year).', importNoDates: 'این فایل تاریخ دیدن نداره. برای تاریخچه‌ت diary.csv رو از خروجی لترباکس بیار.',
     importHelp: 'توی letterboxd.com: Settings ← Data ← Export your data. برای لیست watchlist.csv یا یه لیست، برای تاریخچه diary.csv (یا reviews.csv).',
-    inList: 'توی لیستت هست', addedL: t => 'اضافه شد: ' + t, listPh: 'هر فیلمی رو جستجو کن', planH: 'برنامه', planList: n => 'لیست خودم · ' + n + ' فیلم', planSample: 'برنامه‌ی نمونه · پنج سال سینما', planReset: 'شروع دوباره با یه برنامه‌ی دیگه', planReset2: 'برای شروع دوباره، دوباره بزن (دفترت می‌مونه)',
+    inList: 'توی لیستت هست', addedL: t => 'اضافه شد: ' + t, listPh: 'هر فیلمی رو جستجو کن', planH: 'برنامه', planList: n => 'لیست خودم · ' + n + ' فیلم', planSample: 'برنامه‌ی نمونه · پنج سال سینما', planOwn: n => 'برنامه‌ی خودت · ' + n + ' فیلم', planReset: 'شروع دوباره با یه برنامه‌ی دیگه', planReset2: 'برای شروع دوباره، دوباره بزن (دفترت می‌مونه)',
     lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data و فایل zip ـی که می‌ده رو انتخاب کن (یا diary.csv و reviews.csv از توش). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن خروجی لترباکس', lbfL: 'دوستات تو لترباکس', lbfP: 'یوزرنیم‌هاشون رو با کاما جدا کن. هر چند ساعت لاگ‌های عمومی لترباکسدشون هم خونده می‌شه تا تو صفحه‌ت ببینن سلیقه‌تون چقدر به هم نزدیکه.',
     lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m, lk, u) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد' + (lk ? ' · ' + lk + ' قلب' : '') + (u ? ' · ' + u + ' فیلمِ بی‌تاریخ که فقط تو آمار حساب می‌شه' : '') + '.', lbBad: 'این خروجی لترباکس نیست؛ فایل zip ـی که از Settings ← Data ← Export your data می‌گیری رو انتخاب کن (یا diary.csv از توش).',
     lbAuto: (ago, n) => 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا. آخرین بررسی ' + ago + (n ? ' · دفعه‌ی قبل ' + n + ' مورد جدید' : '') + '.', lbAutoOff: 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا.',
@@ -112,6 +116,10 @@ const FX_STR = {
     logOnLb: 'لترباکس ↗', logToLb: 'ثبت در لترباکس ↗', copyPost: 'کپی پست', postCopied: 'کپی شد؛ تو کانالت بچسبون.',
     syncH: 'همگام‌سازی', syncOn: login => 'وصلی به گیت‌هاب' + (login ? ' با حساب ' + login : '') + '.', syncBusy: 'در حال همگام‌سازی…', syncAt: a => 'آخرین همگام‌سازی: ' + a + '.',
     syncNow: 'الان همگام کن', disconnect: 'قطع اتصال همین دستگاه',
+    acctH: 'حساب', acctOn: u => 'با @' + u + ' وارد شدی. دفترت روی سرور همین سایت نگه داشته می‌شه و روی همه‌ی دستگاه‌هات یکیه.', signOut: 'خروج از همین دستگاه',
+    pwH: 'عوض کردن رمز', pwCur: 'رمز فعلی', pwNew: 'رمز جدید (حداقل ۸ حرف)', pwSave: 'عوض کن', pwDone: 'رمز عوض شد. بقیه‌ی دستگاه‌ها باید دوباره وارد بشن.',
+    delH: 'پاک کردن حسابم', delP: 'همه‌چی پاک می‌شه: دفتر، برنامه، پروفایل و فالوها. برگشت‌پذیر نیست. اگه پشتیبان می‌خوای اول دانلودش کن.', delPw: 'رمزت', delGo: 'پاک کردن همه‌چی', delSure: 'یه بار دیگه بزن تا برای همیشه پاک بشه',
+    dlData: 'دانلود دیتای من', dlAll: 'دانلود همه‌چی (فایل)', postersSite: 'پوسترها و اطلاعات فیلم‌ها از TMDB و از طریق همین سایت میان.',
     syncIntro: 'دفترت (تیک‌ها، ستاره‌ها، قلب‌ها و ریویوها) توی یه Gist خصوصی تو حساب گیت‌هاب خودت نگه داشته می‌شه تا روی همه‌ی دستگاه‌هات یکی باشه. برای هر دستگاه یه بار همون توکن رو اینجا بچسبون.',
     syncSteps: ['<a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">این صفحه‌ی گیت‌هاب</a> رو باز کن؛ اسم و دسترسی (فقط gist) از قبل پر شده.', 'Expiration رو بذار روی <b>No expiration</b> و Generate token رو بزن.', 'توکن رو اینجا بچسبون و یه جای امن هم نگهش دار.'],
     connect: 'وصل شو', tokenNote: 'توکن فقط روی همین دستگاه ذخیره می‌شه و فقط به api.github.com فرستاده می‌شه. با دسترسی gist هیچ ریپو یا تنظیماتی از حسابت قابل تغییر نیست.',
@@ -288,6 +296,18 @@ function fxWatched(D, seen) {
     out.push(e);
   }
   return out;
+}
+// everything in one file: the diary and settings (no keys or tokens) and, when the plan is one of a kind, the plan.
+// The multi-user site reads this file to move a diary over.
+function fxDownloadAll(D, entries, seen) {
+  const e = {};
+  Object.entries(entries || {}).forEach(([k, v]) => { if (!/^(cfg:tmdb|cfg:share|lbsync:)/.test(k)) e[k] = v; });
+  const own = !seen['cfg:plan'] && D && Array.isArray(D.F) && D.F.length && Array.isArray(D.W);
+  const file = {v: 1, app: 'five-years-cinema', exported: new Date().toISOString(), e};
+  if (own) file.plan = D;
+  const a = document.createElement('a'), url = URL.createObjectURL(new Blob([JSON.stringify(file)], {type: 'application/json'}));
+  a.href = url; a.download = 'film-diary-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 // Letterboxd usernames of friends, from whatever was typed: profile links, @names, commas or spaces
 const fxFriends = v => [...new Set(String(v || '').split(/[\s,،]+/).map(x => x.trim().replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '')).filter(x => /^[A-Za-z0-9_]{1,40}$/.test(x)))].slice(0, 300);
@@ -538,7 +558,8 @@ function mountFocus(root, D, S, opts) {
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
-    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+    const extra = (opts.tabs || []).map(x => b(x.id, esc(x.label[L()] || x.label.en))).join('');
+    return `<nav class="fx-tabbar" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${b('diary', t.navDiary)}${extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function syncDot() {
     const st = ST.status();
@@ -716,7 +737,7 @@ function mountFocus(root, D, S, opts) {
     const st = ST.status(), tm = seen()['cfg:tmdb'], t = T(), lang = L();
     const msg = k => note[k] ? `<p class="fx-note ${note[k][0]}">${esc(note[k][1])}</p>` : '';
     let h = `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${t.settings}</h1></div></header>`;
-    if (opts.plan) h += `<section class="fx-card"><h2>${t.planH}</h2><p>${esc(D.kind === 'list' ? t.planList(fa(F.length)) : t.planSample)}</p><div class="fx-row"><button type="button" class="fx-link${note.planReset ? ' fx-warn' : ''}" data-plan-reset>${note.planReset ? t.planReset2 : t.planReset}</button></div></section>`;
+    if (opts.plan) h += `<section class="fx-card"><h2>${t.planH}</h2><p>${esc(D.kind === 'list' ? t.planList(fa(F.length)) : opts.plan.own ? t.planOwn(fa(F.length)) : t.planSample)}</p><div class="fx-row"><button type="button" class="fx-link${note.planReset ? ' fx-warn' : ''}" data-plan-reset>${note.planReset ? t.planReset2 : t.planReset}</button></div></section>`;
     if (ST.shareOn) {
       const sid = seen()['cfg:share'];
       h += `<section class="fx-card"><h2>${t.shareH}</h2>`;
@@ -744,6 +765,12 @@ function mountFocus(root, D, S, opts) {
         <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p></section>`;
     }
     h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p></section>`;
+    if (ST.kind === 'cloud') {
+      h += `<section class="fx-card"><h2>${t.acctH}</h2><p>${esc(t.acctOn(st.login))} ${st.state === 'err' ? `<span class="fx-bad">${esc(st.msg || '')}</span>` : st.state === 'busy' ? t.syncBusy : st.at ? esc(t.syncAt(ago(st.at))) : ''}</p>
+        <div class="fx-row"><button type="button" class="fx-btn" data-sync-now>${t.syncNow}</button><button type="button" class="fx-btn" data-dl-data>${t.dlData}</button><button type="button" class="fx-link" data-disconnect>${t.signOut}</button></div>${msg('gh')}
+        <details class="fx-more"><summary>${t.pwH}</summary><form class="fx-form fx-pwform" data-pw><input type="password" name="cur" autocomplete="current-password" dir="ltr" placeholder="${esc(t.pwCur)}" aria-label="${esc(t.pwCur)}" required><input type="password" name="next" autocomplete="new-password" minlength="8" dir="ltr" placeholder="${esc(t.pwNew)}" aria-label="${esc(t.pwNew)}" required><button type="submit" class="fx-btn">${t.pwSave}</button></form>${msg('pw')}</details>
+        <details class="fx-more"><summary>${t.delH}</summary><p class="fx-muted">${t.delP}</p><form class="fx-form" data-del><input type="password" name="pw" autocomplete="current-password" dir="ltr" placeholder="${esc(t.delPw)}" aria-label="${esc(t.delPw)}" required><button type="submit" class="fx-btn fx-danger">${note.delSure ? t.delSure : t.delGo}</button></form>${msg('del')}</details></section>`;
+    } else {
     h += `<section class="fx-card"><h2>${t.syncH}</h2>`;
     if (st.connected) {
       h += `<p>${esc(t.syncOn(st.login))} ${st.state === 'err' ? `<span class="fx-bad">${esc(st.msg || '')}</span>` : st.state === 'busy' ? t.syncBusy : st.at ? esc(t.syncAt(ago(st.at))) : ''}</p>
@@ -753,7 +780,9 @@ function mountFocus(root, D, S, opts) {
         <form class="fx-form" data-gh><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" dir="ltr" placeholder="ghp_…" aria-label="GitHub token" required><button type="submit" class="fx-btn primary">${t.connect}</button></form>`;
     }
     h += msg('gh') + `<p class="fx-muted">${t.tokenNote}</p></section>`;
-    if (P) {
+    }
+    if (P && P.proxied && P.proxied()) h += `<section class="fx-card"><h2>${t.postersH}</h2><p class="fx-muted">${t.postersSite}</p><p class="fx-muted" dir="ltr">This product uses the TMDB API but is not endorsed or certified by TMDB.</p></section>`;
+    else if (P) {
       h += `<section class="fx-card"><h2>${t.postersH}</h2>`;
       if (tm) h += `<p>${t.postersOn}${P.failed() ? ` <span class="fx-bad">${t.postersBad}</span>` : ''}</p><div class="fx-row"><button type="button" class="fx-link" data-tmdb-clear>${t.removeKey}</button></div>`;
       else h += `<p>${t.postersIntro}</p><ol class="fx-steps">${t.postersSteps.map(s => `<li>${s}</li>`).join('')}</ol>
@@ -761,7 +790,7 @@ function mountFocus(root, D, S, opts) {
       h += msg('tmdb') + `<p class="fx-muted" dir="ltr">This product uses the TMDB API but is not endorsed or certified by TMDB.</p></section>`;
     }
     h += `<section class="fx-card"><h2>${t.bkH}</h2><p class="fx-muted">${t.bkP}</p>
-      <div class="fx-row"><button type="button" class="fx-btn" data-bk-copy>${t.bkCopy}</button></div>
+      <div class="fx-row"><button type="button" class="fx-btn" data-bk-copy>${t.bkCopy}</button><button type="button" class="fx-btn" data-dl-all>${t.dlAll}</button></div>
       <form class="fx-form" data-bk><input type="text" autocomplete="off" dir="ltr" placeholder="${esc(t.bkPh)}" aria-label="${esc(t.bkPh)}" required><button type="submit" class="fx-btn">${t.bkLoad}</button></form>${msg('bk')}</section>`;
     return h;
   }
@@ -771,7 +800,8 @@ function mountFocus(root, D, S, opts) {
   }
   function render() {
     applyLang();
-    const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : renderWeek();
+    const xt = (opts.tabs || []).find(x => x.id === view);
+    const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : xt ? xt.view(L()) : renderWeek();
     const bd = view === 'week' ? fxBd(seen()) : null;
     root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
@@ -1164,6 +1194,8 @@ function mountFocus(root, D, S, opts) {
       delete note.planReset; if (opts.plan) opts.plan.reset(); return;
     }
     if (t.dataset.nav) { view = t.dataset.nav; note = {}; picker = null; listNote = null; listRm = ''; if (view === 'week') shown = null; render(); window.scrollTo(0, 0); return; }
+    const xt = (opts.tabs || []).find(x => x.id === view);
+    if (xt && xt.click && xt.click(t, render)) return;
     if (t.hasAttribute('data-fav')) { picker = {q: '', focus: true, fav: +t.dataset.fav}; render(); const q = root.querySelector('.fx-pick-q'); if (q) q.scrollIntoView({block: 'center'}); return; }
     if (t.hasAttribute('data-favrm')) { setFav(+t.dataset.favrm, null); render(); return; }
     if (t.hasAttribute('data-pick-tm')) {
@@ -1217,6 +1249,7 @@ function mountFocus(root, D, S, opts) {
     else if (t.hasAttribute('data-lang')) { S.set('cfg:lang', t.dataset.lang === 'fa' ? 'fa' : 'en'); }
     else if (t.hasAttribute('data-sync-now')) { ST.syncNow(); }
     else if (t.hasAttribute('data-disconnect')) { ST.disconnect(); note.gh = ['ok', tt.disconnected]; }
+    else if (t.hasAttribute('data-dl-data') || t.hasAttribute('data-dl-all')) { fxDownloadAll(D, Store.entries(), seen()); return; }
     else if (t.hasAttribute('data-share-on')) {
       say('share', 'busy', tt.shareMaking);
       ST.shareOn().then(r => { note.share = r ? ['bad', r] : ['ok', T().shareMade]; render(); });
@@ -1249,6 +1282,21 @@ function mountFocus(root, D, S, opts) {
     e.preventDefault();
     const inp = f.querySelector('input'), v = inp.value.trim(), t = T(); if (!v) return;
     if (f.dataset.alt) { const k = f.dataset.alt; delete altOpen[k]; render(); openSheet({info: {t: v}, create: date => { S.set(k, v); S.set('v:' + k, date); S.set('sk:' + k, null); return k; }}); return; }
+    // the multi-user site's account: password change, deleting the account (asks twice)
+    if (f.hasAttribute('data-pw')) {
+      const nx = f.elements.next.value;
+      if (nx.length < 8) { say('pw', 'bad', t.pwNew); return; }
+      say('pw', 'busy', '…');
+      const r = await ST.changePassword(f.elements.cur.value, nx);
+      note.pw = r ? ['bad', r] : ['ok', t.pwDone]; render(); return;
+    }
+    if (f.hasAttribute('data-del')) {
+      if (!note.delSure) { note.delSure = true; render(); const pw = root.querySelector('form[data-del] input'); if (pw) { pw.value = v; pw.closest('details').open = true; } return; }
+      note.delSure = false; say('del', 'busy', '…');
+      const r = await ST.deleteAccount(v);
+      if (r) { note.del = ['bad', r]; render(); }
+      return;
+    }
     if (f.hasAttribute('data-gh')) {
       inp.disabled = true; say('gh', 'busy', t.testing);
       const r = await ST.connect(v);

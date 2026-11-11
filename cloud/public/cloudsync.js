@@ -1,0 +1,146 @@
+// The multi-user site's sync and account layer. Same shape as WebSync (the GitHub version), so the app's Settings work
+// unchanged, plus sign-in, follows and the feed. The diary is the app's own store, {key: [value, ms]}: this device sends
+// the keys it changed, the server answers with whatever changed elsewhere since the last time it asked.
+const CloudSync = (() => {
+  const ls = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const put = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+  const enc = new TextEncoder();
+  let me = null, state = 'ok', msg = '', busy = false, again = false, timer = null, payloadFn = null;
+  try { me = JSON.parse(ls('fd-me') || 'null'); } catch (e) { me = null; }
+  const subs = [], outs = [];
+  const tell = () => subs.forEach(f => { try { f(); } catch (e) {} });
+  let langFn = () => (typeof fxLang === 'function' ? fxLang(Store.data) : 'en');
+  const L = () => langFn() === 'fa' ? 'fa' : 'en';
+  const MSG = {
+    en: {net: 'Couldn’t reach the site; it will try again on its own.', slow: 'Too many tries. Wait a few minutes.', wrong: 'Wrong username or password.', taken: 'That username is taken.',
+      username: 'Usernames are 3–24 letters, numbers or _.', code: 'That invite code isn’t right.', full: 'This account is full.', signin: 'Signed out. Sign in again.', other: 'Something went wrong'},
+    fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
+      username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
+  };
+  const say = code => MSG[L()][code] || MSG[L()].other + ' (' + code + ')';
+
+  async function api(method, path, body) {
+    let r;
+    try { r = await fetch('/api' + path, {method, credentials: 'same-origin', cache: 'no-store', headers: body !== undefined ? {'content-type': 'application/json'} : {}, body: body !== undefined ? JSON.stringify(body) : undefined}); }
+    catch (e) { return {ok: false, status: 0, code: 'net'}; }
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (r.status === 401 && me && !/^\/(login|signup|password|delete)$/.test(path)) { signedOut(); }
+    return {ok: r.ok, status: r.status, j, code: (j && j.error) || (r.ok ? '' : 'http' + r.status)};
+  }
+  // the password never leaves the device as typed: 600,000 rounds of PBKDF2, salted with the site and username
+  async function stretch(username, password) {
+    const k = await crypto.subtle.importKey('raw', enc.encode(String(password).normalize('NFKC')), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode('film-diary/v1/' + String(username).toLowerCase().trim()), iterations: 600000}, k, 256);
+    return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ---- which keys this device still has to send ----
+  let dirty = new Set();
+  try { dirty = new Set(JSON.parse(ls('fd-dirty') || '[]')); } catch (e) {}
+  let dt = null;
+  const saveDirty = () => { clearTimeout(dt); dt = setTimeout(() => put('fd-dirty', JSON.stringify([...dirty])), 200); };
+  function touch(keys) { keys.forEach(k => dirty.add(k)); saveDirty(); schedule(); }
+
+  async function run() {
+    if (!me) return;
+    if (busy) { again = true; return; }
+    busy = true; state = 'busy'; tell();
+    try {
+      const E = Store.entries();
+      // the first sync on this device sends everything it has; after that, only what changed here
+      const keys = ls('fd-init') === me.username ? [...dirty].filter(k => E[k]) : Object.keys(E);
+      const sent = {}; keys.forEach(k => { sent[k] = E[k][1]; });
+      let since = Math.max(0, (+ls('fd-seq') || 0) - 120e6), more = true;  // a two-minute overlap: nothing slips between devices
+      while (keys.length || more) {
+        const batch = keys.splice(0, 400).map(k => [k, E[k][0], E[k][1]]);
+        const r = await api('POST', '/sync', {since, changes: batch});
+        if (!r.ok) throw Object.assign(new Error(r.code), {code: r.code});
+        const R = {}; r.j.changes.forEach(([k, v, ms]) => { R[k] = [v, ms]; });
+        if (Object.keys(R).length) Store.mergeIn(R);
+        since = r.j.seq; more = r.j.more;
+        batch.forEach(([k]) => { const cur = Store.entries()[k]; if (!cur || cur[1] === sent[k]) dirty.delete(k); });
+      }
+      put('fd-seq', String(since)); put('fd-init', me.username); saveDirty();
+      await publish();
+      state = 'ok'; msg = ''; put('fd-at', String(Date.now()));
+    } catch (e) {
+      state = 'err'; msg = say(e.code || 'other');
+    } finally {
+      busy = false; tell();
+      if (again) { again = false; setTimeout(run, 800); }
+    }
+  }
+  // the public profile goes up whenever it changes
+  async function publish() {
+    if (!payloadFn || !Store.data['cfg:share']) return;
+    const content = payloadFn();
+    if (!content || ls('fd-pub') === content) return;
+    const r = await api('PUT', '/profile', {payload: JSON.parse(content), public: true});
+    if (r.ok) put('fd-pub', content);
+  }
+  function schedule() { clearTimeout(timer); timer = setTimeout(run, 1500); }
+
+  // ---- signing in and out ----
+  function wipe() {  // nothing of one account stays behind for the next person on this device
+    ['fy-state', 'fd-me', 'fd-seq', 'fd-dirty', 'fd-init', 'fd-at', 'fd-pub', 'fd-plan', 'fd-plan-at'].forEach(k => put(k, null));
+  }
+  function signedIn(m) {
+    if (ls('fd-init') && ls('fd-init') !== m.username) wipe();
+    me = m; put('fd-me', JSON.stringify(m));
+  }
+  function signedOut() { me = null; wipe(); outs.forEach(f => { try { f(); } catch (e) {} }); }
+  async function check() {  // is the session still good? (offline: trust the last answer)
+    const r = await api('GET', '/me');
+    if (r.ok) { signedIn(r.j.me); return me; }
+    if (r.status === 401) { me = null; return null; }
+    return me;
+  }
+  async function login(username, password) {
+    const r = await api('POST', '/login', {username, key: await stretch(username, password)});
+    if (!r.ok) return say(r.code);
+    signedIn(r.j.me); return null;
+  }
+  async function signup(username, password, name, code) {
+    const r = await api('POST', '/signup', {username, key: await stretch(username, password), name, code});
+    if (!r.ok) return say(r.code);
+    signedIn(r.j.me); return null;
+  }
+  async function disconnect() { await api('POST', '/logout', {}); signedOut(); }
+  async function changePassword(cur, next) {
+    const r = await api('POST', '/password', {key: await stretch(me.username, cur), next: await stretch(me.username, next)});
+    return r.ok ? null : say(r.code);
+  }
+  async function deleteAccount(password) {
+    const r = await api('POST', '/delete', {key: await stretch(me.username, password)});
+    if (!r.ok) return say(r.code);
+    signedOut(); return null;
+  }
+
+  // ---- a plan of one's own (the five-year plan), cached here ----
+  function cachedPlan() { try { return JSON.parse(ls('fd-plan') || 'null'); } catch (e) { return null; } }
+  async function loadPlan() {
+    const r = await api('GET', '/plan');
+    if (!r.ok) return null;
+    if (String(r.j.updated) !== ls('fd-plan-at')) { put('fd-plan', JSON.stringify(r.j.plan)); put('fd-plan-at', String(r.j.updated)); }
+    return r.j.plan;
+  }
+  async function savePlan(D) { const r = await api('PUT', '/plan', {plan: D}); if (r.ok) { put('fd-plan', JSON.stringify(D)); put('fd-plan-at', String(r.j.updated)); } return r.ok; }
+
+  // ---- the profile switch, as the app's Settings expect it ----
+  async function shareOn() { if (!me) return say('signin'); Store.set('cfg:share', me.username); put('fd-pub', null); schedule(); return null; }
+  async function shareOff() { const r = await api('DELETE', '/profile'); if (!r.ok) return say(r.code); Store.set('cfg:share', null); put('fd-pub', null); return null; }
+  const shareUrl = (u, eid) => location.origin + '/u/' + (u || (me && me.username) || '') + (eid ? '#' + eid : '');
+
+  Store.onLocalChange(k => { dirty.add(k); saveDirty(); schedule(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') run(); });
+  window.addEventListener('online', () => run());
+  setInterval(() => { if (document.visibilityState === 'visible') run(); }, 90000);
+  return {
+    kind: 'cloud', status: () => ({connected: !!me, login: me ? me.username : '', state, msg, at: +ls('fd-at') || 0}),
+    me: () => me, check, login, signup, disconnect, changePassword, deleteAccount, onSignOut: f => outs.push(f),
+    run, syncNow: run, onStatus: f => subs.push(f), touch, setPayload: f => { payloadFn = f; },
+    loadPlan, cachedPlan, savePlan, shareOn, shareOff, shareUrl, previewUrl: u => shareUrl(u),
+    follow: (username, on) => api('POST', '/follow', {username, on}), feed: () => api('GET', '/feed'), people: () => api('GET', '/people'), meta: u => api('GET', '/u/' + u + '/meta'),
+    config: () => api('GET', '/config'), setLang: f => { langFn = f; },
+  };
+})();
