@@ -33,7 +33,7 @@ const FX_STR = {
     shNew: 'I watched…', shEdit: 'Edit entry', shSave: 'Save', shDate: 'Watched on', shRewatch: 'I’ve watched this film before', shRate: 'Rate', shRated: 'Rated',
     shReviewPh: 'Add a review…', shSpoil: 'Contains spoilers', shTagPh: 'Add tags…', shTagMore: 'Add another…', shTagRm: x => 'Remove tag ' + x,
     shRemove: 'Remove from diary', shRemove2: 'Tap again to remove', shDiscard: 'Discard?', shTagHint: 'Return or comma adds a tag', shMore: 'More',
-    navWeek: 'This Week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link',
+    navWeek: 'This Week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link', cfgSave: 'Save changes', cfgSaved: 'Saved.',
     diaryEmpty: 'Your diary is empty. Films you mark as watched show up here — or log one yourself.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
     logOnLb: 'Letterboxd ↗', logToLb: 'Log on Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
     syncH: 'Sync', syncOn: login => 'Connected' + (login ? ' as ' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last synced ' + a + '.',
@@ -83,7 +83,7 @@ const FX_STR = {
     shNew: 'دیدمش…', shEdit: 'ویرایش', shSave: 'ثبت', shDate: 'تاریخ دیدن', shRewatch: 'این فیلم رو قبلاً دیده بودم', shRate: 'امتیاز بده', shRated: 'امتیاز',
     shReviewPh: 'ریویو بنویس…', shSpoil: 'اسپویل داره', shTagPh: 'تگ اضافه کن…', shTagMore: 'یکی دیگه…', shTagRm: x => 'حذف تگ ' + x,
     shRemove: 'حذف از دفتر', shRemove2: 'برای حذف دوباره بزن', shDiscard: 'تغییرات بره؟', shTagHint: 'با اینتر یا کاما اضافه می‌شه', shMore: 'بیشتر',
-    navWeek: 'این هفته', navDiary: 'دفتر', navSettings: 'تنظیمات', preview: 'دیدن صفحه ↗', linkL: 'لینک صفحه‌ت',
+    navWeek: 'این هفته', navDiary: 'دفتر', navSettings: 'تنظیمات', preview: 'دیدن صفحه ↗', linkL: 'لینک صفحه‌ت', cfgSave: 'ذخیره', cfgSaved: 'ذخیره شد.',
     diaryEmpty: 'هنوز چیزی ثبت نشده. هر فیلمی که تیک بزنی خودش اینجا میاد، یا خودت یکی ثبت کن.', edit: 'ویرایش', watchedOn: 'تاریخ دیدن', done: 'تموم', unlog: 'حذف از دفتر',
     logOnLb: 'لترباکس ↗', logToLb: 'ثبت در لترباکس ↗', copyPost: 'کپی پست', postCopied: 'کپی شد؛ تو کانالت بچسبون.',
     syncH: 'همگام‌سازی', syncOn: login => 'وصلی به گیت‌هاب' + (login ? ' با حساب ' + login : '') + '.', syncBusy: 'در حال همگام‌سازی…', syncAt: a => 'آخرین همگام‌سازی: ' + a + '.',
@@ -518,7 +518,7 @@ function mountFocus(root, D, S, opts) {
       if (mk !== month) { if (month) h += '</ul>'; month = mk; h += `<h2 class="fx-mon">${esc(mk)}</h2><ul class="fx-dl">`; }
       const meta = e.r || e.l || e.rv || e.rw || e.ww || e.tg ? `<div class="fx-dm">${starsText(e.k)}${e.rw ? `<i class="fx-ico rw" title="${esc(t.rewatch)}"></i>` : ''}${e.rv ? `<i class="fx-ico rv" title="${esc(t.reviewed)}"></i>` : ''}${e.ww ? `<span class="fx-ww">${esc(t.withShort(e.ww))}</span>` : ''}${e.tg ? e.tg.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).map(x => `<span class="fx-tagc">${esc(x)}</span>`).join('') : ''}</div>` : '';
       h += `<li class="fx-de fx-tap" data-dk="${esc(e.k)}"><span class="fx-dday">${dayN.format(d)}</span>${posterOn() ? poster(e.i, e.i == null ? e.t : '') : ''}
-        <div class="fx-b">${titleLine(e.i, e.t, e.md)}${subLine(e.i, e.md)}${meta}${e.rv ? `<p class="fx-rvx fx-clamp" dir="auto">${esc(e.rv.slice(0, 1200))}</p>` : ''}</div>
+        <div class="fx-b">${titleLine(e.i, e.t, e.md)}${subLine(e.i, e.md)}${meta}</div>
         <div class="fx-acts"><button type="button" class="fx-link fx-al" data-open="${esc(e.k)}">${t.edit}</button></div></li>`;
     });
     h += '</ul></div>';
@@ -549,7 +549,8 @@ function mountFocus(root, D, S, opts) {
           <div class="fx-field"><span>${t.favH}</span><p class="fx-muted">${t.favP}</p><div class="fx-favs">${favTiles()}</div>${picker && picker.fav != null ? pickerBox() : ''}</div>
           <label class="fx-field"><span>${t.nameL}</span><input type="text" data-cfg="cfg:name" maxlength="60" dir="auto" placeholder="${esc(t.namePh)}" value="${esc(seen()['cfg:name'] || '')}"></label>
           <div class="fx-field"><span>${t.linksL}</span><div class="fx-links-ed">${[['lb', 'cfg:lb', 'text'], ['tg', 'cfg:channel', 'url'], ['sp', 'cfg:sp', 'url'], ['ig', 'cfg:ig', 'url'], ['web', 'cfg:web', 'url']].map(([k, ck, ty]) => `<label><span>${t.links[k][0]}</span><input type="${ty}" data-cfg="${ck}" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="${esc(t.links[k][1])}" value="${esc(seen()[ck] || '')}"></label>`).join('')}</div></div>
-          <label class="fx-check"><input type="checkbox" data-pubdiary${seen()['cfg:pubdiary'] !== '0' ? ' checked' : ''}> ${t.pubDiary}</label>`;
+          <label class="fx-check"><input type="checkbox" data-pubdiary${seen()['cfg:pubdiary'] !== '0' ? ' checked' : ''}> ${t.pubDiary}</label>
+          <div class="fx-row"><button type="button" class="fx-btn primary" data-cfg-save>${t.cfgSave}</button>${msg('cfg')}</div>`;
         if (sid) h += `<div class="fx-row"><button type="button" class="fx-link" data-share-off>${t.shareStop}</button></div>`;
         else h += `<div class="fx-row"><button type="button" class="fx-btn primary" data-share-on>${t.shareMake}</button></div>`;
       }
@@ -861,6 +862,7 @@ function mountFocus(root, D, S, opts) {
   }
   const say = (k, cls, txt) => { note[k] = [cls, txt]; render(); };
   root.addEventListener('input', e => {
+    if (note.cfg && e.target.matches('input[data-cfg]')) { delete note.cfg; const n = root.querySelector('[data-cfg-save] + .fx-note'); if (n) n.remove(); }
     if (!e.target.classList.contains('fx-pick-q') || !picker) return;
     picker.q = e.target.value;
     clearTimeout(tmTimer);
@@ -872,14 +874,17 @@ function mountFocus(root, D, S, opts) {
   });
   root.addEventListener('change', e => {
     const c = e.target.closest('input[data-cfg]');
-    if (c) {
+    if (c) { saveCfg(c); return; }
+    if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
+  });
+  function saveCfg(c) {
+    {
       let v = c.value.trim();
       if (c.dataset.cfg === 'cfg:lb') { v = v.replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, ''); if (v && !/^[A-Za-z0-9_]{1,40}$/.test(v)) v = ''; c.value = v; }
       else if (c.type === 'url' && v && !/^https:\/\/[^\s"<>]+$/.test(v)) { if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) v = 'https://' + v; else v = ''; c.value = v; }
-      S.set(c.dataset.cfg, v || null); return;
+      S.set(c.dataset.cfg, v || null);
     }
-    if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
-  });
+  }
   root.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('fx-calwrap')) calOpen = e.target.open; }, true);
   root.addEventListener('keydown', e => {
     if (e.target.classList.contains('fx-pick-q') && e.key === 'Enter') { e.preventDefault(); const b = root.querySelector('.fx-res [data-pick-film]') || root.querySelector('.fx-res [data-pick-tm]') || root.querySelector('.fx-res [data-pick-text]'); if (b && (picker.q || '').trim().length >= 2) b.click(); }
@@ -958,6 +963,7 @@ function mountFocus(root, D, S, opts) {
       ST.shareOff().then(r => { note.share = r ? ['bad', r] : ['ok', T().shareStopped]; render(); });
       return;
     }
+    else if (t.hasAttribute('data-cfg-save')) { root.querySelectorAll('input[data-cfg]').forEach(saveCfg); const pd = root.querySelector('input[data-pubdiary]'); if (pd) S.set('cfg:pubdiary', pd.checked ? null : '0'); note.cfg = ['ok', tt.cfgSaved]; }
     else if (t.hasAttribute('data-share-copy')) { copy(ST.shareUrl(seen()['cfg:share']).replace(/\/$/, ''), t, root.querySelector('.fx-link-pre')); return; }
     else if (t.hasAttribute('data-tmdb-clear')) { S.set('cfg:tmdb', null); P.setToken(null); }
     else if (t.hasAttribute('data-bk-copy')) {

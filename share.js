@@ -88,10 +88,11 @@ function fxProfile(root, id, focusId, opts) {
     const t = T(), tags = tagsOf(e);
     return (e.r || e.h || e.rw || e.rv || e.ww || tags.length || withDate) ? `<div class="fx-dm">${e.r ? `<span class="fx-mini" dir="ltr">${stars(e.r)}</span>` : ''}${e.h ? `<i class="fx-ico lk" title="${esc(t.liked)}"></i>` : ''}${e.rw ? `<i class="fx-ico rw" title="${esc(t.rewatch)}"></i>` : ''}${e.rv ? `<i class="fx-ico rv" title="${esc(t.reviewed)}"></i>` : ''}${withDate ? `<span class="fx-hd">${t.watched} ${pdate(e.w)}</span>` : ''}${e.ww ? `<span class="fx-ww">${esc(t.withShort(String(e.ww).slice(0, 80)))}</span>` : ''}${tags.map(x => `<span class="fx-tagc">${esc(x.slice(0, 30))}</span>`).join('')}</div>` : '';
   }
-  // a row in the diary or reviews list: like Letterboxd, four lines of the review at most, spoilers kept back
-  function entry(e, withDate) {
-    const t = T();
-    const rv = !e.rv ? '' : e.sp ? `<p class="fx-spnote">${t.spoiler}</p>` : `<p class="fx-rvx fx-clamp" dir="auto">${esc(e.rv.slice(0, 1200))}</p>`;
+  // a row in the diary or reviews list
+  function entry(e, inReviews) {
+    const t = T(), withDate = inReviews;
+    // the diary only says there is a review; the reviews tab shows four lines (never a spoiler)
+    const rv = !e.rv || !inReviews ? '' : e.sp ? `<p class="fx-spnote">${t.spoiler}</p>` : `<p class="fx-rvx fx-clamp" dir="auto">${esc(e.rv.slice(0, 1200))}</p>`;
     return `<li class="fx-de fx-tap" data-entry="${esc(e.id)}" id="e-${esc(e.id)}"><span class="fx-dday">${faDigits(day.test(e.w) ? +e.w.slice(8) : '')}</span>${poster(e)}
       <div class="fx-b">${titleOf(e, true)}${subOf(e)}${metaOf(e, withDate)}${rv}${e.rv ? `<button type="button" class="fx-link fx-rvb" data-entry="${esc(e.id)}">${t.readReview} →</button>` : ''}</div>
       <button type="button" class="fx-perma" data-perma="${esc(e.id)}" title="${t.perma}" aria-label="${t.perma}">#</button></li>`;
