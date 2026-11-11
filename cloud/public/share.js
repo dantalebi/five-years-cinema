@@ -127,8 +127,11 @@ function fxProfile(root, id, focusId, opts) {
       <div class="fx-row"><button type="button" class="fx-btn" data-perma="${esc(e.id)}">${t.perma}</button></div>
     </article>`;
   }
-  const years = () => [...new Set((data.diary || []).map(e => String(e.w || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
-  const inYear = () => { const ys = years(); if (year === null || (year !== 'all' && !ys.includes(year))) year = ys.length > 1 ? ys[0] : 'all'; return year === 'all' ? (data.diary || []) : (data.diary || []).filter(e => String(e.w).startsWith(year)); };
+  // years as the reader counts them (Solar Hijri for Persian readers, unless they chose otherwise)
+  const jal = () => typeof fxJalOn === 'function' && fxJalOn(lang, {'cfg:cal': opts.cal ? opts.cal() : null});
+  const yw = e => { const w = String((e && e.w) || ''); return /^\d{4}-\d\d-\d\d$/.test(w) ? (jal() ? fxYearOf(w, true) : w.slice(0, 4)) : ''; };
+  const years = () => [...new Set((data.diary || []).map(yw).filter(Boolean))].sort().reverse();
+  const inYear = () => { const ys = years(); if (year === null || (year !== 'all' && !ys.includes(year))) year = ys.length > 1 ? ys[0] : 'all'; return year === 'all' ? (data.diary || []) : (data.diary || []).filter(e => yw(e) === year); };
   function yearNav() {
     const ys = years();
     return ys.length > 1 ? `<nav class="fx-years">${ys.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${year === y}">${y === 'all' ? T().allYears : faDigits(y)}</button>`).join('')}</nav>` : '';
@@ -199,7 +202,7 @@ function fxProfile(root, id, focusId, opts) {
     if (hasMeta) big.push([num(new Set(films.flatMap(f => f.c || [])).size), t.big.countries]);
     big.push([num(Object.values(days).filter(n => n > 1).length), t.big.multi]);
     let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
-    if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang])}</section>`;
+    if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang], jal())}</section>`;
     const hist = Array(11).fill(0); d.concat(extra).forEach(e => { if (e.r) hist[e.r]++; });
     const hm = Math.max(1, ...hist);
     h += `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / hm * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
@@ -208,7 +211,7 @@ function fxProfile(root, id, focusId, opts) {
     const decRows = stv.dec === 'n' ? dec.sort((x, y) => x[0] - y[0]) : ranked(dec, 'r', 12);
     h += card(t.decades, seg('dec', mw), barList(decRows, stv.dec, k => faDigits(k) + (lang === 'fa' ? '' : 's')));
     if (year === 'all') {
-      const yc = {}; d.forEach(e => { const y = String(e.w || '').slice(0, 4); if (/^\d{4}$/.test(y)) yc[y] = (yc[y] || 0) + 1; });
+      const yc = {}; d.forEach(e => { const y = yw(e); if (y) yc[y] = (yc[y] || 0) + 1; });
       const yk = Object.keys(yc).sort(), ym = Math.max(1, ...Object.values(yc));
       if (yk.length > 1) h += `<section class="fx-card"><h2>${t.byYear}</h2><div class="fx-rows fx-wide">${yk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}</span><span class="fx-rb"><i style="width:${Math.round(yc[k] / ym * 100)}%"></i></span><span class="fx-rn">${fa(yc[k])}</span></div>`).join('')}</div></section>`;
     }
@@ -301,13 +304,14 @@ function fxProfile(root, id, focusId, opts) {
         data = JSON.parse(txt); updated = g.updated_at;
       }
       lang = data.lang === 'fa' ? 'fa' : 'en';
+      if (opts.lang) { const v = opts.lang(); if (v === 'fa' || v === 'en') lang = v; }  // a signed-in reader reads in their own language
       if (!Array.isArray(data.diary)) data.diary = [];
       data.diary = data.diary.filter(e => e && typeof e.t === 'string');
       data.seen = (Array.isArray(data.seen) ? data.seen : []).filter(e => e && typeof e.t === 'string');
       withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
       if (cur && !data.diary.some(x => x.id === cur)) cur = '';
       if (wantPlay && PL && !cur) { tab = 'play'; PL.open(wantPlay); wantPlay = ''; }
-      if (cur) { const fe = data.diary.find(x => x.id === cur); if (fe && year !== 'all' && !String(fe.w).startsWith(year || '')) year = String(fe.w).slice(0, 4); }
+      if (cur) { const fe = data.diary.find(x => x.id === cur); if (fe && year !== 'all' && yw(fe) !== year) year = yw(fe) || year; }
       render();
     } catch (e) {
       if (!data) shell(T().fail, T().later);

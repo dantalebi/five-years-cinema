@@ -681,17 +681,17 @@ function mountFocus(root, D, S, opts) {
     return [head, [stars, e.l ? '♥' : '', e.rw ? '↻' : '', e.ww ? T().withShort(e.ww) : ''].filter(Boolean).join(' '), e.rv ? (e.sp ? '⚠️ ' + T().spoilers + '\n\n' : '') + e.rv : '', url].filter(Boolean).join('\n\n');
   }
   function renderDiary() {
-    const t = T(), all = fxDiary(D, seen());
-    const years = [...new Set(all.map(e => e.date.slice(0, 4)))].sort().reverse();
-    if (diaryYear === null || (diaryYear !== 'all' && !years.includes(diaryYear))) diaryYear = years.length > 1 ? (years.includes(today().slice(0, 4)) ? today().slice(0, 4) : years[0]) : 'all';
-    const list = diaryYear === 'all' ? all : all.filter(e => e.date.startsWith(diaryYear));
+    const t = T(), all = fxDiary(D, seen()), jal = typeof fxJalOn === 'function' && fxJalOn(L(), seen()), yOf = ds => jal ? fxYearOf(ds, true) : ds.slice(0, 4);
+    const years = [...new Set(all.map(e => yOf(e.date)))].sort().reverse(), ty = yOf(today());
+    if (diaryYear === null || (diaryYear !== 'all' && !years.includes(diaryYear))) diaryYear = years.length > 1 ? (years.includes(ty) ? ty : years[0]) : 'all';
+    const list = diaryYear === 'all' ? all : all.filter(e => yOf(e.date) === diaryYear);
     const mins = list.reduce((a, e) => a + (e.i != null ? F[e.i][3] || 0 : (e.md && +e.md.m) || 0), 0), rated = list.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const hmFa = m => L() === 'fa' ? t.hm(m).replace(/\d+/g, d => fa(d)) : t.hm(m);
     const nfmt = n => L() === 'fa' ? fa(n) : Number(n).toLocaleString('en-US');
     let h = `<header class="fx-head">${all.length ? `<div class="fx-eye">${esc(t.diaryEye(nfmt(list.length), hmFa(mins).replace(/\b\d{4,}\b/g, n => L() === 'fa' ? n : Number(n).toLocaleString('en-US')), avg ? (L() === 'fa' ? fa1(+avg) : avg) : ''))}</div>` : ''}<div class="fx-hrow"><h1 class="fx-h1">${t.diaryH}</h1></div></header>`;
     h += picker && picker.log ? pickerBox() : `<div class="fx-act"><button type="button" class="fx-btn" data-log>${t.logFilm}</button></div>`;
-    if (all.length && typeof fxCalendar === 'function') h += `<details class="fx-more fx-calwrap"${calOpen ? ' open' : ''}><summary>${t.calH}</summary>${fxCalendar(all.map(e => e.date), diaryYear === 'all' || diaryYear === null ? 'all' : diaryYear, L(), today(), FX_CAL_L[L()])}</details>`;
+    if (all.length && typeof fxCalendar === 'function') h += `<details class="fx-more fx-calwrap"${calOpen ? ' open' : ''}><summary>${t.calH}</summary>${fxCalendar(all.map(e => e.date), diaryYear === 'all' || diaryYear === null ? 'all' : diaryYear, L(), today(), FX_CAL_L[L()], jal)}</details>`;
     if (years.length > 1) h += `<nav class="fx-years">${years.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${diaryYear === y}">${y === 'all' ? t.allYears : fa(y).replace(/[٬,]/g, '')}</button>`).join('')}</nav>`;
     if (!all.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p>`;
     const mf = new Intl.DateTimeFormat(L() === 'fa' ? 'fa-IR-u-ca-persian' : 'en-US', {month: 'long', year: 'numeric'});
@@ -764,7 +764,7 @@ function mountFocus(root, D, S, opts) {
         ${opts.letterboxd.friends ? `<label class="fx-field"><span>${t.lbfL}</span><input type="text" data-cfg="cfg:lbf" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="username, another_one" value="${esc(seen()['cfg:lbf'] || '')}"></label><p class="fx-muted fx-small">${t.lbfP}</p>` : ''}
         <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p></section>`;
     }
-    h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p></section>`;
+    h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p>${lang === 'fa' && typeof FX_JF !== 'undefined' && FX_JF ? `<div class="fx-field"><span>تقویم</span><div class="fx-row"><button type="button" class="fx-btn${seen()['cfg:cal'] !== 'g' ? ' primary' : ''}" data-cal="j">شمسی</button><button type="button" class="fx-btn${seen()['cfg:cal'] === 'g' ? ' primary' : ''}" data-cal="g">میلادی</button></div></div>` : ''}</section>`;
     if (ST.kind === 'cloud') {
       h += `<section class="fx-card"><h2>${t.acctH}</h2><p>${esc(t.acctOn(st.login))} ${st.state === 'err' ? `<span class="fx-bad">${esc(st.msg || '')}</span>` : st.state === 'busy' ? t.syncBusy : st.at ? esc(t.syncAt(ago(st.at))) : ''}</p>
         <div class="fx-row"><button type="button" class="fx-btn" data-sync-now>${t.syncNow}</button><button type="button" class="fx-btn" data-dl-data>${t.dlData}</button><button type="button" class="fx-link" data-disconnect>${t.signOut}</button></div>${msg('gh')}
@@ -1082,7 +1082,7 @@ function mountFocus(root, D, S, opts) {
       if (sheet.discard) sheet.discard = false;
       if (b.hasAttribute('data-ssave')) {
         const r = saveSheet(); closeSheet();
-        if (view === 'diary' && diaryYear !== 'all') diaryYear = r.date.slice(0, 4);
+        if (view === 'diary' && diaryYear !== 'all') diaryYear = typeof fxJalOn === 'function' && fxJalOn(L(), seen()) ? fxYearOf(r.date, true) : r.date.slice(0, 4);
         flash = r.ek; render(); return;
       }
       readSheetInputs();
@@ -1247,6 +1247,7 @@ function mountFocus(root, D, S, opts) {
     else if (t.hasAttribute('data-settings')) { view = 'settings'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     else if (t.hasAttribute('data-back')) { view = 'week'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     else if (t.hasAttribute('data-lang')) { S.set('cfg:lang', t.dataset.lang === 'fa' ? 'fa' : 'en'); }
+    else if (t.hasAttribute('data-cal')) { S.set('cfg:cal', t.dataset.cal === 'g' ? 'g' : null); diaryYear = null; render(); }
     else if (t.hasAttribute('data-sync-now')) { ST.syncNow(); }
     else if (t.hasAttribute('data-disconnect')) { ST.disconnect(); note.gh = ['ok', tt.disconnected]; }
     else if (t.hasAttribute('data-dl-data') || t.hasAttribute('data-dl-all')) { fxDownloadAll(D, Store.entries(), seen()); return; }

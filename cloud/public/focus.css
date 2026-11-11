@@ -608,3 +608,6 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-people .fx-btn{flex:none}
 .fx-pmeta{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:12px}
 .fx-pmeta .fx-muted{font-size:13px}
+/* Solar Hijri calendar: Persian month names, joined letters, no caps spacing */
+.fx-cal[dir="rtl"] .fx-calm > span{font-family:"Vazirmatn", Tahoma, sans-serif; letter-spacing:0; text-transform:none; font-size:11px}
+.fx-callegend[dir="rtl"] span{font-family:"Vazirmatn", Tahoma, sans-serif; letter-spacing:0}

@@ -41,7 +41,9 @@ globalThis.fetch = async (url, opts) => {
   if (u.hostname === 'api.themoviedb.org') {
     if ((opts && opts.headers && opts.headers.Authorization) !== 'Bearer test-token') return new Response('{}', {status: 401});
     const q = u.searchParams.get('query'), mm = u.pathname.match(/\/(movie|tv)\/(\d+)(\/images)?$/);
-    if (u.pathname.endsWith('/search/movie')) return Response.json({results: q ? [{id: 900 + q.length, title: q, release_date: (u.searchParams.get('year') || '2001') + '-01-01', poster_path: '/s' + q.length + '.jpg'}] : []});
+    // a steady id per title, so different films stay different (the same title always gets the same id)
+    const qid = q ? 1000 + [...q.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 900000, 7) : 0;
+    if (u.pathname.endsWith('/search/movie')) return Response.json({results: q ? [{id: qid, title: q, release_date: (u.searchParams.get('year') || '2001') + '-01-01', poster_path: '/s' + qid + '.jpg'}] : []});
     if (u.pathname.endsWith('/search/tv')) return Response.json({results: []});
     if (mm && mm[3]) return Response.json({posters: [{file_path: '/a.jpg'}, {file_path: '/b.jpg'}], backdrops: [{file_path: '/bd.jpg', width: 1280, height: 720}]});
     if (mm) return Response.json({id: +mm[2], runtime: 110, poster_path: '/p' + mm[2] + '.jpg', genres: [{id: 18}], production_countries: [{iso_3166_1: 'FR'}], original_language: 'fr',

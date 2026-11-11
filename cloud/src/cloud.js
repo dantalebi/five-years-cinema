@@ -325,6 +325,9 @@
     };
     PF = fxProfile(root, name, eid, {
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine,
+      // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
+      lang: () => (me ? Store.data['cfg:lang'] : null) || (() => { try { return localStorage.getItem('fd-lang'); } catch (e) { return null; } })(),
+      cal: () => (me ? Store.data['cfg:cal'] : null),
       headerExtra: metaHtml,
       onButton: (b, render) => {
         if (!b.hasAttribute('data-pfollow') || !meta) return false;
@@ -357,8 +360,8 @@
   // ================= which face =================
   async function home() {
     const um = location.pathname.match(/^\/u\/([a-z0-9_]{3,24})\/?$/);
-    if (um) { profilePage(um[1]); return; }
     await Store.load();
+    if (um) { profilePage(um[1]); return; }
     let me = CloudSync.me();
     if (!me) { authScreen(); return; }
     if (Store.data['cfg:plan']) start(); else onboard();
