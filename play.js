@@ -12,7 +12,7 @@ function fxPlay(ctx) {
       duelT: 'This or that', duelP: n => 'Two of ' + n + '’s favourite films at a time: pick one, until your champion is left.',
       nightT: 'What should I watch tonight?', nightP: (n, k) => 'One film from the ' + k + ' that ' + n + ' gave 3.5★ or more.',
       matchT: 'How close is your taste?', matchP: n => 'Your Letterboxd ratings next to ' + n + '’s.',
-      back: '← All games', size: n => n + ' films', start: 'Start', or: 'or', undo: '↶ Back one', again: 'Play again', share: 'Share', copied: 'Copied',
+      back: '← All games', size: n => n + ' films', start: 'Start', or: 'or', undo: '↶ Back one', again: 'Play again with', share: 'Share', copied: 'Copied',
       rounds: {32: 'Round of 32', 16: 'Round of 16', 8: 'Quarter-finals', 4: 'Semi-finals', 2: 'Final'}, of: (a, b) => a + ' / ' + b,
       champ: 'Your champion', theirs: (n, s) => n + ' gave it ' + s, unrated: n => n + ' hasn’t rated it', ranking: 'Your ranking', fewDuel: 'There aren’t enough highly rated films with posters yet.',
       duelShare: (n, c) => 'My champion of ' + n + '’s favourite films: ' + c + ' 🏆',
@@ -33,7 +33,7 @@ function fxPlay(ctx) {
       duelT: 'این یا اون', duelP: n => 'دوتا دوتا بین فیلم‌های محبوب ' + n + ' یکی رو انتخاب کن تا قهرمانت معلوم بشه.',
       nightT: 'امشب چی ببینم؟', nightP: (n, k) => 'یه فیلم از بین ' + k + ' فیلمی که ' + n + ' بهشون ۳٫۵ ستاره یا بیشتر داده.',
       matchT: 'سلیقه‌ت چقدر بهش می‌خوره؟', matchP: n => 'امتیازهای لترباکسدت کنار امتیازهای ' + n + '.',
-      back: 'همه‌ی بازی‌ها →', size: n => n + ' فیلم', start: 'شروع', or: 'یا', undo: '↶ یکی برگرد', again: 'دوباره', share: 'فرستادن', copied: 'کپی شد',
+      back: 'همه‌ی بازی‌ها →', size: n => n + ' فیلم', start: 'شروع', or: 'یا', undo: '↶ یکی برگرد', again: 'دوباره، با', share: 'فرستادن', copied: 'کپی شد',
       rounds: {32: 'دور ۳۲تایی', 16: 'یک‌هشتم نهایی', 8: 'یک‌چهارم نهایی', 4: 'نیمه‌نهایی', 2: 'فینال'}, of: (a, b) => a + ' از ' + b,
       champ: 'قهرمانِ تو', theirs: (n, s) => n + ' بهش ' + s + ' داده', unrated: n => n + ' بهش امتیاز نداده', ranking: 'رتبه‌بندی تو', fewDuel: 'هنوز فیلم پرامتیازِ پوستردار کافی نیست.',
       duelShare: (n, c) => 'قهرمانِ من بین فیلم‌های محبوب ' + n + ': ' + c + ' 🏆',
@@ -95,8 +95,8 @@ function fxPlay(ctx) {
   // ---------- «این یا اون» ----------
   let duel = null;
   function duelPool() {
-    const all = films().filter(f => f.p), top = all.filter(f => f.r >= 9);
-    const pool = top.length >= 16 ? top : all.filter(f => f.r >= 8);
+    const all = films().filter(f => f.p), top = all.filter(f => f.r >= 8);  // 4★ and up
+    const pool = top.length >= 8 ? top : all.filter(f => f.r >= 7);
     const favs = ((ctx.data() || {}).fav || []).map(x => norm(x && x.t)), isFav = f => favs.includes(norm(f.t));
     return pool.slice().sort((a, b) => (isFav(b) - isFav(a)));
   }
@@ -115,10 +115,13 @@ function fxPlay(ctx) {
     }
     Object.assign(duel, {cur, next, i, out, champ: next.length === 1 && i >= cur.length ? next[0] : null});
   }
+  const duelSizes = () => [8, 16, 32].filter(s => duelPool().length >= s);
+  // 8 · 16 · 32: tapping another size starts a fresh bracket of that size, from wherever you are
+  const sizeSeg = (cur, label) => `<div class="fx-row fx-center fx-sizes">${label ? `<span class="fx-muted fx-small">${label}</span>` : ''}<div class="fx-years fx-seg" role="group">${duelSizes().map(s => `<button type="button" data-pl="duel:${s}" aria-pressed="${s === cur}">${digits(T().size(s))}</button>`).join('')}</div></div>`;
   function duelView() {
     const t = T(), n = first();
     if (!duel) {
-      const pool = duelPool(), sizes = [8, 16, 32].filter(s => pool.length >= s);
+      const pool = duelPool(), sizes = duelSizes();
       if (!sizes.length) return `<p class="fx-muted">${t.fewDuel}</p>`;
       return `<div class="fx-gintro">${strip(shuffle(pool))}<h2 class="fx-gh">${t.duelT}</h2><p class="fx-muted">${esc(t.duelP(n))}</p></div>
         <div class="fx-row fx-center">${sizes.map(s => `<button type="button" class="fx-btn${s === 16 || sizes.length === 1 ? ' primary' : ''}" data-pl="duel:${s}">${digits(t.size(s))}</button>`).join('')}</div>`;
@@ -132,12 +135,12 @@ function fxPlay(ctx) {
       return `<div class="fx-champ">${posterBox(c, 'fx-cpos')}<div class="fx-eye">${t.champ}</div><div class="fx-ctitle"><bdi>${esc(c.t)}</bdi> <span class="fx-y">${c.y || ''}</span></div>
         <div class="fx-muted">${c.r ? t.theirs(esc(n), '<span class="fx-mini" dir="ltr">' + stars(c.r) + '</span>') : esc(t.unrated(n))}</div></div>
         <h3 class="fx-gh2">${t.ranking}</h3><ol class="fx-rank">${rank}</ol>
-        ${shareRow(text, 'duel')}<div class="fx-row fx-center"><button type="button" class="fx-btn primary" data-pl="duel:${duel.seed.length}">${t.again}</button></div>`;
+        ${shareRow(text, 'duel')}${sizeSeg(0, t.again)}`;
     }
     const a = duel.cur[duel.i], b = duel.cur[duel.i + 1], size = duel.cur.length;
     const nxt = duel.cur[duel.i + 2]; if (nxt) [duel.cur[duel.i + 2], duel.cur[duel.i + 3]].forEach(f => { if (f && f.p) { const im = new Image(); im.src = big(f.p); } });
     const card = (f, side) => `<button type="button" class="fx-vsb" data-pl="pick:${side}">${posterBox(f, 'fx-vspos')}<span class="fx-vst"><bdi>${esc(f.t)}</bdi> <span class="fx-y">${f.y || ''}</span></span></button>`;
-    return `<div class="fx-eye fx-center">${esc(t.rounds[size] || '')} · ${digits(t.of(duel.i / 2 + 1, size / 2))}</div>
+    return `${sizeSeg(duel.seed.length)}<div class="fx-eye fx-center">${esc(t.rounds[size] || '')} · ${digits(t.of(duel.i / 2 + 1, size / 2))}</div>
       <div class="fx-vs" dir="ltr">${card(a, 0)}<span class="fx-vso">${t.or}</span>${card(b, 1)}</div>
       <div class="fx-row fx-center">${duel.hist.length ? `<button type="button" class="fx-link" data-pl="undo">${t.undo}</button>` : ''}</div>`;
   }
