@@ -1,0 +1,254 @@
+<!doctype html>
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://image.tmdb.org; connect-src 'self' https://api.github.com https://gist.githubusercontent.com https://api.themoviedb.org; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#EEEFF2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1014" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="پنج سال">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon32.png" sizes="32x32">
+<title>پنج سال سینما</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&family=Reem+Kufi:wght@500;700&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Layout: a repertory cinema's five-year programme. Four lanes run under every week: the history spine (a fresh sweep each year), auteur rails, today's cinema, and popular literacy. */
+:root{
+  --bg:#EEEFF2; --surface:#FFFFFF; --sunk:#F5F6F8; --ink:#14161B; --muted:#5A606E; --faint:#8C919D; --line:#D8DBE2;
+  --lA:#2a78d6; --lC:#1baf7a; --lP:#eb6834; --lH:#4A4F5C; --on-lane:#FFFFFF;
+  --ready:#2F6B4F; --ready-soft:#E1EFE7; --need:#8A5300; --need-soft:#F6E9D2; --dl:#5B4BB8; --dl-soft:#E7E4F7; --ir:#7A2E55; --ir-soft:#F5E3EC;
+  --f-ui:"Vazirmatn", Tahoma, system-ui, sans-serif;
+  --f-display:"Reem Kufi", "Vazirmatn", Tahoma, sans-serif;
+  --f-film:"Instrument Serif", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1014; --surface:#171A20; --sunk:#12151A; --ink:#ECEDF1; --muted:#9DA3B0; --faint:#6E7482; --line:#2A2F39;
+  --lA:#3987e5; --lC:#199e70; --lP:#d95926; --lH:#7C8291; --on-lane:#FFFFFF;
+  --ready:#86CDA6; --ready-soft:#1C2E25; --need:#F0B35A; --need-soft:#33270F; --dl:#ABA2F2; --dl-soft:#25213F; --ir:#F0A6C8; --ir-soft:#3A1D2B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1014; --surface:#171A20; --sunk:#12151A; --ink:#ECEDF1; --muted:#9DA3B0; --faint:#6E7482; --line:#2A2F39;
+  --lA:#3987e5; --lC:#199e70; --lP:#d95926; --lH:#7C8291; --on-lane:#FFFFFF;
+  --ready:#86CDA6; --ready-soft:#1C2E25; --need:#F0B35A; --need-soft:#33270F; --dl:#ABA2F2; --dl-soft:#25213F; --ir:#F0A6C8; --ir-soft:#3A1D2B; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--f-ui); font-size:15px; line-height:1.7}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:var(--bg)}
+.wrap{max-width:1120px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:0 80px}
+a{color:inherit} [hidden]{display:none!important} button,input{font:inherit}
+:focus-visible{outline:2px solid var(--lA); outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display); font-weight:700; margin:0; text-wrap:balance}
+h1{font-size:clamp(32px,6vw,52px); line-height:1.2}
+h2{font-size:clamp(21px,3vw,27px); line-height:1.35}
+.film{font-family:var(--f-film); font-size:1.13em; direction:ltr; unicode-bidi:isolate; text-decoration:none}
+.film:hover{text-decoration:underline; text-underline-offset:3px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:13px}
+header.top{padding-block:30px 14px; display:grid; gap:12px}
+.eyebrow{font-size:13px; color:var(--muted)}
+.lead{font-size:16.5px; max-width:72ch; margin:0}
+.stats{display:flex; flex-wrap:wrap; gap:8px}
+.stat{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 14px; display:grid; min-width:128px}
+.stat b{font-size:21px; font-weight:800}
+.stat span{font-size:12.5px; color:var(--muted)}
+section{padding-block:26px 4px; display:grid; gap:12px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0}
+.grid{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.grid .card h3{font-size:16px; font-family:var(--f-ui); font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:6px}
+.grid .card p{margin:0; font-size:14px; color:var(--muted)}
+.dot{display:inline-block; flex:none; width:10px; height:10px; border-radius:3px}
+.yr{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.yr .card{display:grid; gap:4px; align-content:start}
+.yr .card b{font-family:var(--f-display); font-size:20px}
+.yr .card .k{font-size:12px; color:var(--muted)}
+.yr .card p{margin:0; font-size:13.5px; color:var(--muted)}
+/* map */
+.mapwrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+.map{position:relative; min-width:1100px; padding:30px 12px 24px 12px; margin-right:118px}
+.row{position:relative; height:24px; margin-block:6px; background:var(--sunk); border-radius:6px}
+.row .lbl{position:absolute; left:calc(100% + 8px); top:2px; font-size:12px; color:var(--muted); white-space:nowrap; width:110px}
+.blk{position:absolute; top:0; bottom:0; border-radius:4px; color:var(--on-lane); font-size:10.5px; line-height:24px; padding-inline:4px; overflow:hidden; white-space:nowrap; text-align:right; cursor:pointer; border-left:1.5px solid var(--surface)}
+.blk.A{background:var(--lA)} .blk.C{background:var(--lC)} .blk.H{background:var(--lH)} .blk.P{background:var(--lP)}
+.blk.H.alt{opacity:.72}
+.ticks{position:absolute; top:6px; left:12px; right:12px; height:16px; font-size:11.5px; color:var(--muted)}
+.ticks span{position:absolute; white-space:nowrap; padding-inline-start:4px; border-inline-start:1px solid var(--line); max-width:19%; overflow:hidden; text-overflow:ellipsis}
+.ysep{position:absolute; top:24px; bottom:8px; width:1px; background:var(--line)}
+.now{position:absolute; top:24px; bottom:6px; width:2px; background:var(--ink)}
+/* progress */
+.prog{display:grid; gap:8px}
+.bar{height:10px; border-radius:5px; background:var(--sunk); overflow:hidden; display:flex; direction:rtl}
+.bar i{display:block; height:100%; background:var(--ink)}
+.progrow{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13.5px; color:var(--muted); align-items:center}
+.progrow b{color:var(--ink)}
+.lanebars{display:grid; gap:6px; grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.lanebar{display:grid; gap:3px; font-size:12.5px; color:var(--muted)}
+.lanebar .bar{height:6px}
+.btn{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; padding:5px 12px; cursor:pointer; font-size:13.5px}
+.btn.primary{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.search{display:flex; gap:8px; flex-wrap:wrap}
+.search input{flex:1; min-width:200px; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink)}
+.results{display:grid; gap:4px}
+.results button{all:unset; cursor:pointer; padding:5px 10px; border-radius:8px; background:var(--surface); border:1px solid var(--line); font-size:14px; display:flex; gap:10px; justify-content:space-between}
+/* year + season tabs */
+.tabs{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin}
+.tabs button{flex:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:10px; padding:6px 12px; cursor:pointer; display:grid; text-align:right; line-height:1.4; min-width:120px}
+.tabs button b{font-size:14px; color:var(--ink); font-weight:700}
+.tabs button span{font-size:11.5px}
+.tabs button[aria-selected="true"]{background:var(--ink); border-color:var(--ink)} .tabs button[aria-selected="true"] b,.tabs button[aria-selected="true"] span{color:var(--bg)}
+.tabs button .pbar{height:3px; border-radius:2px; background:var(--line); margin-top:3px; overflow:hidden}
+.tabs button .pbar i{display:block; height:100%; background:var(--ready)}
+.tabs.years button{min-width:150px}
+.shead{display:grid; gap:8px}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-size:12.5px; padding:1px 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface); display:inline-flex; gap:6px; align-items:center}
+.chip .dot{width:8px; height:8px}
+.pcs{display:flex; flex-wrap:wrap; gap:2px 0}
+.pc{unicode-bidi:isolate}
+.pc + .pc::before{content:"·"; margin-inline:6px; color:var(--faint)}
+/* weeks */
+.weeks{display:grid; gap:10px}
+.week{background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.week.current{outline:2px solid var(--ink)}
+.whead{display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--sunk)}
+.wn{font-family:var(--f-display); font-size:19px; font-weight:700}
+.wd{font-size:13px; color:var(--muted)}
+.wcount{margin-inline-start:auto; font-size:12.5px; color:var(--muted)}
+.wbody{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.box{padding:10px 16px; min-width:0; border-top:1px solid var(--line)}
+.box:nth-child(-n+2){border-top:0}
+.box:nth-child(even){border-inline-start:1px solid var(--line)}
+.boxh{font-size:12.5px; color:var(--muted); font-weight:700; margin-bottom:2px; display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+.boxh .run{font-weight:500}
+ul.fl{list-style:none; margin:0; padding:0; display:grid}
+ul.fl li{display:grid; grid-template-columns:22px minmax(0,1fr); gap:2px 8px; padding:6px 0; border-bottom:1px dashed var(--line); align-items:start}
+ul.fl li:last-child{border-bottom:0}
+ul.fl li.opt{padding:3px 0; font-size:13.5px}
+ul.fl li.opt .film{font-size:1.05em}
+ul.fl input[type=checkbox]{width:17px; height:17px; margin:4px 0 0; accent-color:var(--ink); cursor:pointer}
+ul.fl li.opt input[type=checkbox]{width:15px; height:15px}
+.fm{display:flex; flex-wrap:wrap; gap:2px 10px; font-size:12.5px; color:var(--muted); align-items:center}
+li.seen .film{text-decoration:line-through; text-decoration-color:var(--faint); color:var(--muted)}
+.pill{font-size:11.5px; padding:0 7px; border-radius:5px; white-space:nowrap}
+.pill.ready{background:var(--ready-soft); color:var(--ready)}
+.pill.need{background:var(--need-soft); color:var(--need)}
+.pill.dl{background:var(--dl-soft); color:var(--dl)}
+.pill.ir{background:var(--ir-soft); color:var(--ir)}
+.pill.opt{border:1px solid var(--line); color:var(--muted)}
+.long{font-size:11.5px; color:var(--need)}
+.free{display:grid; gap:4px}
+.free input[type=text]{width:100%; padding:5px 10px; border-radius:8px; border:1px dashed var(--line); background:var(--sunk); color:var(--ink); direction:ltr; text-align:left}
+details.dl{background:var(--surface); border:1px solid var(--line); border-radius:12px}
+details.dl summary{cursor:pointer; padding:10px 16px; font-weight:700}
+.dlbody{padding:0 16px 14px; display:grid; gap:8px}
+.dlbody pre{margin:0; white-space:pre-wrap; font-size:12.5px; direction:ltr; text-align:left; background:var(--sunk); border-radius:8px; padding:10px; max-height:260px; overflow:auto}
+.note{font-size:13px; color:var(--muted)}
+footer{padding-block:30px; font-size:13px; color:var(--muted)}
+@media (max-width:760px){ .wbody{grid-template-columns:minmax(0,1fr)} .box:nth-child(2){border-top:1px solid var(--line)} .box:nth-child(even){border-inline-start:0} }
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+<style>.backbar{position:sticky; top:0; z-index:20; display:flex; justify-content:center; padding:8px 16px; padding-top:max(8px, env(safe-area-inset-top)); background:var(--bg); border-bottom:1px solid var(--line)} .backbar a{text-decoration:none}</style>
+</head>
+<body>
+<style>
+/* additions for the loose version */
+ul.wl{list-style:none; margin:0; padding:0 16px; display:grid}
+ul.wl > li{display:grid; grid-template-columns:22px minmax(0,1fr); gap:2px 8px; padding:7px 0; border-bottom:1px dashed var(--line); align-items:start}
+ul.wl > li:last-child{border-bottom:0}
+ul.wl input[type=checkbox]{width:17px; height:17px; margin:4px 0 0; accent-color:var(--ink); cursor:pointer}
+ul.wl li.seen .film{text-decoration:line-through; text-decoration-color:var(--faint); color:var(--muted)}
+.lane{font-size:11.5px; font-weight:700; padding:0 7px; border-radius:5px; color:var(--on-lane); white-space:nowrap}
+.lane.A{background:var(--lA)} .lane.C{background:var(--lC)} .lane.H{background:var(--lH)} .lane.P{background:var(--lP)} .lane.F{background:var(--sunk); color:var(--ink); border:1px dashed var(--faint)}
+.theme{font-size:13px; padding:1px 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface)}
+.week.free .whead{background:var(--surface)}
+.freebox{padding:12px 16px; display:grid; gap:8px}
+.slot{display:grid; gap:6px}
+.slotrow{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.slot input[type=text]{flex:1; min-width:170px; padding:5px 10px; border-radius:8px; border:1px dashed var(--line); background:var(--sunk); color:var(--ink); direction:ltr; text-align:left}
+.pick{display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; padding:6px 10px; border-radius:8px; background:var(--sunk)}
+.pick label{display:flex; gap:6px; align-items:center; font-size:13px; cursor:pointer}
+details.more{padding:0 16px 10px}
+details.more summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 0}
+details.more ul.wl{padding:0}
+.shelfgrid{display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.shelfgrid ul{list-style:none; margin:0; padding:0; display:grid; gap:2px; max-height:420px; overflow:auto}
+.shelfgrid li{font-size:13.5px; display:flex; gap:8px; justify-content:space-between; border-bottom:1px dashed var(--line); padding:3px 0}
+.covwrap{padding:10px 12px; min-width:620px}
+table.cov{border-collapse:separate; border-spacing:3px; font-size:13px}
+table.cov th{font-weight:500; color:var(--muted); text-align:right; white-space:nowrap; padding:2px 6px}
+table.cov thead th{font-size:12.5px; color:var(--ink); font-weight:700}
+table.cov thead th span{display:block; font-weight:400; color:var(--muted); font-size:11.5px}
+table.cov td{padding:0}
+table.cov td button{all:unset; box-sizing:border-box; display:block; width:100%; min-width:54px; text-align:center; padding:4px 0; border-radius:6px; cursor:pointer; font-variant-numeric:tabular-nums;
+  background:color-mix(in srgb, var(--lA) var(--a), var(--sunk)); color:var(--ink)}
+table.cov td button:focus-visible{outline:2px solid var(--ink)}
+table.cov td.tot{text-align:center; color:var(--muted); font-variant-numeric:tabular-nums; padding:0 8px}
+</style>
+
+<div class="backbar"><a class="btn primary" href="./">برگرد به «این هفته»</a></div>
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">برنامه‌ی تماشا</div>
+  <h1>پنج سال سینما</h1>
+  <p class="lead" id="lead"></p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<section aria-labelledby="h-how">
+  <h2 id="h-how">قاطی، ولی نه بی‌حساب</h2>
+  <p class="note" style="margin:0" id="hownote"></p>
+  <div class="grid" id="lanes"></div>
+</section>
+
+<section aria-labelledby="h-years">
+  <h2 id="h-years">از بالا که نگاه کنی</h2>
+  <p class="note" style="margin:0">توی هر هفته همه‌چی درهمه، ولی از دور یه مسیر هست: سال اول با همه آشنا می‌شی، بعد هر کارگردان و هر موج کم‌کم و هم‌زمان با بقیه عمیق‌تر می‌شه تا آخر پنج سال کامل بشه.</p>
+  <div class="yr" id="years"></div>
+  <div class="mapwrap" aria-label="پوشش موج‌ها در پنج سال"><div class="covwrap" id="map"></div></div>
+  <p class="note">هر خونه یعنی چند فیلم از اون موج یا سینما توی اون سال میاد؛ هرچی پررنگ‌تر، بیشتر. هیچ موجی منتظر سال آخر نمی‌مونه. روی هر خونه بزنی می‌ری اولین هفته‌ش.</p>
+</section>
+
+<section aria-labelledby="h-prog">
+  <h2 id="h-prog">کجای مسیری</h2>
+  <div class="card prog">
+    <div class="bar" aria-hidden="true"><i id="pbar"></i></div>
+    <div class="progrow" id="progrow"></div>
+    <div class="lanebars" id="lanebars"></div>
+    <div class="note" id="syncnote"></div>
+  </div>
+  <div class="search"><input id="q" type="search" placeholder="اسم فیلم یا کارگردان رو بنویس (به انگلیسی) تا ببینی کدوم هفته‌ست" autocomplete="off" aria-label="جستجو در برنامه"><button class="btn" type="button" id="goNow">برو به این هفته</button><button class="btn" type="button" id="dice">یه فیلم تصادفی از قفسه</button></div>
+  <div class="results" id="results"></div>
+</section>
+
+<section aria-labelledby="h-seasons">
+  <h2 id="h-seasons">سال‌ها و فصل‌ها</h2>
+  <div class="tabs years" role="tablist" aria-label="سال" id="ytabs"></div>
+  <div class="tabs" role="tablist" aria-label="فصل" id="stabs"></div>
+  <div class="shead" id="shead"></div>
+  <div class="weeks" id="weeks"></div>
+</section>
+
+<section aria-labelledby="h-shelf">
+  <h2 id="h-shelf">قفسه</h2>
+  <p class="note" style="margin:0" id="shelfnote"></p>
+  <details class="dl"><summary id="shelfsum"></summary><div class="dlbody"><div class="shelfgrid" id="shelf"></div></div></details>
+</section>
+<section aria-labelledby="h-bk">
+  <h2 id="h-bk">پشتیبان تیک‌ها</h2>
+  <p class="note" style="margin:0">برای انتقال دستی، این متن رو کپی کن و یه جای دیگه بچسبون.</p>
+  <div class="search"><button class="btn" type="button" id="bkCopy">کپی پشتیبان</button><input id="bkIn" type="text" placeholder="متن پشتیبان رو اینجا بچسبون" aria-label="متن پشتیبان"><button class="btn" type="button" id="bkLoad">بازگردانی</button></div>
+  <div class="note" id="bkNote"></div>
+</section>
+<footer id="foot"></footer>
+</div>
+
+<script src="planload.js"></script>
+<script src="store.js"></script>
+<script src="sync.js"></script>
+<script src="websync.js"></script>
+<script src="focus.js"></script>
+<script src="plan.js"></script>
+</body>
+</html>
