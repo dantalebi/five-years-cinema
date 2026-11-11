@@ -2,14 +2,15 @@ name: Letterboxd feed
 
 # Every hour, the latest logs from letterboxd.com/<you>/rss/ go to feed.json on the
 # "letterboxd-feed" branch; the app picks new ones up from there. Friends listed on your published
-# profile get their public logs kept there too (friends/<name>.json), for the taste match. No secrets needed.
+# profile or in friends.txt get their public logs kept there too (friends/<name>.json), for the taste match.
+# No secrets needed.
 on:
   schedule:
     - cron: '23 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/letterboxd.yml', 'tools/letterboxd-feed.cjs', 'fxlb.js']
+    paths: ['.github/workflows/letterboxd.yml', 'tools/letterboxd-feed.cjs', 'fxlb.js', 'friends.txt']
 
 permissions:
   contents: write

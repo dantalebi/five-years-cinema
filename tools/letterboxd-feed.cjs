@@ -33,24 +33,31 @@ async function rss(user) {
   fs.writeFileSync(path.join(dir, 'feed.json'), JSON.stringify({v: 1, user: USER, items}, null, 1) + '\n');
   console.log(`Feed: ${mine.items.length} recent logs · ${items.length} kept.`);
 
-  // friends: the usernames listed on the published profile (a public gist)
+  // friends: the usernames listed on the published profile (a public gist), then those in friends.txt in the repo
   const gist = (process.env.SHARE_GIST || '').trim(), owner = (process.env.GITHUB_REPOSITORY_OWNER || '').trim();
-  if (!/^[0-9a-f]{20,40}$/.test(gist) || !owner) return;
-  let list = [];
-  try {
-    const r = await fetch(`https://gist.githubusercontent.com/${owner}/${gist}/raw/five-years-share.json?t=${Date.now()}`);
-    if (r.ok) list = ((await r.json()).lbf || []).filter(okUser).map(u => u.toLowerCase()).slice(0, 300);
-    else { console.log('Profile not readable (HTTP ' + r.status + '); friends left as they are.'); return; }
-  } catch (e) { console.log('Profile not readable; friends left as they are.'); return; }
+  let fromFile = [];
+  try { fromFile = fs.readFileSync('friends.txt', 'utf8').split('\n').filter(l => !/^\s*#/.test(l)).join(',').split(/[\s,،]+/).filter(okUser); } catch (e) {}
+  let fromProfile = [];
+  if (/^[0-9a-f]{20,40}$/.test(gist) && owner) {
+    try {
+      const r = await fetch(`https://gist.githubusercontent.com/${owner}/${gist}/raw/five-years-share.json?t=${Date.now()}`);
+      if (r.ok) fromProfile = ((await r.json()).lbf || []).filter(okUser);
+      else { console.log('Profile not readable (HTTP ' + r.status + '); friends left as they are.'); return; }
+    } catch (e) { console.log('Profile not readable; friends left as they are.'); return; }
+  }
+  const list = [...new Set(fromProfile.concat(fromFile).map(u => u.toLowerCase()))].filter(u => u !== USER.toLowerCase()).slice(0, 300);
+  console.log(`Friends: ${fromProfile.length} from the profile, ${fromFile.length} from friends.txt → ${list.length}.`);
   const fdir = path.join(dir, 'friends');
   fs.mkdirSync(fdir, {recursive: true});
   // someone taken off the list: their file goes too
   fs.readdirSync(fdir).forEach(f => { if (f.endsWith('.json') && !list.includes(f.slice(0, -5))) { fs.unlinkSync(path.join(fdir, f)); console.log('Friend removed: ' + f.slice(0, -5)); } });
   // each friend's feed is read about every three hours (new friends right away), so an hourly run stays light
+  // and at most 60 feeds per run, so a long new list fills in over a few hours instead of all at once
   let n = 0;
   for (const u of list) {
     const file = path.join(fdir, u + '.json'), old = read(file) || {};
     if (old.at && Date.now() - Date.parse(old.at) < 170 * 60e3) continue;
+    if (n >= 60) break;
     if (n++) await sleep(1500);
     try {
       const got = await rss(u);

@@ -232,11 +232,11 @@ function fxPlay(ctx) {
     const recs = shuffle(mine.filter(f => f.r >= 9 && f.p && !seenMine.has(f))).sort((a, b) => b.r - a.r).slice(0, 6);
     return {mode, score, common: common.length, pairs: pairs.length, loved, apart, recs};
   }
-  async function loadFriend(u) {
+  async function loadFriend(u, listed = true) {
     match.state = 'busy'; match.user = u; match.note = ''; ctx.render();
     try {
       const r = await fetch(ctx.feed + 'friends/' + u.toLowerCase() + '.json?t=' + Math.floor(Date.now() / 6e5), {cache: 'no-store'});
-      if (r.status === 404) { match.state = 'start'; match.note = T().notYet(first()); ctx.render(); return; }
+      if (r.status === 404) { match.state = 'start'; match.note = listed ? T().notYet(first()) : T().notListed(first(), u); ctx.render(); return; }
       if (!r.ok) throw new Error('http');
       const j = await r.json();
       if (j.missing) { match.state = 'start'; match.note = T().noUser; ctx.render(); return; }
@@ -338,8 +338,8 @@ function fxPlay(ctx) {
     const u = String(form.elements.u.value || '').trim().replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '');
     match.user = u;
     if (!okUser(u)) { match.note = T().noUser; ctx.render(); return true; }
-    if (friendsList().some(x => x.toLowerCase() === u.toLowerCase())) loadFriend(u);
-    else { match.note = T().notListed(first(), u); ctx.render(); }
+    // anyone whose logs the site keeps can compare, whether they're in the profile's list or in friends.txt
+    loadFriend(u, friendsList().some(x => x.toLowerCase() === u.toLowerCase()));
     return true;
   }
   return {view, click, change, submit, open, game: () => game};
