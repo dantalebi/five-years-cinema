@@ -13,8 +13,24 @@
   }
   const S = {all: () => Store.data, set: (k, v) => Store.set(k, v)};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-  // ---- Letterboxd: the export files once (here), new logs every few hours (a GitHub Action, same rules: fxlb.js) ----
-  const LB_SINCE = '2026-11-01';
+  // ---- Letterboxd: the export files once (here); new logs from the public feed, which a GitHub Action
+  // copies to the letterboxd-feed branch every few hours (no token involved). Same rules both ways: fxlb.js ----
+  const LB_SINCE = '2026-11-01', LB_FEED = 'https://raw.githubusercontent.com/dantalebi/five-years-cinema/letterboxd-feed/feed.json';
+  let lbPulling = false;
+  async function lbPull() {
+    if (lbPulling || !window.D) return;
+    lbPulling = true;
+    try {
+      const r = await fetch(LB_FEED + '?t=' + Math.floor(Date.now() / 6e4), {cache: 'no-store'});
+      if (!r.ok) return;
+      const items = ((await r.json()) || {}).items || [];
+      const res = FXLB.merge(items, Store.data, window.D.F, LB_SINCE);
+      res.sets.forEach(([k, v]) => Store.set(k, v));
+      Store.set('lbsync:at', new Date().toISOString());
+      if (res.added + res.ticked + res.merged) Store.set('lbsync:n', res.added + res.ticked + res.merged);
+      if (FX && (res.added + res.ticked + res.merged)) FX.render();
+    } catch (e) {} finally { lbPulling = false; }
+  }
   async function pool(list, n, fn) { let i = 0; await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => { while (i < list.length) await fn(list[i++]); })); }
   const LBX = {
     status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
@@ -75,7 +91,12 @@
     });
     WebSync.setPayload(() => fxShare(D, Store.data, k => Posters.src(k)));
     enrichSoon();
+    lbSoon();
   }
+  // after this device has pulled from sync (so a log another device already added is known), then every half hour while open
+  let lt = null; const lbSoon = () => { clearTimeout(lt); lt = setTimeout(() => Promise.resolve(WebSync.status().connected ? WebSync.run() : null).catch(() => {}).then(lbPull), 2500); };
+  setInterval(() => { if (document.visibilityState === 'visible') lbPull(); }, 30 * 6e4);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lbSoon(); });
   const GT = {
     en: {title: 'Five Years of Cinema', p: 'A personal page — nothing to see here.', owner: 'Is this yours?', how: 'Paste your GitHub token (gist access) and the plan loads from your private Gist. No token yet? <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">Create one here</a> (Expiration: No expiration).', connect: 'Connect', loading: 'Connected — loading your plan…', missing: 'No plan was found in this account’s Gists.'},
     fa: {title: 'پنج سال سینما', p: 'این یه صفحه‌ی شخصیه و چیزی برای نشون دادن به بقیه نداره.', owner: 'صاحب این صفحه‌ای؟', how: 'توکن گیت‌هابت (با دسترسی gist) رو بچسبون تا برنامه از Gist خصوصیت بیاد. اگه توکن نداری، <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">اینجا</a> بسازش (Expiration: No expiration).', connect: 'وصل شو', loading: 'وصل شد؛ دارم برنامه رو میارم…', missing: 'برنامه توی Gistهای این حساب پیدا نشد.'},

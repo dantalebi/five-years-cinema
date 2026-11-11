@@ -116,7 +116,7 @@ const FXLB = (() => {
       else if (pk && !isDate(cur[pk]) && r.date >= since) {
         set(pk, r.date); set('sk:' + pk, null); fill(pk, r); note(fid, pk, r.date); res.ticked++;
       } else {
-        const id = 'log:' + base + (n++).toString(36).padStart(4, '0');
+        const id = r.guid ? 'log:lb' + String(r.guid).replace(/[^a-z0-9]/gi, '').slice(-24) : 'log:' + base + (n++).toString(36).padStart(4, '0');
         set(id, pk ? 'k:' + pk : 't:' + r.t + (r.y ? ' (' + r.y + ')' : '')); set('v:' + id, r.date);
         if (!pk && (r.tm || r.md)) set('md:' + id, JSON.stringify(Object.assign({tm: r.tm || 0, t: r.t, y: r.y || 0}, r.md || {})));
         fill(id, r); note(fid, id, r.date); res.added++;

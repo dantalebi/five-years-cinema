@@ -1,12 +1,14 @@
-name: Letterboxd → diary
+name: Letterboxd feed
 
-# Every three hours, new logs from letterboxd.com/<you>/rss/ come into the app's diary.
-# Setup: Settings → Secrets and variables → Actions → New repository secret
-#   Name: FY_GIST_TOKEN   Value: a GitHub token with only the "gist" scope (Expiration: No expiration)
+# Every three hours, the latest logs from letterboxd.com/<you>/rss/ go to feed.json on the
+# "letterboxd-feed" branch; the app picks new ones up from there. No secrets needed.
 on:
   schedule:
     - cron: '23 */3 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/letterboxd.yml', 'tools/letterboxd-feed.cjs', 'fxlb.js']
 
 permissions:
   contents: write
@@ -16,16 +18,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
+  feed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      LB_USER: talebi
     steps:
       - uses: actions/checkout@v4
-      - name: Bring new Letterboxd logs into the diary
-        env:
-          LB_USER: talebi
-          GIST_TOKEN: ${{ secrets.FY_GIST_TOKEN }}
-        run: node tools/letterboxd-sync.cjs
+      - name: Read the Letterboxd feed
+        run: |
+          mkdir -p "$RUNNER_TEMP/feed"
+          git fetch -q --depth=1 origin letterboxd-feed 2>/dev/null && git show FETCH_HEAD:feed.json > "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
+          node tools/letterboxd-feed.cjs "$RUNNER_TEMP/old.json" "$RUNNER_TEMP/feed/feed.json"
+      - name: Save it when something changed
+        working-directory: ${{ runner.temp }}/feed
+        run: |
+          git init -q -b letterboxd-feed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth=1 origin letterboxd-feed 2>/dev/null && git reset -q FETCH_HEAD || true
+          git add feed.json
+          if ! git diff --cached --quiet; then git commit -q -m "Letterboxd feed"; git push -q origin letterboxd-feed; echo "Saved."; else echo "No new logs."; fi
       # GitHub pauses schedules in repositories with no activity for 60 days; a quiet commit now and then keeps it running
       - name: Keep the schedule alive
         run: |
@@ -33,6 +47,6 @@ jobs:
           if [ $(( $(date +%s) - last )) -gt $(( 50 * 24 * 3600 )) ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit --allow-empty -m "Keep the Letterboxd import running"
+            git commit --allow-empty -m "Keep the Letterboxd feed running"
             git push
           fi
