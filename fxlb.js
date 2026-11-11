@@ -125,6 +125,25 @@ const FXLB = (() => {
     });
     return Object.assign(res, {sets});
   }
-  return {csv, fromCsv, fromRss, merge, matcher, norm};
+  // the export as Letterboxd gives it (a .zip): pull out the files we read, without any library
+  async function unzip(buf, wanted) {
+    const b = new Uint8Array(buf), dv = new DataView(b.buffer, b.byteOffset, b.byteLength), out = {};
+    let eocd = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) return null;
+    let p = dv.getUint32(eocd + 16, true);
+    for (let k = 0, n = dv.getUint16(eocd + 10, true); k < n; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      const m = dv.getUint16(p + 10, true), cs = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(b.subarray(p + 46, p + 46 + nl));
+      p += 46 + nl + el + cl;
+      if (!wanted.includes(name)) continue;
+      const start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), data = b.subarray(start, start + cs);
+      if (m === 0) out[name] = new TextDecoder().decode(data);
+      else if (m === 8 && typeof DecompressionStream !== 'undefined') out[name] = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+    }
+    return out;
+  }
+  return {csv, fromCsv, fromRss, merge, matcher, norm, unzip};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FXLB;

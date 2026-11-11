@@ -36,7 +36,13 @@
     status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
     async importFiles(files, progress) {
       let rows = [];
-      for (const f of files) { const r = FXLB.fromCsv(await f.text()); if (r) rows = rows.concat(r); }
+      for (const f of files) {
+        const head = new Uint8Array(await f.slice(0, 2).arrayBuffer());
+        if (head[0] === 0x50 && head[1] === 0x4b) {  // the whole export, zipped: its diary and reviews
+          const z = await FXLB.unzip(await f.arrayBuffer(), ['diary.csv', 'reviews.csv']) || {};
+          ['diary.csv', 'reviews.csv'].forEach(n => { const r = z[n] && FXLB.fromCsv(z[n]); if (r) rows = rows.concat(r); });
+        } else { const r = FXLB.fromCsv(await f.text()); if (r) rows = rows.concat(r); }
+      }
       if (!rows.length) return {bad: true};
       const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
       rows.forEach(r => { if (!isPlan(r)) { const k = FXLB.norm(r.t) + '|' + r.y; (need[k] = need[k] || []).push(r); } });
