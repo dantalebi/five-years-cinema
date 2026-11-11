@@ -9,20 +9,20 @@
     en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
-      allYears: 'All time', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      allYears: 'All time', favs: 'Favorite films', spoiler: 'This review contains spoilers', reveal: 'Show review', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
       spread: 'Ratings', byYear: 'Films per year', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
       bad: 'This link is incomplete', gone: 'This profile is no longer published', fail: 'Couldn’t load', later: 'Try again in a few minutes.',
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
-      links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
+      inApp: 'app', links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
     fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
-      discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
+      discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو اسپویل داره', reveal: 'نشونم بده', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
       spread: 'پخش امتیازها', byYear: 'فیلم‌ها در هر سال', decades: 'به تفکیک دهه', directors: 'کارگردان‌های پرتکرار', totals: 'جمع', rated: 'امتیازدار', liked: 'قلب‌دار', reviewed: 'ریویودار', runtime: 'زمان کل',
       bad: 'این لینک کامل نیست', gone: 'این صفحه دیگه منتشر نمی‌شه', fail: 'الان باز نشد', later: 'چند دقیقه‌ی دیگه دوباره امتحان کن.',
       ago: m => m < 1 ? 'همین الان' : m < 60 ? m + ' دقیقه پیش' : m < 1440 ? Math.round(m / 60) + ' ساعت پیش' : Math.round(m / 1440) + ' روز پیش',
-      links: {lb: 'لترباکس', tg: 'تلگرام', sp: 'اسپاتیفای', ig: 'اینستاگرام', web: 'وب‌سایت'},
+      inApp: 'اپ', links: {lb: 'لترباکس', tg: 'تلگرام', sp: 'اسپاتیفای', ig: 'اینستاگرام', web: 'وب‌سایت'},
       hmf: m => m >= 60 ? Math.floor(m / 60) + ' ساعت و ' + (m % 60) + ' دقیقه' : m + ' دقیقه', attr: 'پوسترها: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.'},
   };
   const T = () => TX[lang];
@@ -45,14 +45,20 @@
   }
   const lbUser = () => (data && data.links && /^[A-Za-z0-9_]{1,40}$/.test(data.links.lb || '')) ? data.links.lb : '';
   function titleOf(f, own) {
-    const u = lbUser(), link = okSlug(f.l) ? (own && u ? `https://letterboxd.com/${u}/film/${f.l}/` : `https://letterboxd.com/film/${f.l}/`) : '';
-    const t = link ? `<a class="fx-film" href="${link}" target="_blank" rel="noopener noreferrer">${esc(f.t)}</a>` : `<span class="fx-film" dir="auto">${esc(f.t)}</span>`;
-    return `<div class="fx-tl">${t}${f.y ? `<span class="fx-y">${f.y}</span>` : ''}</div>`;
+    const u = lbUser(), link = okSlug(f.l) ? (own && u ? `https://letterboxd.com/${u}/film/${f.l}/` : `https://letterboxd.com/film/${f.l}/`) : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '');
+    const mm = String(f.t).match(/^(.*?)\s*\((\d{4})\)\s*$/), title = mm ? mm[1] : f.t, yr = f.y || (mm ? mm[2] : '');
+    const t = link ? `<a class="fx-film" href="${link}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>` : `<span class="fx-film" dir="auto">${esc(title)}</span>`;
+    return `<div class="fx-tl">${t}${yr ? `<span class="fx-y">${yr}</span>` : ''}</div>`;
   }
   const subOf = f => (f.d || f.m) ? `<div class="fx-sub"><span class="fx-tw">${f.d ? `<bdi>${esc(f.d)}</bdi>` : ''}${f.m ? `<span>${lang === 'fa' ? faDigits(T().hmf(+f.m)) : T().hmf(+f.m)}</span>` : ''}</span></div>` : '';
   function linksRow() {
     const t = T(), L = data.links || {}, out = [];
-    const lb = lbUser(); if (lb) out.push(`<a href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${t.links.lb}</a>`);
+    const lb = lbUser();
+    if (lb) {
+      // in-app browsers (Telegram, home-screen apps) don't hand https links to the Letterboxd app, so iPhone/iPad visitors also get a direct "app" link
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      out.push(`<a href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${t.links.lb}</a>` + (ios ? `<a class="fx-app" href="letterboxd://x-callback-url/search?query=${encodeURIComponent(lb)}&type=member">${t.inApp}</a>` : ''));
+    }
     [['tg', L.tg || data.ch], ['sp', L.sp], ['ig', L.ig], ['web', L.web]].forEach(([k, u]) => { if (okUrl(u)) out.push(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t.links[k]}</a>`); });
     return out.length ? `<div class="fx-links"><span class="fx-tw">${out.join('')}</span></div>` : '';
   }
@@ -62,6 +68,8 @@
     const name = String(data.name || '').trim();
     const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(faDigits).join('  ·  ') : '';
     let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}</header>`;
+    const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
+    if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const link = okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : ''); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
     if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
@@ -80,8 +88,11 @@
   }
   function entry(e, full) {
     const t = T(), long = (e.rv || '').length > 320, isOpen = full || open[e.id] || e.id === focusId;
-    const rv = e.rv ? `<p class="fx-rvx" dir="auto">${esc(isOpen || !long ? e.rv : e.rv.slice(0, 320) + '…')}</p>${long && !full ? `<button type="button" class="fx-link fx-rvb" data-more="${esc(e.id)}">${isOpen ? t.less : t.more}</button>` : ''}` : '';
-    const dm = (e.r || e.h || full) ? `<div class="fx-dm">${e.r ? `<span class="fx-mini" dir="ltr">${stars(e.r)}</span>` : ''}${e.h ? '<span class="fx-mh">♥︎</span>' : ''}${full ? `<span class="fx-hd">${t.watched} ${pdate(e.w)}</span>` : ''}</div>` : '';
+    const hidden = e.sp && !open['sp:' + e.id];
+    const rv = !e.rv ? '' : hidden ? `<button type="button" class="fx-spoil" data-spoil="${esc(e.id)}"><span>${t.spoiler}</span><b>${t.reveal}</b></button>`
+      : `<p class="fx-rvx" dir="auto">${esc(isOpen || !long ? e.rv : e.rv.slice(0, 320) + '…')}</p>${long && !full ? `<button type="button" class="fx-link fx-rvb" data-more="${esc(e.id)}">${isOpen ? t.less : t.more}</button>` : ''}`;
+    const tags = Array.isArray(e.tg) ? e.tg.filter(x => typeof x === 'string').slice(0, 8) : [];
+    const dm = (e.r || e.h || e.rw || e.ww || tags.length || full) ? `<div class="fx-dm">${e.r ? `<span class="fx-mini" dir="ltr">${stars(e.r)}</span>` : ''}${e.h ? '<span class="fx-mh">♥︎</span>' : ''}${e.rw ? `<span class="fx-rw" title="${t.rewatch}">↻</span>` : ''}${full ? `<span class="fx-hd">${t.watched} ${pdate(e.w)}</span>` : ''}${e.ww ? `<span class="fx-ww">${esc(t.withShort(String(e.ww).slice(0, 80)))}</span>` : ''}${tags.map(x => `<span class="fx-tagc">${esc(x.slice(0, 30))}</span>`).join('')}</div>` : '';
     return `<li class="fx-de${e.id === focusId ? ' hl' : ''}" id="e-${esc(e.id)}"><span class="fx-dday">${faDigits(day.test(e.w) ? +e.w.slice(8) : '')}</span>${poster(e)}
       <div class="fx-b">${titleOf(e, true)}${subOf(e)}${dm}${rv}</div>
       <button type="button" class="fx-perma" data-perma="${esc(e.id)}" title="${t.perma}" aria-label="${t.perma}">#</button></li>`;
@@ -111,9 +122,11 @@
   }
   function statsView() {
     const t = T(), d = inYear();
+    let cal = '';
+    if (typeof fxCalendar === 'function') cal = `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang])}</section>`;
     const hist = Array(11).fill(0); d.forEach(e => { if (e.r) hist[e.r]++; });
     const mx = Math.max(1, ...hist);
-    let h = `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / mx * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
+    let h = cal + `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / mx * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
     const dec = {}; d.forEach(e => { if (e.y) { const k = Math.floor(e.y / 10) * 10; dec[k] = (dec[k] || 0) + 1; } });
     const dk = Object.keys(dec).sort(), dm = Math.max(1, ...Object.values(dec));
     h += `<section class="fx-card"><h2>${t.decades}</h2><div class="fx-rows">${dk.map(k => `<div class="fx-rowbar"><span class="fx-rk">${faDigits(k)}s</span><span class="fx-rb"><i style="width:${Math.round(dec[k] / dm * 100)}%"></i></span><span class="fx-rn">${faDigits(dec[k])}</span></div>`).join('')}</div></section>`;
@@ -146,6 +159,7 @@
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.tab) { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
     else if (b.dataset.year) { year = b.dataset.year; render(); }
+    else if (b.dataset.spoil) { open['sp:' + b.dataset.spoil] = true; render(); }
     else if (b.dataset.more) { open[b.dataset.more] = !open[b.dataset.more]; render(); }
     else if (b.dataset.perma) {
       const url = permalink(b.dataset.perma);

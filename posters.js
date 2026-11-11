@@ -61,5 +61,18 @@ const Posters = (() => {
     try { const r = await fetch('https://api.themoviedb.org/3/configuration', {headers: {Authorization: 'Bearer ' + String(t).trim(), accept: 'application/json'}}); return r.ok; }
     catch (e) { return null; }
   }
-  return {setToken, on: () => !!token, failed: () => authFail, src, fill, test};
+  // the whole TMDB catalogue, for films outside the plan
+  async function search(q) {
+    if (!token) return [];
+    const j = await api('/search/movie?query=' + encodeURIComponent(q) + '&include_adult=false&language=en-US&page=1');
+    return (j.results || []).slice(0, 8).map(m => ({id: m.id, t: m.title, y: +(m.release_date || '').slice(0, 4) || 0, p: m.poster_path || ''}));
+  }
+  async function details(id) {
+    const j = await api('/movie/' + encodeURIComponent(id) + '?append_to_response=credits&language=en-US');
+    const dirs = ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name);
+    return {d: dirs.slice(0, 3).join(', '), m: j.runtime || 0, p: j.poster_path || ''};
+  }
+  function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
+  const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
+  return {setToken, on: () => !!token, failed: () => authFail, src, fill, test, search, details, put, url};
 })();
