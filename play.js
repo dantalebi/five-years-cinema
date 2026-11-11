@@ -18,7 +18,7 @@ function fxPlay(ctx) {
       duelShare: (n, c) => 'My champion of ' + n + '’s favourite films: ' + c + ' 🏆',
       anyLen: 'Any length', short: 'Under 1½ h', mid: '1½–2 h', long: 'Over 2 h', anyDec: 'Any decade', anyGenre: 'Any genre', inPool: n => n + (n === 1 ? ' film' : ' films'),
       spin: 'Pick one', another: 'Another one', none: 'Nothing here — loosen a filter.', seenN: (n, k) => n + ' has watched it ' + k + ' times', onLb: 'On Letterboxd ↗', readMore: 'Read the full entry →',
-      who: 'Your Letterboxd username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
+      who: 'Your Letterboxd username', more: k => '+ ' + k + ' more — type your username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
       exportSteps: 'On letterboxd.com: Settings → Data → Export your data. Then pick the .zip here. It stays on your device.', exportPick: 'Pick the export (.zip)', exportOpen: 'Open the export page ↗',
       notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Follow ' + n + ' on Letterboxd and ask to be added, or compare with your export below.',
       follow: n => 'Not on the list yet? Follow ' + n + ' on Letterboxd ↗', followNote: n => 'then ask ' + n + ' to add you.',
@@ -40,7 +40,7 @@ function fxPlay(ctx) {
       duelShare: (n, c) => 'قهرمانِ من بین فیلم‌های محبوب ' + n + ': ' + c + ' 🏆',
       anyLen: 'هر مدتی', short: 'کمتر از ۱٫۵ ساعت', mid: '۱٫۵ تا ۲ ساعت', long: 'بیشتر از ۲ ساعت', anyDec: 'هر دهه‌ای', anyGenre: 'هر ژانری', inPool: n => n + ' فیلم',
       spin: 'یکی دربیار', another: 'یکی دیگه', none: 'چیزی پیدا نشد؛ یه فیلتر رو بازتر کن.', seenN: (n, k) => n + ' ' + k + ' بار دیدتش', onLb: 'تو لترباکسد ↗', readMore: 'خوندن کامل ←',
-      who: 'یوزرنیم لترباکسدت', compare: 'مقایسه کن', friends: n => 'دوستای ' + n, exportH: 'یا مقایسه‌ی کامل با خروجی لترباکسدت',
+      who: 'یوزرنیم لترباکسدت', more: k => '+ ' + k + ' نفر دیگه؛ یوزرنیمت رو بنویس', compare: 'مقایسه کن', friends: n => 'دوستای ' + n, exportH: 'یا مقایسه‌ی کامل با خروجی لترباکسدت',
       exportSteps: 'توی letterboxd.com: ‏Settings ← Data ← Export your data. بعد فایل zip رو این‌جا انتخاب کن. فایل از دستگاهت بیرون نمی‌ره.', exportPick: 'انتخاب خروجی (.zip)', exportOpen: 'باز کردن صفحه‌ی خروجی ↗',
       notListed: (n, u) => '@' + u + ' هنوز تو لیست دوستای ' + n + ' نیست. ' + n + ' رو تو لترباکسد فالو کن و بگو اضافه‌ت کنه، یا با خروجی لترباکسدت پایین مقایسه کن.',
       follow: n => 'هنوز تو لیست نیستی؟ ' + n + ' رو تو لترباکسد فالو کن ↗', followNote: n => 'و بگو اضافه‌ت کنه.',
@@ -208,7 +208,7 @@ function fxPlay(ctx) {
 
   // ---------- «هم‌سلیقگی» ----------
   const match = {state: 'start', user: '', note: '', res: null};
-  const friendsList = () => { const d = ctx.data() || {}; return (Array.isArray(d.lbf) ? d.lbf : []).filter(okUser).slice(0, 40); };
+  const friendsList = () => { const d = ctx.data() || {}; return (Array.isArray(d.lbf) ? d.lbf : []).filter(okUser).slice(0, 100); };
   // the visitor's films: Map key → {t, y, tm, r}; key by TMDB id when known, else title|year
   function theirFromRss(items) {
     const m = new Map();
@@ -285,7 +285,9 @@ function fxPlay(ctx) {
       if (r.score != null) h += shareRow(t.matchShare(n, digits(r.score)), 'match');
       return h + `<div class="fx-row fx-center"><button type="button" class="fx-link" data-pl="mreset">${t.tryOther}</button></div>`;
     }
-    if (fl.length) h += `<div class="fx-eye">${esc(t.friends(n))}</div><div class="fx-years fx-friends">${fl.map(u => `<button type="button" data-pl="friend" data-u="${esc(u)}">@${esc(u)}</button>`).join('')}</div>`;
+    // a long list shows a handful of names; anyone on it can still type their username below
+    const shown = fl.length > 16 ? shuffle(fl).slice(0, 12) : fl;
+    if (fl.length) h += `<div class="fx-eye">${esc(t.friends(n))}</div><div class="fx-years fx-friends">${shown.map(u => `<button type="button" data-pl="friend" data-u="${esc(u)}">@${esc(u)}</button>`).join('')}${fl.length > shown.length ? `<span class="fx-muted fx-small">${esc(digits(t.more(fl.length - shown.length)))}</span>` : ''}</div>`;
     if (ctx.feed) h += `<form class="fx-row fx-uform" data-pl-form="user"><input type="text" name="u" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${esc(t.who)}" value="${esc(match.user)}" aria-label="${esc(t.who)}"><button type="submit" class="fx-btn primary">${t.compare}</button></form>`;
     if (match.note) h += `<p class="fx-note">${esc(match.note)}</p>`;
     // the way onto the list: follow the owner on Letterboxd, then they add you

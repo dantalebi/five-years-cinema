@@ -39,25 +39,28 @@ async function rss(user) {
   let list = [];
   try {
     const r = await fetch(`https://gist.githubusercontent.com/${owner}/${gist}/raw/five-years-share.json?t=${Date.now()}`);
-    if (r.ok) list = ((await r.json()).lbf || []).filter(okUser).map(u => u.toLowerCase()).slice(0, 30);
+    if (r.ok) list = ((await r.json()).lbf || []).filter(okUser).map(u => u.toLowerCase()).slice(0, 100);
     else { console.log('Profile not readable (HTTP ' + r.status + '); friends left as they are.'); return; }
   } catch (e) { console.log('Profile not readable; friends left as they are.'); return; }
   const fdir = path.join(dir, 'friends');
   fs.mkdirSync(fdir, {recursive: true});
   // someone taken off the list: their file goes too
   fs.readdirSync(fdir).forEach(f => { if (f.endsWith('.json') && !list.includes(f.slice(0, -5))) { fs.unlinkSync(path.join(fdir, f)); console.log('Friend removed: ' + f.slice(0, -5)); } });
+  // each friend's feed is read about every three hours (new friends right away), so an hourly run stays light
+  let n = 0;
   for (const u of list) {
     const file = path.join(fdir, u + '.json'), old = read(file) || {};
+    if (old.at && Date.now() - Date.parse(old.at) < 170 * 60e3) continue;
+    if (n++) await sleep(1500);
     try {
       const got = await rss(u);
-      if (got.missing) { fs.writeFileSync(file, JSON.stringify({v: 1, user: u, missing: true}) + '\n'); console.log(`Friend ${u}: no such user.`); continue; }
+      if (got.missing) { fs.writeFileSync(file, JSON.stringify({v: 1, user: u, missing: true, at: new Date().toISOString()}) + '\n'); console.log(`Friend ${u}: no such user.`); continue; }
       const seen = {};
       (old.items || []).concat(got.items.map(x => ({t: x.t, y: x.y, tm: x.tm, r: x.r, l: x.l ? 1 : 0, rw: x.rw ? 1 : 0, d: x.date, s: x.slug, g: x.guid})))
         .forEach(x => { if (x && x.g) seen[x.g] = x; });
       const all = Object.values(seen).sort((a, b) => a.d < b.d ? 1 : a.d > b.d ? -1 : 0).slice(0, 3000);
-      fs.writeFileSync(file, JSON.stringify({v: 1, user: u, name: got.name || old.name || '', items: all}) + '\n');
+      fs.writeFileSync(file, JSON.stringify({v: 1, user: u, name: got.name || old.name || '', at: new Date().toISOString(), items: all}) + '\n');
       console.log(`Friend ${u}: ${got.items.length} recent logs · ${all.length} kept.`);
     } catch (e) { console.log(`Friend ${u}: ${e.message} (kept what was there).`); }
-    await sleep(1500);
   }
 })().catch(e => { console.error(String(e && e.message || e)); process.exit(1); });
