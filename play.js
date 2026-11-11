@@ -20,7 +20,8 @@ function fxPlay(ctx) {
       spin: 'Pick one', another: 'Another one', none: 'Nothing here — loosen a filter.', seenN: (n, k) => n + ' has watched it ' + k + ' times', onLb: 'On Letterboxd ↗', readMore: 'Read the full entry →',
       who: 'Your Letterboxd username', compare: 'Compare', friends: n => n + '’s friends', exportH: 'Or compare everything, from your Letterboxd export',
       exportSteps: 'On letterboxd.com: Settings → Data → Export your data. Then pick the .zip here. It stays on your device.', exportPick: 'Pick the export (.zip)', exportOpen: 'Open the export page ↗',
-      notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Ask ' + n + ' to add you, or compare with your export below.',
+      notListed: (n, u) => '@' + u + ' isn’t on ' + n + '’s friends list yet. Follow ' + n + ' on Letterboxd and ask to be added, or compare with your export below.',
+      follow: n => 'Not on the list yet? Follow ' + n + ' on Letterboxd ↗', followNote: n => 'then ask ' + n + ' to add you.',
       notYet: (n) => 'Not ready yet: a few hours after ' + n + ' adds you, it’ll be here.', noUser: 'There’s no Letterboxd user by that name.', badFile: 'That isn’t a Letterboxd export.', loading: 'Reading…', failed: 'Couldn’t load that now. Try again in a bit.',
       score: (a, n) => 'You and ' + n + ': ' + a + '% alike', tooFew: n => 'Too few films you both rated to say yet. Log a few more on Letterboxd.',
       basis: (k, m) => 'From ' + k + ' films you both watched' + (m === 'rss' ? ' (your recent Letterboxd logs)' : '') + '.',
@@ -41,7 +42,8 @@ function fxPlay(ctx) {
       spin: 'یکی دربیار', another: 'یکی دیگه', none: 'چیزی پیدا نشد؛ یه فیلتر رو بازتر کن.', seenN: (n, k) => n + ' ' + k + ' بار دیدتش', onLb: 'تو لترباکسد ↗', readMore: 'خوندن کامل ←',
       who: 'یوزرنیم لترباکسدت', compare: 'مقایسه کن', friends: n => 'دوستای ' + n, exportH: 'یا مقایسه‌ی کامل با خروجی لترباکسدت',
       exportSteps: 'توی letterboxd.com: ‏Settings ← Data ← Export your data. بعد فایل zip رو این‌جا انتخاب کن. فایل از دستگاهت بیرون نمی‌ره.', exportPick: 'انتخاب خروجی (.zip)', exportOpen: 'باز کردن صفحه‌ی خروجی ↗',
-      notListed: (n, u) => '@' + u + ' هنوز تو لیست دوستای ' + n + ' نیست. بهش بگو اضافه‌ت کنه، یا با خروجی لترباکسدت پایین مقایسه کن.',
+      notListed: (n, u) => '@' + u + ' هنوز تو لیست دوستای ' + n + ' نیست. ' + n + ' رو تو لترباکسد فالو کن و بگو اضافه‌ت کنه، یا با خروجی لترباکسدت پایین مقایسه کن.',
+      follow: n => 'هنوز تو لیست نیستی؟ ' + n + ' رو تو لترباکسد فالو کن ↗', followNote: n => 'و بگو اضافه‌ت کنه.',
       notYet: (n) => 'هنوز آماده نیست: چند ساعت بعد از این‌که ' + n + ' اضافه‌ت کرد، این‌جا میاد.', noUser: 'همچین یوزرنیمی تو لترباکسد نیست.', badFile: 'این خروجی لترباکسد نیست.', loading: 'دارم می‌خونم…', failed: 'الان باز نشد؛ کمی بعد دوباره امتحان کن.',
       score: (a, n) => 'تو و ' + n + ': ' + a + '٪ هم‌سلیقه', tooFew: n => 'هنوز فیلمی که هر دوتون امتیاز داده باشین کمه. چندتا دیگه تو لترباکسد لاگ کن.',
       basis: (k, m) => 'بر اساس ' + k + ' فیلمی که هر دو دیدین' + (m === 'rss' ? ' (از لاگ‌های اخیرت تو لترباکسد)' : '') + '.',
@@ -286,6 +288,9 @@ function fxPlay(ctx) {
     if (fl.length) h += `<div class="fx-eye">${esc(t.friends(n))}</div><div class="fx-years fx-friends">${fl.map(u => `<button type="button" data-pl="friend" data-u="${esc(u)}">@${esc(u)}</button>`).join('')}</div>`;
     if (ctx.feed) h += `<form class="fx-row fx-uform" data-pl-form="user"><input type="text" name="u" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${esc(t.who)}" value="${esc(match.user)}" aria-label="${esc(t.who)}"><button type="submit" class="fx-btn primary">${t.compare}</button></form>`;
     if (match.note) h += `<p class="fx-note">${esc(match.note)}</p>`;
+    // the way onto the list: follow the owner on Letterboxd, then they add you
+    const lb = (((ctx.data() || {}).links) || {}).lb;
+    if (ctx.feed && okUser(lb)) h += `<p class="fx-small fx-follow"><a class="fx-link" href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${esc(t.follow(n))}</a> <span class="fx-muted">${esc(t.followNote(n))}</span></p>`;
     h += `<div class="fx-exp"><h3 class="fx-gh2">${t.exportH}</h3><p class="fx-muted fx-small">${t.exportSteps}</p>
       <div class="fx-row"><a class="fx-btn" href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener noreferrer">${t.exportOpen}</a><label class="fx-btn primary fx-file">${t.exportPick}<input type="file" accept=".zip,.csv,application/zip,text/csv" multiple data-pl-file></label></div></div>`;
     return h;
