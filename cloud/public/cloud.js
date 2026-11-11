@@ -18,7 +18,8 @@
 
   const GT = {
     en: {
-      site: C.siteName || 'Film Diary', tag: 'One week of films at a time, a diary of everything you watch, and your friends’.', langL: 'فارسی',
+      site: C.siteName || 'Film Diary', tag: 'A film diary with friends: log what you watch, see what your friends watch, and pick tonight’s film together.', langL: 'فارسی',
+      about: 'Named after David Bowie’s “TVC 15”, a song about a television that swallows people whole.',
       signin: 'Sign in', signup: 'Create an account', user: 'Username', userPh: 'letters, numbers, _', pass: 'Password', passNew: 'Password (8+ characters)', name: 'Your name', namePh: 'shown on your profile', code: 'Invite code',
       pub: 'Public profile (others can see your diary and follow you)', go: 'Sign in', make: 'Create my account', working: 'One moment…', short: 'The password needs at least 8 characters.',
       privacy: 'Your password is scrambled on this device before it’s sent; the site never sees it. No email or phone number needed.',
@@ -57,7 +58,7 @@
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
+    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
       <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>

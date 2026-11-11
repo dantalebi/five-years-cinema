@@ -1,4 +1,4 @@
-# Film Diary: the multi-user site
+# TVC15: the multi-user film diary
 
 The code for the multi-user version of the diary: accounts, each person's own diary and plan, public profiles at `/u/<username>`, following, a friends feed, and the taste match.
 
@@ -13,20 +13,22 @@ Everything fits in Cloudflare's free plan.
 1. **Cloudflare account:** sign up for free at dash.cloudflare.com.
 2. **Database:** go to Storage & Databases → D1 → Create, and name it `film-diary`.
 3. **Site:** go to Workers & Pages → Create → Pages → Connect to Git, and pick the GitHub repo `five-years-cinema`. Then fill in:
-   - Project name: `film-diary` (it must match `wrangler.toml`)
+   - Project name: anything (it becomes `<name>.pages.dev`)
    - Production branch: `main`
    - Framework preset: None
    - Build command: *(leave empty)*
    - Build output directory: `public`
    - Root directory (under "Advanced"): `cloud`
 
-   Then press Save and Deploy. The database connects itself: `wrangler.toml` names it (binding `DB`).
-4. *(No step: the database binding comes from `wrangler.toml`.)*
+   Then press Save and Deploy.
+4. **Database:** in the project, go to Settings → Bindings → Add → D1 database. Variable name `DB`, database `film-diary`.
 5. **Secrets:** go to Settings → Variables and Secrets and add these, each as **Secret**:
    - `TMDB_TOKEN`: your TMDB "API Read Access Token". Posters and film search for everyone go through the site, so nobody else needs their own key.
    - `SIGNUP_CODE`: an invite code you give your friends. Without it, anyone could sign up.
-   - `PEPPER` *(optional)*: any long random text. Set it **before the first account** and never change it.
+   - `PEPPER` *(optional)*: any long random text. Set it **before the first account** and never change it. Moving to a new project with the same database: copy the same value over, or nobody can sign in.
 6. **Redeploy:** under Deployments, choose Retry deployment, so the database and the secrets take effect.
+
+*Moving to a new address:* make the new project as above with the same database, then set `MOVED_TO` in `build_cloud.py` to its address: the old one sends everyone there.
 7. **Your data:** open `https://<project>.pages.dev` and create your account. On the old site, go to Settings → Backup → **Download everything**, and pick that file on the new site's first screen.
 
 ## How it's built

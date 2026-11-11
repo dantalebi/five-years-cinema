@@ -1,6 +1,6 @@
 {
- "name": "Film Diary",
- "short_name": "Film Diary",
+ "name": "TVC15",
+ "short_name": "TVC15",
  "lang": "en",
  "dir": "ltr",
  "start_url": "/",
@@ -8,7 +8,7 @@
  "display": "standalone",
  "background_color": "#0E1014",
  "theme_color": "#0E1014",
- "description": "One week of films at a time, a diary of everything you watch, and your friends’.",
+ "description": "A film diary with friends: log what you watch, see what your friends watch, and pick tonight’s film together.",
  "icons": [
   {
    "src": "/icon192.png",

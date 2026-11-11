@@ -16,13 +16,18 @@ for f in ('cloudsync.js', 'friends.js', 'wrapped.js', 'cloud.js'):
 for f in ('icon32.png', 'apple-touch-icon.png', 'icon192.png', 'icon512.png', 'maskable512.png'):
     shutil.copy(SITE5 + f, OUT + f)
 shutil.copy(TPL + 'sample-plan.json', OUT + 'sample-plan.json')
-shutil.copy('/home/claude/web5/og/og_tpl.jpg', OUT + 'film-diary.jpg')
+shutil.copy(HERE + 'og/og.jpg', OUT + 'og.jpg')
 
-open(OUT + 'config.js', 'w').write('''// The site's name, and the language a first-time visitor sees (each person picks their own afterwards).
-const FY_CONFIG = {siteName: 'Film Diary', siteNameFa: 'دفتر فیلم', lang: 'en'};
-''')
+# The site's name. MOVED: an old address that now sends everyone to the new one (empty: none).
+NAME = 'TVC15'
+MOVED_FROM, MOVED_TO = 'film-diary-cdo.pages.dev', ''
+open(OUT + 'config.js', 'w').write(f'''// The site's name and language.
+const FY_CONFIG = {{siteName: '{NAME}', siteNameFa: '{NAME}', lang: 'en'}};
+''' + (f'''// the site moved: the old address sends you to the same page at the new one
+if (location.hostname === '{MOVED_FROM}') location.replace('{MOVED_TO}' + location.pathname + location.search + location.hash);
+''' if MOVED_TO else ''))
 
-DESC = 'One week of films at a time, a diary of everything you watch, and your friends’.'
+DESC = 'A film diary with friends: log what you watch, see what your friends watch, and pick tonight’s film together.'
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
        # connect-src: the offline worker fetches posters and fonts itself, and the worker obeys the policy sent with sw.js
        "img-src 'self' data: blob: https://image.tmdb.org; connect-src 'self' https://image.tmdb.org https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")
@@ -40,33 +45,33 @@ index = f'''<!doctype html>
 <meta name="theme-color" content="#0E1014" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Film Diary">
+<meta name="apple-mobile-web-app-title" content="{NAME}">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" href="/icon32.png" sizes="32x32">
 <meta name="description" content="{DESC}">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Film Diary">
+<meta property="og:title" content="{NAME}">
 <meta property="og:description" content="{DESC}">
-<meta property="og:image" content="/film-diary.jpg">
+<meta property="og:image" content="/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<title>Film Diary</title>
+<title>{NAME}</title>
 {fonts}
 <link rel="stylesheet" href="/app.css">
 <link rel="stylesheet" href="/focus.css">
 </head>
 <body>
-<main id="root"><p class="boot">Film Diary…</p></main>
+<main id="root"><p class="boot">{NAME}…</p></main>
 <noscript><p class="boot">This page needs JavaScript.</p></noscript>
 ''' + ''.join(f'<script src="/{s}"></script>\n' for s in scripts) + '</body>\n</html>\n'
 assert 'dantalebi' not in index and 'Danial' not in index
 open(OUT + 'index.html', 'w').write(index)
 
 man = json.load(open(SITE5 + 'manifest.webmanifest'))
-man.update({'name': 'Film Diary', 'short_name': 'Film Diary', 'description': DESC, 'start_url': '/', 'scope': '/'})
+man.update({'name': NAME, 'short_name': NAME, 'description': DESC, 'start_url': '/', 'scope': '/'})
 for ic in man.get('icons', []):
     ic['src'] = '/' + ic['src'].lstrip('./')
 json.dump(man, open(OUT + 'manifest.webmanifest', 'w'), ensure_ascii=False, indent=1)
