@@ -33,6 +33,8 @@ function fxProfile(root, id, focusId, opts) {
   const pdate = v => { try { return day.test(v) ? fmt({day: 'numeric', month: 'short'}).format(new Date(v + 'T12:00:00')) : ''; } catch (e) { return ''; } };
   const ago = iso => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return !isFinite(m) ? '' : faDigits(T().ago(m)); };
   const okPoster = p => typeof p === 'string' && /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+\/[A-Za-z0-9._-]+$/.test(p);
+  // the profile backdrop, like Letterboxd's: a still across the top, fading into the page
+  const hero = () => data && data.bd && okPoster(data.bd.p) ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${data.bd.p}"></div>` : '';
   const okSlug = l => typeof l === 'string' && /^[a-z0-9-]+$/.test(l);
   const okUrl = u => typeof u === 'string' && /^https:\/\/[^\s"<>]+$/.test(u);
   const stars = r => r ? '★'.repeat(Math.floor(r / 2)) + (r % 2 ? '½' : '') : '';
@@ -172,7 +174,7 @@ function fxProfile(root, id, focusId, opts) {
     }
     const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : nowView();
     const yn = tab === 'now' ? '' : yearNav();
-    root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}" dir="${dir}">${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
+    root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';

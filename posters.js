@@ -4,6 +4,7 @@ const Posters = (() => {
   let token = null, cache = {}, busy = 0;
   const queue = [], waiting = {};
   try { cache = JSON.parse(localStorage.getItem('fy-posters') || '{}') || {}; } catch (e) { cache = {}; }
+  try { if (localStorage.getItem('fy-posters-v') !== '2') { for (const k in cache) if (!cache[k][0]) delete cache[k]; localStorage.setItem('fy-posters-v', '2'); } } catch (e) {}
   let st = null;
   const save = () => { clearTimeout(st); st = setTimeout(() => { try { localStorage.setItem('fy-posters', JSON.stringify(cache)); } catch (e) {} }, 400); };
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -24,7 +25,9 @@ const Posters = (() => {
     (list || []).forEach((m, k) => {
       const my = +(m.release_date || '').slice(0, 4), dy = my ? Math.abs(my - y) : 9;
       let s = !y ? 0 : dy === 0 ? 3 : dy === 1 ? 2 : dy === 2 ? 0.5 : -6;
-      if (norm(m.title) === nt || norm(m.original_title) === nt) s += 3;
+      const same = norm(m.title) === nt || norm(m.original_title) === nt;
+      if (same) s += 3;
+      if (same && my && dy <= 3) s = Math.max(s, 2.5);  // same title, a few years apart (festival vs release year)
       if (m.poster_path) s += 0.5; else s -= 4;
       s -= k * 0.15;
       if (s > bs) { bs = s; best = m; }
@@ -45,9 +48,12 @@ const Posters = (() => {
       lookup(key, t, y).catch(() => null).then(p => { busy--; (waiting[key] || []).forEach(f => f(p)); delete waiting[key]; pump(); });
     }
   }
-  const fresh = c => c && (c[0] || Date.now() - c[1] < 30 * 864e5);
-  function src(key) { const c = cache[key]; return c && c[0] ? IMG + c[0] : ''; }
+  const fresh = c => c && (c[0] || Date.now() - c[1] < 3 * 864e5);
+  let chosen = () => '';
+  const okPath = p => typeof p === 'string' && /^\/[A-Za-z0-9._-]+$/.test(p);
+  function src(key) { const o = chosen(key); if (okPath(o)) return IMG + o; const c = cache[key]; return c && c[0] ? IMG + c[0] : ''; }
   function want(key, t, y, cb) {
+    const o = chosen(key); if (okPath(o)) { cb(IMG + o); return; }
     const c = cache[key];
     if (fresh(c)) { cb(c[0] ? IMG + c[0] : ''); return; }
     if (!token || authFail) { cb(''); return; }
@@ -84,7 +90,14 @@ const Posters = (() => {
     if (!m && y) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
     return m ? {id: m.id, t: m.title, y: +(m.release_date || '').slice(0, 4) || y || 0, p: m.poster_path || ''} : null;
   }
+  // every poster and still TMDB has for a film (for choosing another one)
+  async function images(id) {
+    const j = await api('/movie/' + encodeURIComponent(id) + '/images');
+    const sortP = a => a.slice().sort((x, y) => (x.iso_639_1 === 'en' || !x.iso_639_1 ? 0 : 1) - (y.iso_639_1 === 'en' || !y.iso_639_1 ? 0 : 1) || (y.vote_count || 0) - (x.vote_count || 0));
+    return {posters: sortP(j.posters || []).map(p => p.file_path).filter(okPath).slice(0, 60),
+      backdrops: (j.backdrops || []).slice().sort((x, y) => (x.iso_639_1 ? 1 : 0) - (y.iso_639_1 ? 1 : 0) || (y.vote_count || 0) - (x.vote_count || 0)).map(p => p.file_path).filter(okPath).slice(0, 40)};
+  }
   function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
   const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
-  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, src, fill, test, search, details, match, put, url};
+  return {setToken, on: () => !!token, failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, put, url};
 })();

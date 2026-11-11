@@ -15,6 +15,7 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   // ---- Letterboxd: the export files once (here); new logs from the public feed, which a GitHub Action
   // copies to the letterboxd-feed branch every few hours (no token involved). Same rules both ways: fxlb.js ----
+  Posters.setChosen(k => Store.data['ps:' + k] || '');
   const LB_SINCE = '2026-11-01', LB_FEED = 'https://raw.githubusercontent.com/dantalebi/five-years-cinema/letterboxd-feed/feed.json';
   let lbPulling = false;
   async function lbPull() {
@@ -74,16 +75,16 @@
     enriching = true; let n = 0;
     try {
       const todo = Object.keys(Store.data).filter(k => k.startsWith('md:log:') && !tried.has(k)).map(k => { try { return [k, JSON.parse(Store.data[k])]; } catch (e) { return [k, null]; } })
-        .filter(([, md]) => md && md.tm && md.d === undefined).slice(0, 20);
-      for (const [k, md] of todo) {
+        .filter(([, md]) => md && md.tm && (md.d === undefined || !md.p));
+      await pool(todo, 3, async ([k, md]) => {
         tried.add(k);
         try {
           const d = await Posters.details(md.tm);
-          Store.set(k, JSON.stringify(Object.assign({}, md, {d: d.d || '', m: d.m || 0, p: d.p || md.p || ''})));
+          Store.set(k, JSON.stringify(Object.assign({}, md, {d: d.d || md.d || '', m: d.m || md.m || 0, p: d.p || md.p || ''})));
           const v = Store.data[k.slice(3)]; if (d.p && v) Posters.put('tx:' + String(v).slice(2), d.p);
-          n++;
+          if (++n % 10 === 0 && FX) FX.render();
         } catch (e) {}
-      }
+      });
     } finally { enriching = false; }
     if (n && FX) FX.render();
   }

@@ -43,6 +43,8 @@ const FX_STR = {
     lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, then pick the .zip it gives you (or diary.csv and reviews.csv from inside it). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import Letterboxd export',
     lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in.', lbBad: 'That isn’t the Letterboxd export: pick the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
     lbAuto: (ago, n) => 'What you log on Letterboxd shows up here by itself within a few hours. Last check ' + ago + (n ? ' · ' + n + ' new last time' : '') + '.', lbAutoOff: 'What you log on Letterboxd will show up here by itself within a few hours.',
+    changePoster: 'Change poster', posterH: 'Choose a poster', posterDefault: 'Default', imgsLoading: 'Loading from TMDB…', imgsNone: 'TMDB has no other posters for this film.', imgsFail: 'Couldn’t reach TMDB just now.',
+    bdH: 'Backdrop', bdP: 'A wide still from any film, across the top of your profile and of this app.', bdChoose: 'Choose a film', bdChange: 'Another film', bdRemove: 'Remove', bdFrom: t => 'Stills from ' + t, bdNone: 'TMDB has no stills for this film.', bdPick: 'Choose a film for your backdrop',
     navWeek: 'This Week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link', cfgSave: 'Save changes', cfgSaved: 'Saved.',
     diaryEmpty: 'Your diary is empty. Films you mark as watched show up here — or log one yourself.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
     logOnLb: 'Letterboxd ↗', logToLb: 'Log on Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
@@ -103,6 +105,8 @@ const FX_STR = {
     lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data و فایل zip ـی که می‌ده رو انتخاب کن (یا diary.csv و reviews.csv از توش). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن خروجی لترباکس',
     lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد.', lbBad: 'این خروجی لترباکس نیست؛ فایل zip ـی که از Settings ← Data ← Export your data می‌گیری رو انتخاب کن (یا diary.csv از توش).',
     lbAuto: (ago, n) => 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا. آخرین بررسی ' + ago + (n ? ' · دفعه‌ی قبل ' + n + ' مورد جدید' : '') + '.', lbAutoOff: 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا.',
+    changePoster: 'عوض کردن پوستر', posterH: 'یه پوستر انتخاب کن', posterDefault: 'پیش‌فرض', imgsLoading: 'دارم از TMDB میارم…', imgsNone: 'TMDB برای این فیلم پوستر دیگه‌ای نداره.', imgsFail: 'الان به TMDB وصل نشد.',
+    bdH: 'بک‌دراپ', bdP: 'یه نمای عریض از هر فیلمی، بالای پروفایلت و بالای همین اپ.', bdChoose: 'انتخاب فیلم', bdChange: 'یه فیلم دیگه', bdRemove: 'برداشتن', bdFrom: t => 'نماهای ' + t, bdNone: 'TMDB برای این فیلم نمایی نداره.', bdPick: 'فیلم بک‌دراپ رو انتخاب کن',
     navWeek: 'این هفته', navDiary: 'دفتر', navSettings: 'تنظیمات', preview: 'دیدن صفحه ↗', linkL: 'لینک صفحه‌ت', cfgSave: 'ذخیره', cfgSaved: 'ذخیره شد.',
     diaryEmpty: 'هنوز چیزی ثبت نشده. هر فیلمی که تیک بزنی خودش اینجا میاد، یا خودت یکی ثبت کن.', edit: 'ویرایش', watchedOn: 'تاریخ دیدن', done: 'تموم', unlog: 'حذف از دفتر',
     logOnLb: 'لترباکس ↗', logToLb: 'ثبت در لترباکس ↗', copyPost: 'کپی پست', postCopied: 'کپی شد؛ تو کانالت بچسبون.',
@@ -228,6 +232,9 @@ function fxDiary(D, seen) {
 function fxMd(seen, k) { try { const o = JSON.parse(seen['md:' + k] || 'null'); return o && typeof o === 'object' ? o : null; } catch (e) { return null; } }
 function fxFav(seen) { try { const a = JSON.parse(seen['cfg:fav'] || '[]'); return Array.isArray(a) ? a.slice(0, 4) : []; } catch (e) { return []; } }
 const fxTmdbImg = p => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : '';
+const fxTmdbBd = (p, w) => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/' + (w || 'w1280') + p : '';
+// the profile backdrop: {p: TMDB still path, t: film title, y: year}
+function fxBd(seen) { try { const o = JSON.parse(seen['cfg:bd'] || 'null'); return o && /^\/[A-Za-z0-9._-]+$/.test(o.p || '') ? o : null; } catch (e) { return null; } }
 function fxEntryId(k) {
   if (/^[a-z0-9-]+$/.test(k)) return k;
   let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -239,13 +246,16 @@ function fxShare(D, seen, posterUrl) {
   const F = D.F, FA = D.faDir || {}, WK = fxCompact(D), w = fxCur(WK, seen), lang = fxLang(seen);
   const KEYIDX = fxKeyIdx(D);
   const dir = i => lang === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
-  const pos = k => posterUrl ? posterUrl(k) || '' : '';
+  const ovp = k => fxTmdbImg(seen['ps:' + k]);
+  const pos = k => ovp(k) || (posterUrl ? posterUrl(k) || '' : '');
   const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', tm: F[i][16] || 0, w: day || ''});
   const day = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '';
   const ch = /^https:\/\/[^\s"<>]+$/.test(seen['cfg:channel'] || '') ? seen['cfg:channel'] : '';
   const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
   const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
   const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
+  const bd = fxBd(seen);
+  if (bd) out.bd = {p: fxTmdbBd(bd.p), t: String(bd.t || '').slice(0, 120), y: +bd.y || 0};
   if (w > D.W.length) out.now.end = 1;
   else {
     const films = out.now.films;
@@ -258,7 +268,7 @@ function fxShare(D, seen, posterUrl) {
       if (seen['sk:' + it.k]) return;
       if (it.add) {
         if (it.i != null) films.push(film(it.i, day(seen[F[it.i][8]])));
-        else { const md = fxMd(seen, it.k) || {}; films.push({t: md.t || String(it.title).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || fxYear(it.title), d: md.d || '', m: md.m || 0, p: fxTmdbImg(md.p) || pos('tx:' + it.title), l: '', tm: md.tm || 0, w: day(seen['v:' + it.k])}); }
+        else { const md = fxMd(seen, it.k) || {}; films.push({t: md.t || String(it.title).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || fxYear(it.title), d: md.d || '', m: md.m || 0, p: ovp('tx:' + it.title) || fxTmdbImg(md.p) || pos('tx:' + it.title), l: '', tm: md.tm || 0, w: day(seen['v:' + it.k])}); }
         return;
       }
       if (it.free) {
@@ -273,7 +283,7 @@ function fxShare(D, seen, posterUrl) {
   }
   if (seen['cfg:pubdiary'] !== '0') out.diary = fxDiary(D, seen).map(e => {
     const md = e.md || {};
-    const base = e.i != null ? film(e.i, e.date) : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0, p: fxTmdbImg(md.p) || pos('tx:' + e.t), l: '', tm: md.tm || 0, w: e.date};
+    const base = e.i != null ? film(e.i, e.date) : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0, p: ovp('tx:' + e.t) || fxTmdbImg(md.p) || pos('tx:' + e.t), l: '', tm: md.tm || 0, w: e.date};
     return Object.assign(base, {id: fxEntryId(e.k), r: e.r || 0, h: e.l ? 1 : 0, rv: String(e.rv || '').slice(0, 20000), sp: e.sp ? 1 : 0, rw: e.rw ? 1 : 0,
       ww: String(e.ww || '').slice(0, 80), tg: String(e.tg || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8)});
   });
@@ -306,7 +316,7 @@ function mountFocus(root, D, S, opts) {
   const STK = {wl: 'ok', done: 'ok', dl: 'dl', need: 'need'};
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
-  let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '';
+  let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '', bdPick = null;
   let shown = null, pickK = null, altOpen = {}, view = 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
@@ -368,11 +378,11 @@ function mountFocus(root, D, S, opts) {
     }
     return tags.length ? `<div class="fx-tags"><span class="fx-tw">${tags.join('')}</span></div>` : '';
   }
-  function poster(i, title) {
+  function poster(i, title, md) {
     if (!posterOn()) return '';
     if (i == null && !title) return '<span class="fx-pos none" aria-hidden="true"></span>';
     const key = i != null ? KEY(i) : 'tx:' + title, t = i != null ? F[i][0] : title, y = i != null ? F[i][1] : fxYear(title);
-    const src = P.src(key), href = i != null ? link(i) : lbSearch(title);
+    const ov = seen()['ps:' + key], src = ov ? fxTmdbImg(ov) : (i == null && md && md.p ? fxTmdbImg(md.p) : P.src(key)), href = i != null ? link(i) : lbSearch(title);
     return `<a class="fx-pos" href="${href}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"><img alt="" loading="lazy" decoding="async" data-pk="${esc(key)}" data-pt="${esc(t.replace(/\s*\(?\b(18|19|20)\d\d\b\)?\s*$/, ''))}" data-py="${y}"${src ? ` src="${src}"` : ''}><span class="fx-pt" dir="ltr">${esc(t)}</span></a>`;
   }
   const isCustom = k => /^(add|free|log):/.test(k);
@@ -403,7 +413,7 @@ function mountFocus(root, D, S, opts) {
       const done = itemSeen(it), rk = it.i != null ? KEY(it.i) : it.k;
       const orig = it.rp ? origTitle(it.rp) : '';
       const extra = esc(orig ? t.insteadOf(orig) : t.added);
-      return `<li class="fx-i fx-add ${done ? 'done' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(it.i, it.i == null ? it.title : '')}
+      return `<li class="fx-i fx-add ${done ? 'done' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(it.i, it.i == null ? it.title : '', it.i == null ? fxMd(seen(), it.k) : null)}
         <div class="fx-b">${tonightTag(it.k)}${titleLine(it.i, it.title, fxMd(s, it.k))}${subLine(it.i, fxMd(s, it.k))}${tagLine(it.i, '', extra)}${done ? metaLine(rk) : ''}</div>
         ${actions(done, false, 'add')}</li>`;
     }
@@ -465,7 +475,7 @@ function mountFocus(root, D, S, opts) {
     return `<i class="fx-sd ${st.state === 'err' ? 'err' : st.state === 'busy' ? 'busy' : 'ok'}" aria-hidden="true"></i>`;
   }
   function pickerBox() {
-    const t = T(), head = picker.list ? t.addToList : picker.fav != null ? t.favPick(fa(picker.fav + 1)) : picker.log ? t.logH : picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
+    const t = T(), head = picker.bd ? t.bdPick : picker.list ? t.addToList : picker.fav != null ? t.favPick(fa(picker.fav + 1)) : picker.log ? t.logH : picker.replace ? t.replaceH(origTitle(picker.replace)) : t.addH;
     return `<div class="fx-picker fx-card"><div class="fx-pick-h">${esc(head)}</div>
       <input type="search" class="fx-pick-q" dir="auto" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(picker.list ? t.listPh : t.addPh)}" aria-label="${esc(picker.list ? t.listPh : t.addPh)}" value="${esc(picker.q || '')}">
       ${picker.note ? `<p class="fx-note ok">${esc(picker.note)}</p>` : ''}<ul class="fx-res">${pickerResults()}</ul><div class="fx-row"><button type="button" class="fx-link" data-pick-cancel>${t.cancel}</button></div></div>`;
@@ -485,7 +495,7 @@ function mountFocus(root, D, S, opts) {
         if (tm.length) h += `<li class="fx-resh">${t.fromTmdb}</li>` + tm.map((m, k) => `<li><button type="button" class="fx-hit fx-tmhit" data-pick-tm="${picker.tm.indexOf(m)}">${m.p ? `<img alt="" src="${fxTmdbImg(m.p)}">` : '<span class="fx-tmph"></span>'}<span><span class="fx-film">${esc(m.t)}</span> <span class="fx-y">${m.y || ''}</span></span></button></li>`).join('');
       } else h += `<li class="fx-muted fx-resh">${t.searching}</li>`;
     } else if (!hits.length) h += `<li class="fx-muted">${t.noMatch}</li>`;
-    if (picker.fav == null) h += `<li><button type="button" class="fx-hit fx-asis" data-pick-text>${esc(t.addAsIs((picker.q || '').trim()))}</button></li>`;
+    if (picker.fav == null && !picker.bd) h += `<li><button type="button" class="fx-hit fx-asis" data-pick-text>${esc(t.addAsIs((picker.q || '').trim()))}</button></li>`;
     return h;
   }
   // ---------- a personal list (template edition): weeks of n films, reorder, remove, add, import ----------
@@ -600,11 +610,24 @@ function mountFocus(root, D, S, opts) {
       const d = new Date(e.date + 'T12:00:00'), mk = mf.format(d);
       if (mk !== month) { if (month) h += '</ul>'; month = mk; h += `<h2 class="fx-mon">${esc(mk)}</h2><ul class="fx-dl">`; }
       const meta = e.r || e.l || e.rv || e.rw || e.ww || e.tg ? `<div class="fx-dm">${starsText(e.k)}${e.rw ? `<i class="fx-ico rw" title="${esc(t.rewatch)}"></i>` : ''}${e.rv ? `<i class="fx-ico rv" title="${esc(t.reviewed)}"></i>` : ''}${e.ww ? `<span class="fx-ww">${esc(t.withShort(e.ww))}</span>` : ''}${e.tg ? e.tg.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).map(x => `<span class="fx-tagc">${esc(x)}</span>`).join('') : ''}</div>` : '';
-      h += `<li class="fx-de fx-tap" data-dk="${esc(e.k)}"><span class="fx-dday">${dayN.format(d)}</span>${posterOn() ? poster(e.i, e.i == null ? e.t : '') : ''}
+      h += `<li class="fx-de fx-tap" data-dk="${esc(e.k)}"><span class="fx-dday">${dayN.format(d)}</span>${posterOn() ? poster(e.i, e.i == null ? e.t : '', e.md) : ''}
         <div class="fx-b">${titleLine(e.i, e.t, e.md)}${subLine(e.i, e.md)}${meta}</div>
         <div class="fx-acts"><button type="button" class="fx-link fx-al" data-open="${esc(e.k)}">${t.edit}</button></div></li>`;
     });
     h += '</ul></div>';
+    return h;
+  }
+  function bdField() {
+    const t = T(), bd = fxBd(seen());
+    let h = bd ? `<div class="fx-bdprev"><img alt="" src="${fxTmdbBd(bd.p, 'w780')}"><span>${esc(bd.t || '')}${bd.y ? ' (' + bd.y + ')' : ''}</span></div>` : '';
+    if (picker && picker.bd) h += pickerBox();
+    else if (bdPick) {
+      h += `<div class="fx-pph"><span class="fx-eye">${esc(t.bdFrom(bdPick.t))}</span><button type="button" class="fx-link" data-bdclose>${t.cancel}</button></div>`;
+      if (bdPick.loading) h += `<p class="fx-muted">${t.imgsLoading}</p>`;
+      else if (bdPick.err) h += `<p class="fx-note bad">${t.imgsFail}</p>`;
+      else if (!bdPick.list.length) h += `<p class="fx-muted">${t.bdNone}</p>`;
+      else h += `<div class="fx-bdgrid">${bdPick.list.map(x => `<button type="button" class="fx-bdg${bd && bd.p === x ? ' on' : ''}" data-bdpick="${esc(x)}"><img alt="" loading="lazy" src="${fxTmdbBd(x, 'w300')}"></button>`).join('')}</div>`;
+    } else h += `<div class="fx-row"><button type="button" class="fx-btn" data-bdopen${posterOn() ? '' : ' disabled'}>${bd ? t.bdChange : t.bdChoose}</button>${bd ? `<button type="button" class="fx-link" data-bdrm>${t.bdRemove}</button>` : ''}</div>`;
     return h;
   }
   function favTiles() {
@@ -630,6 +653,7 @@ function mountFocus(root, D, S, opts) {
       else {
         if (sid) h += `<div class="fx-field"><span>${t.linkL}</span><pre class="fx-pre fx-link-pre" dir="ltr">${esc(ST.shareUrl(sid).replace(/^https:\/\//, '').replace(/\/$/, ''))}</pre><div class="fx-row"><button type="button" class="fx-btn primary" data-share-copy>${t.shareCopy}</button>${ST.previewUrl ? `<a class="fx-btn" href="${esc(ST.previewUrl(sid))}" target="_blank" rel="noopener">${t.preview}</a>` : ''}</div></div>`;
         h += `<p class="fx-muted">${sid ? t.shareOnP : t.shareOffP}</p>
+          <div class="fx-field"><span>${t.bdH}</span><p class="fx-muted">${t.bdP}</p>${bdField()}</div>
           <div class="fx-field"><span>${t.favH}</span><p class="fx-muted">${t.favP}</p><div class="fx-favs">${favTiles()}</div>${picker && picker.fav != null ? pickerBox() : ''}</div>
           <label class="fx-field"><span>${t.nameL}</span><input type="text" data-cfg="cfg:name" maxlength="60" dir="auto" placeholder="${esc(t.namePh)}" value="${esc(seen()['cfg:name'] || '')}"></label>
           <div class="fx-field"><span>${t.linksL}</span><div class="fx-links-ed">${[['lb', 'cfg:lb', 'text'], ['tg', 'cfg:channel', 'url'], ['sp', 'cfg:sp', 'url'], ['ig', 'cfg:ig', 'url'], ['web', 'cfg:web', 'url']].map(([k, ck, ty]) => `<label><span>${t.links[k][0]}</span><input type="${ty}" data-cfg="${ck}" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="${esc(t.links[k][1])}" value="${esc(seen()[ck] || '')}"></label>`).join('')}</div></div>
@@ -676,7 +700,8 @@ function mountFocus(root, D, S, opts) {
   function render() {
     applyLang();
     const html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : renderWeek();
-    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
+    const bd = view === 'week' ? fxBd(seen()) : null;
+    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
     if (posterOn()) P.fill(root);
     if (picker) { const q = root.querySelector('.fx-pick-q'); if (q && picker.focus) { q.focus(); const n = q.value.length; q.setSelectionRange(n, n); picker.focus = false; } }
@@ -706,6 +731,14 @@ function mountFocus(root, D, S, opts) {
     return id;
   }
   function pick(val, md) {
+    if (picker.bd) {
+      // a film for the backdrop: its stills from TMDB
+      const i = val.startsWith('k:') ? KEYIDX[val.slice(2)] : null;
+      const ref = i != null ? {t: F[i][0], y: F[i][1], tm: F[i][16] || 0} : {t: (md && md.t) || val.slice(2), y: (md && md.y) || 0, tm: (md && md.tm) || 0};
+      picker = null; bdPick = {t: ref.t, y: ref.y, loading: true, list: []};
+      loadImages(ref).then(r => { if (bdPick) { bdPick = {t: ref.t, y: ref.y, list: r.backdrops}; render(); } }, () => { if (bdPick) { bdPick.loading = false; bdPick.err = true; render(); } });
+      return;
+    }
     if (picker.list) {
       const title = md && md.t ? md.t : val.slice(2).replace(/\s*\(\d{4}\)\s*$/, '');
       if (val.startsWith('t:')) LS.add(md ? {t: md.t, y: md.y, d: md.d, m: md.m, p: md.p, tm: md.tm} : {t: title, y: +(val.match(/\((\d{4})\)\s*$/) || [])[1] || 0});
@@ -783,7 +816,10 @@ function mountFocus(root, D, S, opts) {
       src = fxTmdbImg(md.p); key = 'tx:' + (f.t || '');
     }
     let img = '';
-    if (posterOn()) { const s2 = src || P.src(key); img = `<span class="fx-pos fx-shpos"><img alt="" data-pk="${esc(key)}" data-pt="${esc(String(title))}" data-py="${year || ''}"${s2 ? ` src="${s2}"` : ''}><span class="fx-pt" dir="ltr">${esc(title)}</span></span>`; }
+    if (posterOn()) {
+      const ov = seen()['ps:' + key], s2 = ov ? fxTmdbImg(ov) : src || P.src(key);
+      img = `<button type="button" class="fx-pos fx-shpos" data-spos aria-label="${esc(T().changePoster)}"><img alt="" data-pk="${esc(key)}" data-pt="${esc(String(title))}" data-py="${year || ''}"${s2 ? ` src="${s2}"` : ''}><span class="fx-pt" dir="ltr">${esc(title)}</span><span class="fx-chg">${T().changePoster}</span></button>`;
+    }
     sub = sub.filter(Boolean);
     return `<div class="fx-shfilm">${img}<div class="fx-b"><div class="fx-tl"><span class="fx-film" dir="auto">${esc(title)}</span>${year ? `<span class="fx-y">${year}</span>` : ''}</div>${sub.length ? `<div class="fx-sub"><span class="fx-tw">${sub.map(x => `<bdi>${esc(x)}</bdi>`).join('')}</span></div>` : ''}</div></div>`;
   }
@@ -803,8 +839,33 @@ function mountFocus(root, D, S, opts) {
     if (d.rv.trim()) q.push('review=' + encodeURIComponent(d.rv.replace(/[<>]/g, '').replace(/\n/g, '<br>')));
     return `<a class="fx-btn" href="letterboxd://x-callback-url/log?${q.join('&')}">${t.logToLb}</a>`;
   }
+  // the film's key for posters, its title and year, and its TMDB id (looked up when not known)
+  function sheetFilmRef() {
+    const f = sheet.info;
+    if (f.i != null) return {key: KEY(f.i), t: F[f.i][0], y: F[f.i][1], tm: F[f.i][16] || 0};
+    const md = f.md || {}, m = String(f.t || '').match(/^(.*?)\s*\((\d{4})\)\s*$/);
+    return {key: 'tx:' + (f.t || ''), t: md.t || (m ? m[1] : f.t || ''), y: md.y || (m ? +m[2] : 0), tm: md.tm || 0};
+  }
+  async function loadImages(ref) {
+    const id = ref.tm || ((await P.match(ref.t, ref.y)) || {}).id;
+    return id ? P.images(id) : {posters: [], backdrops: []};
+  }
+  function posterGrid() {
+    const t = T(), pp = sheet.pp, ref = sheetFilmRef(), cur = seen()['ps:' + ref.key] || '';
+    let h = `<div class="fx-shfilm fx-pph"><h2 class="fx-h2">${t.posterH}</h2><button type="button" class="fx-link" data-ppclose>${t.cancel}</button></div>`;
+    if (pp.loading) return h + `<p class="fx-muted">${t.imgsLoading}</p>`;
+    if (pp.err) return h + `<p class="fx-note bad">${t.imgsFail}</p>`;
+    if (!pp.list.length) return h + `<p class="fx-muted">${t.imgsNone}</p>`;
+    return h + `<div class="fx-pgrid"><button type="button" class="fx-pg${cur ? '' : ' on'}" data-ppick=""><span>${t.posterDefault}</span></button>` + pp.list.map(x => `<button type="button" class="fx-pg${cur === x ? ' on' : ''}" data-ppick="${esc(x)}"><img alt="" loading="lazy" src="${fxTmdbImg(x)}"></button>`).join('') + '</div>';
+  }
   function renderSheet(focusSel) {
     if (!sheetEl || !sheet) return;
+    if (sheet.pp) {
+      const rtl0 = L() === 'fa', old0 = sheetEl.querySelector('.fx-shbody');
+      sheetEl.innerHTML = `<div class="fx-scrim" data-ppclose></div><div class="fx fx-sheet" dir="${rtl0 ? 'rtl' : 'ltr'}" lang="${L()}" role="dialog" aria-modal="true" aria-label="${esc(T().posterH)}"><div class="fx-shbody">${posterGrid()}</div></div>`;
+      sheetEl.hidden = false; document.documentElement.classList.add('fx-lock');
+      return;
+    }
     const t = T(), d = sheet.d, isNew = !sheet.ek, rtl = L() === 'fa';
     const old = sheetEl.querySelector('.fx-shbody'), top = old ? old.scrollTop : 0;
     let stars = '';
@@ -896,8 +957,21 @@ function mountFocus(root, D, S, opts) {
   }
   if (sheetEl) {
     sheetEl.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b || !sheet) return;
+      const b = e.target.closest('button') || (e.target.closest('.fx-scrim') && sheet && sheet.pp ? e.target.closest('.fx-scrim') : null); if (!b || !sheet) return;
       const d = sheet.d, t = T();
+      if (b.hasAttribute('data-spos')) {
+        readSheetInputs();
+        sheet.pp = {loading: true, list: []}; renderSheet();
+        const ref = sheetFilmRef();
+        loadImages(ref).then(r => { if (sheet && sheet.pp) { sheet.pp = {list: r.posters}; renderSheet(); } }, () => { if (sheet && sheet.pp) { sheet.pp = {err: true, list: []}; renderSheet(); } });
+        return;
+      }
+      if (b.hasAttribute('data-ppclose')) { sheet.pp = null; renderSheet(); return; }
+      if (b.dataset.ppick !== undefined && sheet.pp) {
+        const ref = sheetFilmRef(), v = b.dataset.ppick;
+        S.set('ps:' + ref.key, v || null);
+        sheet.pp = null; renderSheet(); render(); return;
+      }
       if (b.hasAttribute('data-scancel')) {
         readSheetInputs();
         if (!sheet.discard && draftKey(d) !== sheet.init) { sheet.discard = true; renderSheet(); return; }
@@ -998,6 +1072,10 @@ function mountFocus(root, D, S, opts) {
     const t = e.target.closest('button'); if (!t || !root.contains(t)) return;
     const li = t.closest('.fx-i'), k = li && li.dataset.k, tt = T();
     if (t.dataset.open) { openSheet({ek: t.dataset.open}); return; }
+    if (t.hasAttribute('data-bdopen')) { bdPick = null; picker = {q: '', focus: true, bd: true}; render(); return; }
+    if (t.hasAttribute('data-bdclose')) { bdPick = null; render(); return; }
+    if (t.hasAttribute('data-bdrm')) { S.set('cfg:bd', null); render(); return; }
+    if (t.dataset.bdpick) { S.set('cfg:bd', JSON.stringify({p: t.dataset.bdpick, t: bdPick ? bdPick.t : '', y: bdPick ? bdPick.y : 0})); bdPick = null; render(); return; }
     if (t.hasAttribute('data-golist')) { view = 'list'; picker = {q: '', focus: true, list: true}; render(); return; }
     if (t.hasAttribute('data-ladd')) { picker = {q: '', focus: true, list: true}; listNote = null; render(); return; }
     if (t.hasAttribute('data-lall')) { listAll = true; render(); return; }

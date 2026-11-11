@@ -471,3 +471,31 @@ html.fx-lock, html.fx-lock body{overflow:hidden}
 .fx-lweek{display:grid; gap:0}
 .fx-lweek .fx-month{margin:0 0 2px}
 .fx-lweek .fx-ll{margin:0}
+
+/* ---------- backdrop: a still across the top, fading into the page (app and public profile) ---------- */
+#root .fx.fx-withbd, .fx.fx-withbd{padding-top:0}
+body:has(.fx-withbd){overflow-x:clip}
+.fx-hero{position:relative; margin:0 calc(50% - 50vw) -110px; height:clamp(230px, 48vw, 460px); overflow:hidden; pointer-events:none; z-index:0}
+.fx-hero img{width:100%; height:100%; object-fit:cover; object-position:center 30%; display:block}
+.fx-hero::after{content:""; position:absolute; inset:0; background:linear-gradient(to bottom, color-mix(in srgb, var(--bg) 10%, transparent) 0%, transparent 30%, color-mix(in srgb, var(--bg) 70%, transparent) 72%, var(--bg) 100%), linear-gradient(to right, color-mix(in srgb, var(--bg) 55%, transparent), transparent 22%, transparent 78%, color-mix(in srgb, var(--bg) 55%, transparent))}
+.fx-withbd > .fx-head, .fx-withbd > header{position:relative; z-index:1}
+.fx-withbd > .fx-head .fx-h1{text-shadow:0 1px 18px color-mix(in srgb, var(--bg) 70%, transparent)}
+.fx-withbd > *:not(.fx-hero):not(.fx-tabbar){position:relative; z-index:1}
+.fx-bdprev{position:relative; border-radius:10px; overflow:hidden; aspect-ratio:16/9; max-width:420px; background:var(--sunk)}
+.fx-bdprev img{width:100%; height:100%; object-fit:cover; display:block}
+.fx-bdprev span{position:absolute; inset-inline-start:10px; bottom:8px; font-size:12px; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.7)}
+.fx-pph{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.fx-bdgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px}
+.fx-bdg{all:unset; cursor:pointer; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px var(--line)}
+.fx-bdg img{width:100%; height:100%; object-fit:cover; display:block}
+.fx-bdg.on, .fx-pg.on{box-shadow:0 0 0 3px var(--star)}
+.fx-bdg:focus-visible, .fx-pg:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+/* choosing a poster */
+button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
+.fx-shfilm .fx-shpos{width:64px; aspect-ratio:2/3; border-radius:4px; overflow:hidden; box-shadow:0 0 0 1px var(--line)}
+.fx-shpos img{width:100%; height:100%; object-fit:cover; display:block}
+.fx-chg{position:absolute; inset:auto 0 0 0; padding:3px 0 4px; font-size:9px; letter-spacing:.06em; text-align:center; color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.75)); text-transform:uppercase}
+.fx-pgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:10px}
+.fx-pg{all:unset; cursor:pointer; aspect-ratio:2/3; border-radius:6px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px var(--line); display:grid; place-items:center; font-size:12.5px; color:var(--muted); text-align:center}
+.fx-pg img{width:100%; height:100%; object-fit:cover; display:block}
+.fx-h2{margin:0; font-size:18px}
