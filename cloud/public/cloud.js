@@ -230,7 +230,7 @@
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
     // the site opens on Friends (unless you chose This week), and Friends comes first in the bar
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, quickLog: true, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
+      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger((t, y, md) => FX && FX.logFilm(t, y, md)); }
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
@@ -240,6 +240,13 @@
     });
     CloudSync.setPayload(() => fxShare(FX.plan(), Store.data, k => Posters.src(k)));
     enrichSoon(); setTimeout(lbPull, 2500);
+  }
+  // your year in film: built from your own diary on this device (even with the diary hidden from your profile)
+  function openWrapped(year) {
+    if (typeof fxWrappedOpen !== 'function' || !FX) return;
+    const data = JSON.parse(fxShare(FX.plan(), Object.assign({}, Store.data, {'cfg:pubdiary': null}), k => Posters.src(k)));
+    const me = CloudSync.me();
+    fxWrappedOpen(data, year, {who: Store.data['cfg:name'] || (me && me.name) || '', url: me ? location.origin + '/u/' + me.username : location.origin, site: C.siteName || 'Film Diary'});
   }
   function homeChoice(L) {
     const week = Store.data['cfg:home'] === 'week';
@@ -333,7 +340,7 @@
       return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))} · ${esc(t.following(fa(meta.following)))}</span>${btn}</div>`;
     };
     PF = fxProfile(root, name, eid, {
-      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine,
+      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary',
       // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
       lang: () => 'en',
       headerExtra: metaHtml,

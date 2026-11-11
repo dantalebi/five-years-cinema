@@ -11,7 +11,7 @@ for f in ('store.js', 'posters.js', 'share.js', 'fxlist.js', 'fxlb.js', 'play.js
     shutil.copy(SRC + f, OUT + f)
 for f in ('focus.js', 'focus.css', 'fxcal.js'):
     shutil.copy(W5 + f, OUT + f)
-for f in ('cloudsync.js', 'friends.js', 'cloud.js'):
+for f in ('cloudsync.js', 'friends.js', 'wrapped.js', 'cloud.js'):
     shutil.copy(HERE + 'src/' + f, OUT + f)
 for f in ('icon32.png', 'apple-touch-icon.png', 'icon192.png', 'icon512.png', 'maskable512.png'):
     shutil.copy(SITE5 + f, OUT + f)
@@ -25,8 +25,8 @@ const FY_CONFIG = {siteName: 'Film Diary', siteNameFa: 'دفتر فیلم', lang
 DESC = 'One week of films at a time, a diary of everything you watch, and your friends’.'
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
        # connect-src: the offline worker fetches posters and fonts itself, and the worker obeys the policy sent with sw.js
-       "img-src 'self' data: https://image.tmdb.org; connect-src 'self' https://image.tmdb.org https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")
-scripts = ('config.js', 'store.js', 'posters.js', 'fxcal.js', 'focus.js', 'fxlb.js', 'play.js', 'share.js', 'fxlist.js', 'cloudsync.js', 'friends.js', 'cloud.js')
+       "img-src 'self' data: blob: https://image.tmdb.org; connect-src 'self' https://image.tmdb.org https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")
+scripts = ('config.js', 'store.js', 'posters.js', 'fxcal.js', 'focus.js', 'fxlb.js', 'play.js', 'share.js', 'fxlist.js', 'cloudsync.js', 'friends.js', 'wrapped.js', 'cloud.js')
 fonts = re.search(r'<link rel="stylesheet" href="https://fonts[^>]+>', open(SITE5 + 'index.html').read()).group(0)
 # absolute paths throughout: the same page also answers at /u/<name>
 index = f'''<!doctype html>
@@ -103,6 +103,11 @@ sw = sw.replace(old, old + "    if (u.pathname.startsWith('/api/')) return;\n"
                 "      e.respondWith(fetch(req).catch(() => caches.open(V).then(c => c.match('/')).then(hit => hit ? new Response(hit.body, {status: 200, headers: hit.headers}) : Response.error())));\n"
                 "      return;\n"
                 "    }\n")
+# posters drawn into a canvas (the year-in-film picture) are fetched with CORS: those go straight to TMDB, never from the
+# cache, which holds the ordinary (opaque) copies
+old = "  if (u.host === 'image.tmdb.org' || u.host === 'fonts.googleapis.com' || u.host === 'fonts.gstatic.com') {\n"
+assert sw.count(old) == 1
+sw = sw.replace(old, old + "    if (req.mode === 'cors' && u.host === 'image.tmdb.org') return;\n")
 # the version also covers the worker's own code, so a change to how it works replaces the old one's stored files
 sw = re.sub(r"'fd-[0-9a-f]{12}'", "'fd-" + hashlib.sha256((h.hexdigest() + sw).encode()).hexdigest()[:12] + "'", sw)
 # every outside host the worker fetches must be allowed by the policy it runs under, or those images fail

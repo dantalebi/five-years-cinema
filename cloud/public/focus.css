@@ -726,3 +726,55 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-tabbar.fx-hasplus button{white-space:nowrap}
 .fx[dir="ltr"] .fx-tabbar.fx-hasplus button{letter-spacing:.07em; font-size:10px; padding-left:2px; padding-right:2px}
 @media (min-width:480px){ .fx[dir="ltr"] .fx-tabbar.fx-hasplus button{letter-spacing:.14em; font-size:10.5px} }
+/* ---- a year in film (wrapped.js) ---- */
+.fw-wrap{position:fixed; inset:0; z-index:200; display:block; max-width:none; padding:0; margin:0; direction:ltr}
+.fw-scrim{position:absolute; inset:0; background:rgba(5,7,9,.72); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px)}
+.fw{position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; max-width:620px; margin:0 auto; padding:26px 18px calc(40px + env(safe-area-inset-bottom, 0px));
+  background:linear-gradient(180deg, #0b0d10, #151a20); color:#eef2f5; display:grid; gap:16px; align-content:start; text-align:left;
+  --ink:#eef2f5; --muted:#9aabbb; --line:#26303a; --sunk:#1c242c}
+@media (min-width:660px){ .fw{inset:24px 0; border-radius:18px; box-shadow:0 30px 80px rgba(0,0,0,.5)} }
+.fw-x{position:sticky; top:0; justify-self:end; margin-bottom:-44px; z-index:3; width:38px; height:38px; border-radius:50%; border:0; background:rgba(20,26,32,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 0 0 1px rgba(255,255,255,.12); color:#fff; font-size:24px; line-height:1; cursor:pointer}
+.fw-hero{padding:14px 0 6px; background:radial-gradient(500px 220px at 90% 0%, rgba(0,224,84,.18), transparent 70%)}
+.fw-eye{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted)}
+.fw-hero h2{margin:4px 0 0; font-family:var(--serif); font-weight:400; font-size:clamp(96px, 30vw, 150px); line-height:.9; letter-spacing:-.02em}
+.fw-hero p{margin:6px 0 0; font-family:var(--serif); font-size:24px; color:#c9d3dc}
+.fw-big{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px}
+.fw-big div{background:var(--sunk); border-radius:14px; padding:16px 16px 14px; display:grid; gap:2px}
+.fw-big b{font-family:var(--serif); font-weight:400; font-size:52px; line-height:1}
+.fw-big div:first-child b{color:#00e054}
+.fw-big span{font-size:13px; color:var(--muted)}
+.fw-card{background:var(--sunk); border-radius:14px; padding:16px; display:grid; gap:10px}
+.fw-card h3{margin:0; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.fw-posters{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px}
+.fw-posters figure{margin:0; display:grid; gap:6px; min-width:0}
+.fw-posters img, .fw-posters figure > span{width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:6px; display:grid; place-items:center; background:#26303a; font-family:var(--serif); font-size:12px; text-align:center; padding:4px; overflow:hidden}
+.fw-posters figcaption{font-size:11.5px; line-height:1.25; color:#c9d3dc; display:grid; gap:2px; overflow-wrap:anywhere}
+.fw-posters figcaption small{color:var(--muted)}
+.fw-posters figcaption i{font-style:normal; color:#00e054; font-size:10px; letter-spacing:1px}
+.fw-months{display:grid; grid-template-columns:repeat(12, minmax(0,1fr)); gap:5px; height:120px; align-items:end}
+.fw-months div{display:grid; grid-template-rows:1fr auto; height:100%; gap:5px; text-align:center}
+.fw-months i{align-self:end; display:block; min-height:4px; border-radius:4px 4px 2px 2px; background:#2c3844}
+.fw-months div.on i{background:#00e054}
+.fw-months span{font-family:var(--mono); font-size:10px; color:var(--muted)}
+.fw-note{margin:0; font-size:14px; color:#c9d3dc}
+.fw-rank{list-style:none; margin:0; padding:0; display:grid; gap:8px; counter-reset:r}
+.fw-rank li{display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:8px; align-items:baseline; font-family:var(--serif); font-size:21px; counter-increment:r}
+.fw-rank li::before{content:counter(r); font-family:var(--mono); font-size:12px; color:var(--muted)}
+.fw-rank li span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fw-rank b{font-family:var(--mono); font-weight:500; font-size:13px; color:var(--muted)}
+.fw-two{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px}
+.fw-two:empty{display:none}
+@media (max-width:420px){ .fw-two{grid-template-columns:minmax(0,1fr)} }
+.fw-facts ul{list-style:none; margin:0; padding:0; display:grid; gap:10px}
+.fw-facts li{display:grid; gap:1px; font-family:var(--serif); font-size:21px; line-height:1.2}
+.fw-facts li span{font-family:var(--sans); font-size:12.5px; color:var(--muted)}
+.fw-facts small{font-family:var(--mono); font-size:12px; color:var(--muted)}
+.fw-foot{display:grid; gap:12px; justify-items:center; padding-top:6px}
+.fw-btn{font:inherit; font-size:15px; font-weight:600; cursor:pointer; border:0; background:#00e054; color:#04220f; border-radius:999px; padding:11px 22px; text-decoration:none; display:inline-block}
+.fw-btn.ghost{background:transparent; color:#eef2f5; box-shadow:inset 0 0 0 1px #3a4652}
+.fw-btn[disabled]{opacity:.6}
+.fw-prev{display:grid; gap:12px; justify-items:center}
+.fw-prev img{width:min(300px, 80%); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.fw-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+/* the way in: diary and stats */
+.fx-wbtn{justify-self:start; font:inherit; font-size:14px; font-weight:600; cursor:pointer; border:0; border-radius:999px; padding:8px 16px; background:linear-gradient(90deg, #00b843, #00e054); color:#04220f}

@@ -208,6 +208,8 @@ function fxProfile(root, id, focusId, opts) {
     if (hasMeta) big.push([num(new Set(films.flatMap(f => f.c || [])).size), t.big.countries]);
     big.push([num(Object.values(days).filter(n => n > 1).length), t.big.multi]);
     let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
+    // a year in film (wrapped.js, on the multi-user site), when a Gregorian year is chosen
+    if (typeof fxWrappedOpen === 'function' && year !== 'all' && !jal() && d.length >= 3) h = `<button type="button" class="fx-wbtn" data-wrapped="${esc(year)}">${esc(year)} in film →</button>` + h;
     if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang], jal())}</section>`;
     const hist = Array(11).fill(0); d.concat(extra).forEach(e => { if (e.r) hist[e.r]++; });
     const hm = Math.max(1, ...hist);
@@ -271,6 +273,7 @@ function fxProfile(root, id, focusId, opts) {
   root.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) { const row = !e.target.closest('a') && e.target.closest('[data-entry]'); if (row) openEntry(row.dataset.entry); return; }
+    if (b.dataset.wrapped && typeof fxWrappedOpen === 'function') { fxWrappedOpen(data, b.dataset.wrapped, {who: String(data.name || '').trim(), url: opts.base || '', site: opts.site || ''}); return; }
     if (b.hasAttribute('data-tmatch') && PL && PL.showMine()) { tab = 'play'; render(); const tb = root.querySelector('.fx-tabs'); window.scrollTo(0, tb ? tb.offsetTop - 10 : 0); return; }
     if (PL && b.dataset.pl !== undefined) { PL.click(b); return; }
     if (opts.onButton && opts.onButton(b, render)) return;

@@ -695,6 +695,8 @@ function mountFocus(root, D, S, opts) {
     if (all.length && typeof fxCalendar === 'function') h += `<details class="fx-more fx-calwrap"${calOpen ? ' open' : ''}><summary>${t.calH}</summary>${fxCalendar(all.map(e => e.date), diaryYear === 'all' || diaryYear === null ? 'all' : diaryYear, L(), today(), FX_CAL_L[L()], jal)}</details>`;
     if (years.length > 1) h += `<nav class="fx-years">${years.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${diaryYear === y}">${y === 'all' ? t.allYears : fa(y).replace(/[٬,]/g, '')}</button>`).join('')}</nav>`;
     if (!all.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p>`;
+    // your year in film (wrapped.js), for a year with a few films in it
+    if (opts.wrapped && diaryYear !== 'all' && list.length >= 3) h += `<button type="button" class="fx-wbtn" data-wrapped="${esc(diaryYear)}">Your ${esc(diaryYear)} in film →</button>`;
     // a list, or a wall of posters
     const grid = posterOn() && seen()['cfg:dview'] === 'grid';
     if (posterOn()) h += `<div class="fx-years fx-seg fx-dview" role="group">${[['list', t.dvList || 'List'], ['grid', t.dvGrid || 'Posters']].map(([v, l]) => `<button type="button" data-dview="${v}" aria-pressed="${(v === 'grid') === grid}">${l}</button>`).join('')}</div>`;
@@ -1221,6 +1223,7 @@ function mountFocus(root, D, S, opts) {
     }
     if (t.hasAttribute('data-log')) { picker = {q: '', focus: true, log: true}; render(); return; }
     if (t.hasAttribute('data-year')) { diaryYear = t.dataset.year; render(); return; }
+    if (t.dataset.wrapped && opts.wrapped) { opts.wrapped(t.dataset.wrapped); return; }
     if (t.dataset.dview) { S.set('cfg:dview', t.dataset.dview === 'grid' ? 'grid' : null); render(); return; }
     if (t.hasAttribute('data-diary')) { view = 'diary'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     if (t.hasAttribute('data-tick')) { tickItem(li); return; }
