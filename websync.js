@@ -71,10 +71,13 @@ const WebSync = (() => {
     Store.set('cfg:share', null); put('fy-share-last', null);
     return null;
   }
-  const shareUrl = id => new URL('share.html#' + id, location.href.replace(/#.*$/, '')).href;
+  // the published profile has a clean address (the app's own root); any other share id falls back to share.html#<id>
+  const base = () => location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
+  const shareUrl = (id, eid) => typeof FY_PROFILE !== 'undefined' && FY_PROFILE.gist === id ? FY_PROFILE.url + (eid ? '#' + eid : '') : new URL('share.html#' + id + (eid ? '/' + eid : ''), base()).href;
+  const previewUrl = id => new URL('share.html#' + id, base()).href;
   Store.onLocalChange(schedule);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') run(); });
   window.addEventListener('online', () => run());
   setInterval(() => { if (document.visibilityState === 'visible') run(); }, 90000);
-  return {status, connect, disconnect, syncNow: run, onStatus: f => subs.push(f), run, loadPlan, cachedPlan, shareOn, shareOff, shareUrl, setPayload: f => { payloadFn = f; }};
+  return {status, connect, disconnect, syncNow: run, onStatus: f => subs.push(f), run, loadPlan, cachedPlan, shareOn, shareOff, shareUrl, previewUrl, setPayload: f => { payloadFn = f; }};
 })();

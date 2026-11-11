@@ -1,12 +1,21 @@
 // Web app entry. The plan isn't part of this public site: it comes from a private gist in the owner's GitHub
-// and is cached on the device. Without the owner's token, the page shows only a sign-in card.
+// and is cached on the device. Visitors (no token on their device) see the owner's public profile instead;
+// the owner signs in on a new device at #signin.
 (function () {
-  let root = document.getElementById('root'), FX = null;
+  let root = document.getElementById('root'), FX = null, PF = null;
+  const PROFILE = typeof FY_PROFILE !== 'undefined' ? FY_PROFILE : null;
+  const fresh = () => { if (PF) { PF.stop(); PF = null; } const r = root.cloneNode(false); root.replaceWith(r); root = r; };
+  function profile() {
+    if (FX) return;
+    fresh();
+    const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m && m[1] !== 'signin' ? m[1] : '';
+    PF = fxProfile(root, PROFILE.gist, eid, {clean: true, base: PROFILE.url});
+  }
   const S = {all: () => Store.data, set: (k, v) => Store.set(k, v)};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   function start(D) {
     window.D = D;
-    if (FX) { const r = root.cloneNode(false); root.replaceWith(r); root = r; }
+    fresh();
     FX = mountFocus(root, D, S, {
       posters: Posters, settings: WebSync,
       openFull: w => { location.href = 'plan.html' + (w ? '#w-' + Math.min(D.W.length, w) : ''); },
@@ -18,6 +27,7 @@
     fa: {title: 'پنج سال سینما', p: 'این یه صفحه‌ی شخصیه و چیزی برای نشون دادن به بقیه نداره.', owner: 'صاحب این صفحه‌ای؟', how: 'توکن گیت‌هابت (با دسترسی gist) رو بچسبون تا برنامه از Gist خصوصیت بیاد. اگه توکن نداری، <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">اینجا</a> بسازش (Expiration: No expiration).', connect: 'وصل شو', loading: 'وصل شد؛ دارم برنامه رو میارم…', missing: 'برنامه توی Gistهای این حساب پیدا نشد.'},
   };
   function gate(note, cls) {
+    if (PF) fresh();
     const lang = fxLang(Store.data), t = GT[lang];
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
     root.innerHTML = `<div class="fx" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"><header class="fx-head"><h1 class="fx-h1">${t.title}</h1></header>
@@ -48,10 +58,13 @@
   }
   Store.load().then(() => {
     const D = WebSync.cachedPlan();
-    if (D) start(D); else gate('');
+    if (D) start(D);
+    else if (PROFILE && !WebSync.status().connected && location.hash !== '#signin') profile();
+    else gate('');
     if (WebSync.status().connected) fetchPlan(false);
     WebSync.run();
   });
+  window.addEventListener('hashchange', () => { if (!FX && location.hash === '#signin') gate(''); });
   Store.onChange(() => FX && FX.render());
   WebSync.onStatus(() => FX && FX.render());
   if ('serviceWorker' in navigator) {
