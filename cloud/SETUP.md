@@ -13,14 +13,15 @@ Everything fits in Cloudflare's free plan.
 1. **Cloudflare account:** sign up for free at dash.cloudflare.com.
 2. **Database:** go to Storage & Databases → D1 → Create, and name it `film-diary`.
 3. **Site:** go to Workers & Pages → Create → Pages → Connect to Git, and pick the GitHub repo `five-years-cinema`. Then fill in:
+   - Project name: `film-diary` (it must match `wrangler.toml`)
    - Production branch: `main`
    - Framework preset: None
    - Build command: *(leave empty)*
    - Build output directory: `public`
    - Root directory (under "Advanced"): `cloud`
 
-   Then press Save and Deploy.
-4. **Connect the database:** in the project, go to Settings → Bindings → Add → D1 database. Set the variable name to `DB` and choose the database `film-diary`.
+   Then press Save and Deploy. The database connects itself: `wrangler.toml` names it (binding `DB`).
+4. *(No step: the database binding comes from `wrangler.toml`.)*
 5. **Secrets:** go to Settings → Variables and Secrets and add these, each as **Secret**:
    - `TMDB_TOKEN`: your TMDB "API Read Access Token". Posters and film search for everyone go through the site, so nobody else needs their own key.
    - `SIGNUP_CODE`: an invite code you give your friends. Without it, anyone could sign up.
