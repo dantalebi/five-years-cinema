@@ -5,8 +5,12 @@ function fxProfile(root, id, focusId, opts) {
   opts = opts || {};
   let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
   const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n'};  // which way each stats card is showing
+  // the games (play.js), when the page has them; ?play=duel|tonight|match opens one straight away
+  const playLink = g => opts.clean ? opts.base + '?play=' + g : location.href.replace(/[?#].*$/, '') + '?play=' + g + '#' + id;
+  const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink}) : null;
+  let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
-    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
+    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
       allYears: 'All time', favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show review anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
@@ -18,7 +22,7 @@ function fxProfile(root, id, focusId, opts) {
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
       inApp: 'app', links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
-    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', updated: a => 'به‌روز شده ' + a,
+    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', tPlay: 'بازی', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
       discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو ممکنه داستان رو لو بده.', reveal: 'با این حال نشونم بده', readReview: 'خوندن ریویو', open: 'باز کردن', backTo: n => '→ ' + n, reviewBy: n => 'ریویوی ' + n, entryBy: n => 'از دفتر ' + n, entry: 'از دفتر', watchedOn: 'دیده‌شده', rewatchedOn: 'دوباره دیده‌شده', spoilerTag: 'اسپویل', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
@@ -76,7 +80,7 @@ function fxProfile(root, id, focusId, opts) {
     let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const link = okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : ''); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
-    if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
+    if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].concat(PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
   function nowView() {
@@ -231,8 +235,8 @@ function fxProfile(root, id, focusId, opts) {
       root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc(t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }
-    const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : nowView();
-    const yn = tab === 'now' ? '' : yearNav();
+    const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
+    const yn = tab === 'now' || tab === 'play' ? '' : yearNav();
     root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
@@ -258,6 +262,7 @@ function fxProfile(root, id, focusId, opts) {
   root.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) { const row = !e.target.closest('a') && e.target.closest('[data-entry]'); if (row) openEntry(row.dataset.entry); return; }
+    if (PL && b.dataset.pl !== undefined) { PL.click(b); return; }
     if (b.dataset.entry) { openEntry(b.dataset.entry); return; }
     if (b.hasAttribute('data-back')) {
       if (pushed) { pushed = false; history.back(); return; }
@@ -273,6 +278,8 @@ function fxProfile(root, id, focusId, opts) {
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { b.textContent = '✓'; b.title = T().copied; }, () => { location.hash = opts.clean ? b.dataset.perma : id + '/' + b.dataset.perma; });
     }
   });
+  root.addEventListener('change', e => { if (PL && tab === 'play') PL.change(e.target); });
+  root.addEventListener('submit', e => { if (PL && tab === 'play' && e.target.dataset.plForm) { e.preventDefault(); PL.submit(e.target); } });
   async function load() {
     if (!id) { shell(TX.en.bad); return; }
     try {
@@ -291,6 +298,7 @@ function fxProfile(root, id, focusId, opts) {
       withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
       updated = g.updated_at;
       if (cur && !data.diary.some(x => x.id === cur)) cur = '';
+      if (wantPlay && PL && !cur) { tab = 'play'; PL.open(wantPlay); wantPlay = ''; }
       if (cur) { const fe = data.diary.find(x => x.id === cur); if (fe && year !== 'all' && !String(fe.w).startsWith(year || '')) year = String(fe.w).slice(0, 4); }
       render();
     } catch (e) {
@@ -304,5 +312,6 @@ function fxProfile(root, id, focusId, opts) {
 // share.html#<gist id>[/<entry>] — the original address, still valid for links already shared
 if (document.documentElement.dataset.page === 'share') {
   const hm = location.hash.match(/^#([0-9a-f]{20,40})(?:\/([a-z0-9-]{1,120}))?$/i) || [];
-  fxProfile(document.getElementById('root'), hm[1], hm[2] || '', {});
+  const own = typeof FY_PROFILE !== 'undefined' && FY_PROFILE.gist === hm[1];
+  fxProfile(document.getElementById('root'), hm[1], hm[2] || '', own ? {feed: FY_PROFILE.feed || ''} : {});
 }

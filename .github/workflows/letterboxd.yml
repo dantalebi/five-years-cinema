@@ -1,7 +1,8 @@
 name: Letterboxd feed
 
 # Every three hours, the latest logs from letterboxd.com/<you>/rss/ go to feed.json on the
-# "letterboxd-feed" branch; the app picks new ones up from there. No secrets needed.
+# "letterboxd-feed" branch; the app picks new ones up from there. Friends listed on your published
+# profile get their public logs kept there too (friends/<name>.json), for the taste match. No secrets needed.
 on:
   schedule:
     - cron: '23 */3 * * *'
@@ -23,22 +24,22 @@ jobs:
     timeout-minutes: 10
     env:
       LB_USER: talebi
+      SHARE_GIST: 56766f0b717fcfd3ae003461afbba821
     steps:
       - uses: actions/checkout@v4
-      - name: Read the Letterboxd feed
+      - name: Read the Letterboxd feeds
         run: |
-          mkdir -p "$RUNNER_TEMP/feed"
-          git fetch -q --depth=1 origin letterboxd-feed 2>/dev/null && git show FETCH_HEAD:feed.json > "$RUNNER_TEMP/old.json" || echo '{}' > "$RUNNER_TEMP/old.json"
-          node tools/letterboxd-feed.cjs "$RUNNER_TEMP/old.json" "$RUNNER_TEMP/feed/feed.json"
+          mkdir -p "$RUNNER_TEMP/feed" && cd "$RUNNER_TEMP/feed"
+          git init -q -b letterboxd-feed
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth=1 origin letterboxd-feed 2>/dev/null && git reset -q --hard FETCH_HEAD || true
+          cd "$GITHUB_WORKSPACE" && node tools/letterboxd-feed.cjs "$RUNNER_TEMP/feed"
       - name: Save it when something changed
         working-directory: ${{ runner.temp }}/feed
         run: |
-          git init -q -b letterboxd-feed
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          git fetch -q --depth=1 origin letterboxd-feed 2>/dev/null && git reset -q FETCH_HEAD || true
-          git add feed.json
+          git add -A
           if ! git diff --cached --quiet; then git commit -q -m "Letterboxd feed"; git push -q origin letterboxd-feed; echo "Saved."; else echo "No new logs."; fi
       # GitHub pauses schedules in repositories with no activity for 60 days; a quiet commit now and then keeps it running
       - name: Keep the schedule alive

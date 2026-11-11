@@ -40,7 +40,7 @@ const FX_STR = {
     importBad: 'That doesn’t look like a Letterboxd export (a .csv with Name and Year).', importNoDates: 'This file has no viewing dates. For your history, use diary.csv from the export.',
     importHelp: 'On letterboxd.com: Settings → Data → Export your data. Use watchlist.csv or a list for your list, diary.csv (or reviews.csv) for your history.',
     inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + n + ' films', planSample: 'Sample plan · Five Years of Cinema', planReset: 'Start over with another plan', planReset2: 'Tap again to start over — your diary stays',
-    lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, then pick the .zip it gives you (or diary.csv and reviews.csv from inside it). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import Letterboxd export',
+    lbH: 'Letterboxd', lbP: 'Bring your whole history in, once: on letterboxd.com go to Settings → Data → Export your data, then pick the .zip it gives you (or diary.csv and reviews.csv from inside it). Films from the plan you logged before this month go in as diary entries; the plan stays as it is.', lbPick: 'Import Letterboxd export', lbfL: 'Friends on Letterboxd', lbfP: 'Their usernames, separated by commas. Every few hours their public Letterboxd logs are read too, so on your page they can see how close your tastes are.',
     lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m, lk, u) => a + ' diary entries added · ' + k + ' plan films ticked · ' + m + ' filled in' + (lk ? ' · ' + lk + ' hearts' : '') + (u ? ' · ' + u + ' films without a date, counted in the stats' : '') + '.', lbBad: 'That isn’t the Letterboxd export: pick the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
     lbAuto: (ago, n) => 'What you log on Letterboxd shows up here by itself within a few hours. Last check ' + ago + (n ? ' · ' + n + ' new last time' : '') + '.', lbAutoOff: 'What you log on Letterboxd will show up here by itself within a few hours.',
     changePoster: 'Change poster', posterH: 'Choose a poster', posterDefault: 'Default', imgsLoading: 'Loading from TMDB…', imgsNone: 'TMDB has no other posters for this film.', imgsFail: 'Couldn’t reach TMDB just now.',
@@ -102,7 +102,7 @@ const FX_STR = {
     importBad: 'این فایل خروجی لترباکس به نظر نمیاد (یه فایل csv با ستون‌های Name و Year).', importNoDates: 'این فایل تاریخ دیدن نداره. برای تاریخچه‌ت diary.csv رو از خروجی لترباکس بیار.',
     importHelp: 'توی letterboxd.com: Settings ← Data ← Export your data. برای لیست watchlist.csv یا یه لیست، برای تاریخچه diary.csv (یا reviews.csv).',
     inList: 'توی لیستت هست', addedL: t => 'اضافه شد: ' + t, listPh: 'هر فیلمی رو جستجو کن', planH: 'برنامه', planList: n => 'لیست خودم · ' + n + ' فیلم', planSample: 'برنامه‌ی نمونه · پنج سال سینما', planReset: 'شروع دوباره با یه برنامه‌ی دیگه', planReset2: 'برای شروع دوباره، دوباره بزن (دفترت می‌مونه)',
-    lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data و فایل zip ـی که می‌ده رو انتخاب کن (یا diary.csv و reviews.csv از توش). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن خروجی لترباکس',
+    lbH: 'لترباکس', lbP: 'یه بار کل تاریخچه‌ت رو بیار: توی letterboxd.com برو Settings ← Data ← Export your data و فایل zip ـی که می‌ده رو انتخاب کن (یا diary.csv و reviews.csv از توش). فیلم‌هایی از برنامه که قبل از این ماه دیدی به‌عنوان ورودی دفتر میان و برنامه دست نمی‌خوره.', lbPick: 'آوردن خروجی لترباکس', lbfL: 'دوستات تو لترباکس', lbfP: 'یوزرنیم‌هاشون رو با کاما جدا کن. هر چند ساعت لاگ‌های عمومی لترباکسدشون هم خونده می‌شه تا تو صفحه‌ت ببینن سلیقه‌تون چقدر به هم نزدیکه.',
     lbWorking: (d, n) => 'دارم تاریخچه‌ت رو می‌خونم… ' + d + ' از ' + n, lbDone: (a, k, m, lk, u) => a + ' مورد به دفتر اضافه شد · ' + k + ' فیلم برنامه تیک خورد · ' + m + ' مورد کامل شد' + (lk ? ' · ' + lk + ' قلب' : '') + (u ? ' · ' + u + ' فیلمِ بی‌تاریخ که فقط تو آمار حساب می‌شه' : '') + '.', lbBad: 'این خروجی لترباکس نیست؛ فایل zip ـی که از Settings ← Data ← Export your data می‌گیری رو انتخاب کن (یا diary.csv از توش).',
     lbAuto: (ago, n) => 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا. آخرین بررسی ' + ago + (n ? ' · دفعه‌ی قبل ' + n + ' مورد جدید' : '') + '.', lbAutoOff: 'هر چی توی لترباکس ثبت کنی، تا چند ساعت بعد خودش میاد اینجا.',
     changePoster: 'عوض کردن پوستر', posterH: 'یه پوستر انتخاب کن', posterDefault: 'پیش‌فرض', imgsLoading: 'دارم از TMDB میارم…', imgsNone: 'TMDB برای این فیلم پوستر دیگه‌ای نداره.', imgsFail: 'الان به TMDB وصل نشد.',
@@ -289,6 +289,8 @@ function fxWatched(D, seen) {
   }
   return out;
 }
+// Letterboxd usernames of friends, from whatever was typed: profile links, @names, commas or spaces
+const fxFriends = v => [...new Set(String(v || '').split(/[\s,،]+/).map(x => x.trim().replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '')).filter(x => /^[A-Za-z0-9_]{1,40}$/.test(x)))].slice(0, 30);
 function fxFav(seen) { try { const a = JSON.parse(seen['cfg:fav'] || '[]'); return Array.isArray(a) ? a.slice(0, 4) : []; } catch (e) { return []; } }
 const fxTmdbImg = p => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : '';
 const fxTmdbBd = (p, w) => p && /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/' + (w || 'w1280') + p : '';
@@ -313,6 +315,7 @@ function fxShare(D, seen, posterUrl) {
   const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
   const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
   const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
+  const lbf = fxFriends(seen['cfg:lbf']); if (lbf.length) out.lbf = lbf;
   const bd = fxBd(seen);
   if (bd) out.bd = {p: fxTmdbBd(bd.p), t: String(bd.t || '').slice(0, 120), y: +bd.y || 0};
   if (w > D.W.length) out.now.end = 1;
@@ -352,6 +355,7 @@ function fxShare(D, seen, posterUrl) {
   if (seen['cfg:pubdiary'] !== '0') out.seen = fxWatched(D, seen).map(e => {
     const md = e.md || {}, mx = fxMeta(seen, fxMetaKey(D, e));
     const base = e.i != null ? {t: F[e.i][0], y: F[e.i][1], d: dir(e.i), m: F[e.i][3] || 0} : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0};
+    if (e.i != null) base.p = pos(F[e.i][8]); else base.p = ovp('tx:' + e.t) || fxTmdbImg(md.p) || pos('tx:' + e.t);
     return Object.assign(base, {r: e.r || 0, h: e.l ? 1 : 0}, mx ? {g: (mx.g || []).slice(0, 5), c: (mx.c || []).slice(0, 4), lg: mx.l || '', ca: (mx.a || []).slice(0, 6)} : {});
   });
   out.fav = fxFav(seen).map(f => {
@@ -736,6 +740,7 @@ function mountFocus(root, D, S, opts) {
       h += `<section class="fx-card"><h2>${t.lbH}</h2><p class="fx-muted">${t.lbP}</p>
         <div class="fx-row"><label class="fx-btn fx-file">${t.lbPick}<input type="file" accept=".zip,.csv,application/zip,text/csv" multiple data-lbimport></label></div>
         ${lbBusy ? `<p class="fx-note busy" data-lbprog>${esc(lbBusy)}</p>` : msg('lb')}
+        ${opts.letterboxd.friends ? `<label class="fx-field"><span>${t.lbfL}</span><input type="text" data-cfg="cfg:lbf" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="username, another_one" value="${esc(seen()['cfg:lbf'] || '')}"></label><p class="fx-muted fx-small">${t.lbfP}</p>` : ''}
         <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p></section>`;
     }
     h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p></section>`;
@@ -1120,7 +1125,8 @@ function mountFocus(root, D, S, opts) {
   function saveCfg(c) {
     {
       let v = c.value.trim();
-      if (c.dataset.cfg === 'cfg:lb') { v = v.replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, ''); if (v && !/^[A-Za-z0-9_]{1,40}$/.test(v)) v = ''; c.value = v; }
+      if (c.dataset.cfg === 'cfg:lbf') { v = fxFriends(v).join(', '); c.value = v; }
+      else if (c.dataset.cfg === 'cfg:lb') { v = v.replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, ''); if (v && !/^[A-Za-z0-9_]{1,40}$/.test(v)) v = ''; c.value = v; }
       else if (c.type === 'url' && v && !/^https:\/\/[^\s"<>]+$/.test(v)) { if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) v = 'https://' + v; else v = ''; c.value = v; }
       S.set(c.dataset.cfg, v || null);
     }

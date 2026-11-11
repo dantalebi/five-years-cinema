@@ -9,7 +9,7 @@
     if (FX) return;
     fresh();
     const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m && m[1] !== 'signin' ? m[1] : '';
-    PF = fxProfile(root, PROFILE.gist, eid, {clean: true, base: PROFILE.url});
+    PF = fxProfile(root, PROFILE.gist, eid, {clean: true, base: PROFILE.url, feed: PROFILE.feed || ''});
   }
   const S = {all: () => Store.data, set: (k, v) => Store.set(k, v)};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -34,6 +34,7 @@
   }
   async function pool(list, n, fn) { let i = 0; await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => { while (i < list.length) await fn(list[i++]); })); }
   const LBX = {
+    friends: true,  // the GitHub Action reads friends' public feeds too (their usernames come from the published profile)
     status: () => ({at: Store.data['lbsync:at'] || '', n: +Store.data['lbsync:n'] || 0}),
     async importFiles(files, progress) {
       let rows = [];

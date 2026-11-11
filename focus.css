@@ -516,3 +516,67 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-wide .fx-rb i{background:var(--star)}
 .fx-top .fx-rn{white-space:nowrap}
 .fx-few{margin:0; font-size:13px}
+/* games on the profile: tiles, «این یا اون», «امشب چی ببینم؟», «هم‌سلیقگی» */
+.fx-play{display:grid; gap:16px; padding:18px 0 8px}
+.fx-center{justify-content:center; text-align:center}
+.fx-games{display:grid; gap:10px}
+.fx-game{all:unset; cursor:pointer; display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px; align-items:center; padding:14px; border-radius:12px; background:var(--sunk); transition:transform .15s ease}
+.fx-game:hover{transform:translateY(-1px)}
+.fx-game:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.fx-game .fx-b{display:grid; gap:4px}
+.fx-gt{font-size:17px; font-weight:700; color:var(--ink)}
+.fx[dir="ltr"] .fx-gt{font-family:var(--serif); font-weight:400; font-size:22px; line-height:1.1}
+.fx-game .fx-muted{font-size:13px; line-height:1.5}
+.fx-gstrip{display:flex; direction:ltr}
+.fx-gstrip img{width:38px; aspect-ratio:2/3; object-fit:cover; border-radius:3px; box-shadow:0 0 0 2px var(--sunk); background:var(--bg)}
+.fx-gstrip img + img{margin-left:-14px}
+.fx-gintro{display:grid; gap:6px; justify-items:center; text-align:center}
+.fx-gintro .fx-gstrip img{width:54px}
+.fx-gintro .fx-gstrip img + img{margin-left:-18px}
+.fx-gh{margin:0; font-size:20px; font-weight:700}
+.fx[dir="ltr"] .fx-gh{font-family:var(--serif); font-weight:400; font-size:30px; line-height:1.05}
+.fx-gh2{margin:6px 0 0; font-size:14px; font-weight:700}
+.fx[dir="ltr"] .fx-gh2{font-family:var(--mono); font-size:10.5px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.fx-vs{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:10px; align-items:center}
+.fx-vsb{all:unset; cursor:pointer; display:grid; gap:8px; justify-items:center; text-align:center; -webkit-tap-highlight-color:transparent}
+.fx-vsb .fx-pos{width:100%; max-width:220px; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.18); transition:transform .15s ease, box-shadow .15s ease}
+.fx-vsb:hover .fx-pos{transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,.24)}
+.fx-vsb:active .fx-pos{transform:scale(.97)}
+.fx-vsb:focus-visible .fx-pos{outline:3px solid var(--star); outline-offset:3px}
+.fx-vsb .fx-pt{font-size:13px}
+.fx-vst{font-family:var(--serif); font-size:17px; line-height:1.15; color:var(--ink); direction:ltr}
+.fx-vst .fx-y, .fx-ctitle .fx-y{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.fx-vso{font-family:var(--serif); font-style:italic; font-size:20px; color:var(--muted)}
+.fx-champ{display:grid; gap:8px; justify-items:center; text-align:center}
+.fx-champ .fx-cpos{width:min(58vw, 230px); border-radius:8px; box-shadow:0 0 0 3px var(--star), 0 12px 34px rgba(0,0,0,.25)}
+.fx-ctitle{font-family:var(--serif); font-size:26px; line-height:1.1; color:var(--ink); direction:ltr}
+.fx-rank{margin:0; padding:0; list-style:none; display:grid; gap:10px}
+.fx-rank li{display:grid; grid-template-columns:44px minmax(0,1fr); gap:10px; align-items:start}
+.fx-rank .fx-rk{font-family:var(--mono); font-size:12px; color:var(--muted); padding-top:4px}
+.fx-rkf{display:flex; flex-wrap:wrap; gap:8px 12px}
+.fx-rkp{display:flex; align-items:center; gap:8px; font-size:14px}
+.fx-rkpos{width:34px !important; flex:none}
+.fx-reel{display:grid; justify-items:center}
+.fx-reelpos, .fx-pickpos{width:min(46vw, 190px) !important; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.fx-pick{display:grid; gap:14px; justify-items:center; text-align:center}
+.fx-pick .fx-b{display:grid; gap:6px; justify-items:center}
+.fx-pick .fx-rvx{text-align:start; max-width:52ch}
+.fx-sels select{font:inherit; font-size:14px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:6px 12px}
+.fx-score{display:grid; justify-items:center; gap:2px}
+.fx-score b{font-family:"Reem Kufi", "Vazirmatn", Tahoma, sans-serif; font-size:64px; line-height:1; color:var(--star)}
+.fx[dir="ltr"] .fx-score b{font-family:var(--serif); font-weight:400; font-size:84px}
+.fx-score small{font-size:.45em; margin-inline-start:2px}
+.fx-score span{font-size:15px; color:var(--ink)}
+.fx-pairs{margin:0; padding:0; list-style:none; display:grid; gap:10px}
+.fx-pairs li{display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; align-items:center}
+.fx-pairs .fx-b{display:grid; gap:2px}
+.fx-mt{font-family:var(--serif); font-size:17px; line-height:1.15; direction:ltr; text-align:start}
+.fx-mr{display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted)}
+.fx-recs{display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:10px}
+.fx-rec{display:grid; gap:4px; justify-items:center; text-decoration:none}
+.fx-recpos{width:100% !important}
+.fx-friends button{font-family:var(--mono); font-size:12px}
+.fx-uform input{flex:1 1 180px; min-width:0; font:inherit; font-size:15px; padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--bg); color:var(--ink)}
+.fx-exp{display:grid; gap:8px; padding:14px; border-radius:12px; background:var(--sunk)}
+@media (prefers-reduced-motion: reduce){ .fx-game, .fx-vsb .fx-pos{transition:none} }
+.fx[dir="rtl"] .fx-mt{text-align:right}
