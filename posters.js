@@ -20,7 +20,7 @@ const Posters = (() => {
     const nt = norm(t); let best = null, bs = -1e9;
     (list || []).forEach((m, k) => {
       const my = +(m.release_date || '').slice(0, 4), dy = my ? Math.abs(my - y) : 9;
-      let s = dy === 0 ? 3 : dy === 1 ? 2 : dy === 2 ? 0.5 : -6;
+      let s = !y ? 0 : dy === 0 ? 3 : dy === 1 ? 2 : dy === 2 ? 0.5 : -6;
       if (norm(m.title) === nt || norm(m.original_title) === nt) s += 3;
       if (m.poster_path) s += 0.5; else s -= 4;
       s -= k * 0.15;
@@ -30,9 +30,9 @@ const Posters = (() => {
   }
   async function lookup(key, t, y) {
     const q = encodeURIComponent(t.replace(/\s*\(.*?\)\s*$/, ''));
-    let j = await api('/search/movie?query=' + q + '&year=' + y + '&include_adult=false&language=en-US');
+    let j = await api('/search/movie?query=' + q + (y ? '&year=' + y : '') + '&include_adult=false&language=en-US');
     let m = pick(j.results, t, y);
-    if (!m) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
+    if (!m && y) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
     cache[key] = [m && m.poster_path ? m.poster_path : '', Date.now()]; save();
     return cache[key][0];
   }

@@ -1,14 +1,14 @@
 {
- "name": "پنج سال سینما",
- "short_name": "پنج سال",
- "lang": "fa",
- "dir": "rtl",
+ "name": "Five Years of Cinema",
+ "short_name": "Five Years",
+ "lang": "en",
+ "dir": "ltr",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
  "background_color": "#0E1014",
  "theme_color": "#0E1014",
- "description": "فقط فیلم‌های همین هفته.",
+ "description": "This week's films, and nothing else.",
  "icons": [
   {
    "src": "icon192.png",

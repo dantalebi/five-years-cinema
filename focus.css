@@ -106,3 +106,23 @@ a.fx-film:hover{text-decoration:underline; text-decoration-thickness:1px}
 .fx-ro.done .fx-chk{background:var(--ink); border-color:var(--ink)}
 .fx-seen{font-size:12.5px; color:var(--ready)}
 .fx-link-pre{user-select:all; -webkit-user-select:all; word-break:break-all}
+/* v3: add / replace, English layout */
+.fx{text-align:start}
+.fx[dir="ltr"]{direction:ltr; font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", sans-serif; letter-spacing:-.003em}
+.fx[dir="ltr"] .fx-h1{font-family:"Instrument Serif", Georgia, "Times New Roman", serif; font-weight:400; font-size:40px; line-height:1.1; letter-spacing:-.01em}
+.fx[dir="ltr"] .fx-card h2{font-family:inherit; font-weight:700; letter-spacing:-.01em}
+.fx[dir="ltr"] .fx-steps{list-style-type:decimal}
+.fx[dir="ltr"] .fx-lane{font-weight:600; letter-spacing:.01em}
+.fx[dir="ltr"] .fx-th{font-style:italic}
+.fx-side{display:flex; flex-direction:column; align-items:flex-end; gap:6px}
+.fx[dir="rtl"] .fx-side{align-items:flex-start}
+.fx-i.fx-add{border-style:solid; border-color:color-mix(in srgb, var(--lA) 45%, var(--line))}
+.fx-picker{gap:8px}
+.fx-pick-h{font-weight:700}
+.fx-pick-q{font:inherit; font-size:16px; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:var(--sunk); color:var(--ink); width:100%}
+.fx-res{list-style:none; margin:0; padding:0; display:grid; gap:4px}
+.fx-hit{all:unset; box-sizing:border-box; width:100%; cursor:pointer; padding:6px 10px; border-radius:8px; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px}
+.fx-hit:hover, .fx-hit:focus-visible{background:var(--sunk)}
+.fx-hit .fx-film{font-size:1.15em}
+.fx-hd{font-size:12.5px; color:var(--muted)}
+.fx-asis{color:var(--lA); font-size:14px}

@@ -56,7 +56,11 @@ const FYSync = (() => {
     if (push) await req(auth.token, 'PATCH', '/gists/' + id, body(M));
     return {M, push, pull, gist: id};
   }
-  const message = e => ({auth: 'گیت‌هاب این توکن رو قبول نکرد. شاید منقضی شده یا دسترسی gist نداره.', net: 'به اینترنت یا گیت‌هاب وصل نشد؛ بعداً خودش دوباره امتحان می‌کنه.', limit: 'گیت‌هاب فعلاً درخواست‌ها رو محدود کرده؛ چند دقیقه‌ی دیگه خودش دوباره امتحان می‌کنه.'})[e && e.code] || 'همگام‌سازی نشد' + (e && e.message ? ' (' + e.message + ')' : '') + '.';
+  const MSG = {
+    fa: {auth: 'گیت‌هاب این توکن رو قبول نکرد. شاید منقضی شده یا دسترسی gist نداره.', net: 'به اینترنت یا گیت‌هاب وصل نشد؛ بعداً خودش دوباره امتحان می‌کنه.', limit: 'گیت‌هاب فعلاً درخواست‌ها رو محدود کرده؛ چند دقیقه‌ی دیگه خودش دوباره امتحان می‌کنه.', other: 'همگام‌سازی نشد'},
+    en: {auth: 'GitHub didn’t accept this token. It may have expired or lack gist access.', net: 'Couldn’t reach GitHub; it will try again on its own.', limit: 'GitHub is rate-limiting for now; it will try again in a few minutes.', other: 'Sync failed'},
+  };
+  const message = (e, lang) => { const m = MSG[lang === 'fa' ? 'fa' : 'en']; return m[e && e.code] || m.other + (e && e.message && e.message !== e.code ? ' (' + e.message + ')' : '') + '.'; };
   // ---- the plan itself lives in its own secret gist, so the public site carries no personal data ----
   const PLAN = 'five-years-plan.json', SHARE = 'five-years-share.json';
   async function fileText(f) {

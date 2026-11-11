@@ -27,7 +27,7 @@ const WebSync = (() => {
       try { await updateShare(token); } catch (e) { if (e.code === '404') { Store.set('cfg:share', null); } else throw e; }
       state = 'ok'; msg = ''; put('fy-at', String(Date.now()));
     } catch (e) {
-      state = 'err'; msg = FYSync.message(e);
+      state = 'err'; msg = FYSync.message(e, fxLang(Store.data));
     } finally {
       busy = false; tell();
       if (again) { again = false; setTimeout(run, 800); }
@@ -37,7 +37,7 @@ const WebSync = (() => {
   async function connect(tok) {
     tok = tok.trim();
     let login;
-    try { login = await FYSync.user(tok); } catch (e) { return FYSync.message(e); }
+    try { login = await FYSync.user(tok); } catch (e) { return FYSync.message(e, fxLang(Store.data)); }
     put('fy-gh', tok); put('fy-login', login || ''); put('fy-gist', null);
     await run();
     return state === 'err' ? msg : null;
@@ -56,18 +56,18 @@ const WebSync = (() => {
   }
   async function shareOn() {
     const token = ls('fy-gh');
-    if (!token || !payloadFn) return 'اول همگام‌سازی رو وصل کن.';
+    if (!token || !payloadFn) return fxLang(Store.data) === 'fa' ? 'اول همگام‌سازی رو وصل کن.' : 'Connect sync first.';
     try {
       const id = await FYSync.shareCreate(token, payloadFn());
       Store.set('cfg:share', id); put('fy-share-last', null);
       schedule();
       return null;
-    } catch (e) { return FYSync.message(e); }
+    } catch (e) { return FYSync.message(e, fxLang(Store.data)); }
   }
   async function shareOff() {
     const token = ls('fy-gh'), id = Store.get('cfg:share');
     if (!id) return null;
-    try { if (token) await FYSync.shareDelete(token, id); } catch (e) { return FYSync.message(e); }
+    try { if (token) await FYSync.shareDelete(token, id); } catch (e) { return FYSync.message(e, fxLang(Store.data)); }
     Store.set('cfg:share', null); put('fy-share-last', null);
     return null;
   }
