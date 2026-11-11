@@ -55,7 +55,7 @@
         try {
           const m = await Posters.match(r0.t, r0.y);
           if (m) {
-            const d = await Posters.details(m.id).catch(() => ({}));
+            const d = m.id ? await Posters.details(m.id).catch(() => ({})) : {};
             const p = d.p || m.p || '';
             need[k].forEach(r => { r.tm = m.id; r.md = {d: d.d || '', m: d.m || 0, p}; });
             if (p) Posters.put('tx:' + r0.t + (r0.y ? ' (' + r0.y + ')' : ''), p);

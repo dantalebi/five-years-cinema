@@ -4,7 +4,7 @@ const Posters = (() => {
   let token = null, cache = {}, busy = 0;
   const queue = [], waiting = {};
   try { cache = JSON.parse(localStorage.getItem('fy-posters') || '{}') || {}; } catch (e) { cache = {}; }
-  try { if (localStorage.getItem('fy-posters-v') !== '2') { for (const k in cache) if (!cache[k][0]) delete cache[k]; localStorage.setItem('fy-posters-v', '2'); } } catch (e) {}
+  try { if (localStorage.getItem('fy-posters-v') !== '3') { for (const k in cache) if (!cache[k][0]) delete cache[k]; localStorage.setItem('fy-posters-v', '3'); } } catch (e) {}
   let st = null;
   const save = () => { clearTimeout(st); st = setTimeout(() => { try { localStorage.setItem('fy-posters', JSON.stringify(cache)); } catch (e) {} }, 400); };
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -34,11 +34,26 @@ const Posters = (() => {
     });
     return bs >= 2 ? best : null;
   }
+  // miniseries Letterboxd lists as films (Landscapers, Twin Peaks: The Return…) are TV on TMDB: same title only
+  async function tvPick(t, y) {
+    const q = encodeURIComponent(String(t).replace(/\s*\(\d{4}\)\s*$/, '')), nt = norm(t);
+    const j = await api('/search/tv?query=' + q + '&include_adult=false&language=en-US');
+    const ok = (j.results || []).filter(s => (norm(s.name) === nt || norm(s.original_name) === nt) && s.poster_path)
+      .filter(s => { const sy = +(s.first_air_date || '').slice(0, 4); return !y || !sy || Math.abs(sy - y) <= 3; });
+    return ok[0] ? {id: ok[0].id, t: ok[0].name, y: +(ok[0].first_air_date || '').slice(0, 4) || y || 0, p: ok[0].poster_path} : null;
+  }
+  // last resort: the one film with exactly this title, whatever year TMDB gives it (re-release dates)
+  function loose(list, t) {
+    const nt = norm(t), same = (list || []).filter(m => m.poster_path && (norm(m.title) === nt || norm(m.original_title) === nt));
+    return same.length === 1 ? same[0] : null;
+  }
   async function lookup(key, t, y) {
     const q = encodeURIComponent(t.replace(/\s*\(.*?\)\s*$/, ''));
     let j = await api('/search/movie?query=' + q + (y ? '&year=' + y : '') + '&include_adult=false&language=en-US');
     let m = pick(j.results, t, y);
     if (!m && y) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
+    if (!m) { const s = await tvPick(t, y).catch(() => null); if (s) m = {poster_path: s.p}; }
+    if (!m) m = loose(j.results, t);
     cache[key] = [m && m.poster_path ? m.poster_path : '', Date.now()]; save();
     return cache[key][0];
   }
@@ -88,6 +103,8 @@ const Posters = (() => {
     let j = await api('/search/movie?query=' + q + (y ? '&year=' + y : '') + '&include_adult=false&language=en-US');
     let m = pick(j.results, t, y);
     if (!m && y) { j = await api('/search/movie?query=' + q + '&include_adult=false&language=en-US'); m = pick(j.results, t, y); }
+    if (!m) { const s = await tvPick(t, y).catch(() => null); if (s) return {id: 0, tv: s.id, t: s.t, y: s.y, p: s.p}; }
+    if (!m) m = loose(j.results, t);
     return m ? {id: m.id, t: m.title, y: +(m.release_date || '').slice(0, 4) || y || 0, p: m.poster_path || ''} : null;
   }
   // every poster and still TMDB has for a film (for choosing another one)
