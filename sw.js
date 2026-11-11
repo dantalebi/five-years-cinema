@@ -1,6 +1,6 @@
 // Offline shell: the app's own files come from the cache; posters and fonts are kept once fetched.
 // GitHub and TMDB API calls always go to the network.
-const V = 'fy-1115c3350553';
+const V = 'fy-293334b5c063';
 const SHELL = ["./", "index.html", "plan.html", "share.html", "share.js", "planload.js", "store.js", "sync.js", "websync.js", "posters.js", "focus.js", "focus.css", "app.js", "app.css", "plan.js", "manifest.webmanifest", "icon32.png", "apple-touch-icon.png", "icon192.png", "icon512.png", "maskable512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
