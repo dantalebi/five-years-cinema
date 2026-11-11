@@ -593,7 +593,7 @@ function mountFocus(root, D, S, opts) {
     const years = [...new Set(all.map(e => e.date.slice(0, 4)))].sort().reverse();
     if (diaryYear === null || (diaryYear !== 'all' && !years.includes(diaryYear))) diaryYear = years.length > 1 ? (years.includes(today().slice(0, 4)) ? today().slice(0, 4) : years[0]) : 'all';
     const list = diaryYear === 'all' ? all : all.filter(e => e.date.startsWith(diaryYear));
-    const mins = list.reduce((a, e) => a + (e.i != null ? F[e.i][3] || 0 : 0), 0), rated = list.filter(e => e.r);
+    const mins = list.reduce((a, e) => a + (e.i != null ? F[e.i][3] || 0 : (e.md && +e.md.m) || 0), 0), rated = list.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const hmFa = m => L() === 'fa' ? t.hm(m).replace(/\d+/g, d => fa(d)) : t.hm(m);
     const nfmt = n => L() === 'fa' ? fa(n) : Number(n).toLocaleString('en-US');
