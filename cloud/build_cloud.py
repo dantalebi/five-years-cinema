@@ -102,6 +102,8 @@ sw = sw.replace(old, old + "    if (u.pathname.startsWith('/api/')) return;\n"
                 "      e.respondWith(fetch(req).catch(() => caches.open(V).then(c => c.match('/')).then(hit => hit ? new Response(hit.body, {status: 200, headers: hit.headers}) : Response.error())));\n"
                 "      return;\n"
                 "    }\n")
+# the version also covers the worker's own code, so a change to how it works replaces the old one's stored files
+sw = re.sub(r"'fd-[0-9a-f]{12}'", "'fd-" + hashlib.sha256((h.hexdigest() + sw).encode()).hexdigest()[:12] + "'", sw)
 open(OUT + 'sw.js', 'w').write(sw)
 for f in sorted(os.listdir(OUT)):
     print(f, os.path.getsize(OUT + f))
