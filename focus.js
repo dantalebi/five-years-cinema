@@ -8,48 +8,49 @@ const FX_TH_EN = {'عشق': 'Love', 'وحشت': 'Horror', 'خنده': 'Comedy', 
   'میل و وسوسه': 'Desire', 'سینما درباره‌ی سینما': 'Cinema on cinema', 'اکشن و ماجرا': 'Action & adventure', 'وسترن': 'Westerns'};
 const FX_STR = {
   en: {
-    thisWeek: 'Now Showing', weekDone: 'That’s a wrap', surprise: t => 'Strand · ' + t,
-    eyebrow: (n, of, rt) => 'Programme · ' + n + '/' + of + ' logged' + (rt ? ' · ' + rt + ' total runtime' : ''),
-    hm: m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm',
-    whenReady: 'Programme complete.', showNext: 'Roll the next programme →',
-    restP: 'Intermission. No programme this week — watch anything, or nothing at all.', restSug: 'If you need something to put on:', restGo: 'Next programme →',
-    tonight: '⚄ Roll for tonight', tonightHint: 'for the indecisive', tonightTag: 'Tonight’s feature',
-    dl: 'Acquisition list · next programme', copy: 'Copy list', copied: 'Copied', selected: 'Selected — copy it',
-    watchedN: n => 'Diary · ' + n + (n === '1' ? ' entry' : ' entries'), skipped: 'Passed', notWatched: 'Unlog', restore: 'Undo',
-    skip: 'Pass', skipTitle: 'Drop it from this programme', watched: 'Log', other: 'Logged something else', otherPh: 'What did you watch?', save: 'Log it',
-    anything: 'Your call', yourPick: 'custom entry', free: 'Wildcard', lanes: {H: 'Canon', A: 'Auteur', C: 'Contemporary', P: 'Multiplex'},
-    st: {ok: 'Local copy', dl: 'Downloading', need: 'No copy yet'}, min: n => n + '′', firstBy: 'Entry point', marathon: (k, n) => 'Series ' + k + '/' + n,
-    friends: 'circle', friendsTitle: n => 'Average rating across ' + n + ' people you follow', howWas: 'Rate it', liked: 'Like', stars: n => n + ' stars',
-    review: '✎ Review', editReview: '✎ Edit review', reviewPh: 'Write a review… it’s your diary, spoilers allowed.',
-    settings: 'Settings', full: 'Five-year map', diaryLink: 'Diary', back: '← Back to the programme', end: 'Fin.', endP: 'Five years, every reel. From here on, the programme is yours.',
-    add: '+ Add a title', addH: 'Add to this week’s programme', replace: 'Swap', replaceH: t => 'Swap out ' + t, insteadOf: t => 'In lieu of ' + t, added: 'Off-programme',
-    remove: 'Drop', cancel: 'Cancel', addPh: 'Search the archive, or type any title', addAsIs: t => 'Add “' + t + '” as a custom entry', noMatch: 'Not in the archive — add it as a custom entry.',
-    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' entry' : ' entries') + ' · ' + h + ' watched' + (avg ? ' · avg ★' + avg : ''),
-    diaryEmpty: 'Nothing logged yet. The diary writes itself as you log films.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Remove from diary',
-    logOnLb: 'Letterboxd ↗', copyPost: 'Copy post', postCopied: 'Post copied — paste it in your channel.',
-    syncH: 'Sync', syncOn: login => 'Linked to GitHub' + (login ? ' as @' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last sync ' + a + '.',
-    syncNow: 'Sync now', disconnect: 'Unlink this device',
-    syncIntro: 'Your diary — logs, ratings, likes, reviews — lives in a private Gist on your own GitHub account and is merged across devices. Each device needs the same token once.',
-    syncSteps: ['Open <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">GitHub’s token page</a> — the name and the gist-only scope are pre-filled.', 'Set Expiration to <b>No expiration</b>, then Generate token.', 'Paste it below, and keep a copy in your password manager.'],
-    connect: 'Link', tokenNote: 'The token never leaves this device except in calls to api.github.com. A gist-only token can’t read or change your repositories or account settings.',
-    testing: 'Verifying token…', connected: 'Linked. From here on, everything syncs on its own.', disconnected: 'Device unlinked. Its local diary stays put.',
-    postersH: 'Artwork', postersOn: 'Posters are pulled from TMDB.', postersBad: 'TMDB rejected this token.', removeKey: 'Remove token',
-    postersIntro: 'Posters come from TMDB with your free API Read Access Token. Add it on one device; sync carries it to the rest.',
-    postersSteps: ['Sign up at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a> if you haven’t.', 'Request a Developer key on the <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API page</a> (personal use).', 'Copy the “API Read Access Token” — the long one starting with eyJ — and paste it here.'],
-    shortKey: 'That’s the short API Key. Paste the “API Read Access Token” (starts with eyJ).', checkingKey: 'Verifying token…', keyBad: 'TMDB rejected this token.',
+    thisWeek: 'This Week', weekDone: 'Week complete', surprise: t => t + ' week',
+    eyebrow: (n, of, rt) => of + (of === '1' ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n !== '0' ? ' · ' + n + ' watched' : ''),
+    hm: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm',
+    whenReady: 'Every film watched.', showNext: 'Next week →',
+    restP: 'A free week. Nothing scheduled — watch anything, or nothing at all.', restSug: 'If you’d like a suggestion', restGo: 'Continue to next week →',
+    tonight: 'Pick for me', tonightHint: '', tonightTag: 'Tonight',
+    dl: 'Next week’s downloads', copy: 'Copy', copied: 'Copied', selected: 'Selected — copy it',
+    watchedN: n => 'Diary · ' + n + (n === '1' ? ' film' : ' films'), skipped: 'Skipped', notWatched: 'Remove', restore: 'Undo',
+    skip: 'Skip', skipTitle: 'Skip this film', watched: 'Watched', other: 'Watched something else?', otherPh: 'Film title', save: 'Save',
+    anything: 'Anything you like', yourPick: 'Your pick', free: 'Your pick', lanes: {H: 'Classic', A: 'Auteur', C: 'Contemporary', P: 'Popular'},
+    st: {ok: 'Downloaded', dl: 'Downloading', need: 'Not downloaded'}, min: n => n + ' min', firstBy: d => 'Your first ' + d, marathon: (k, n) => 'Part ' + k + ' of ' + n,
+    friends: 'Friends', friendsTitle: n => 'Average rating from ' + n + ' friends', howWas: 'Rate', liked: 'Like', stars: n => n + ' stars', reviewed: 'Review',
+    review: 'Add a review', editReview: 'Edit review', reviewPh: 'Add a review…',
+    settings: 'Settings', full: 'Five-year plan', diaryLink: 'Diary', back: '← This week', end: 'The End', endP: 'Five years, every film. What comes next is up to you.',
+    add: '+ Add film', addH: 'Add a film', replace: 'Replace', replaceH: t => 'Replace ' + t, insteadOf: t => 'Instead of ' + t, added: 'Added',
+    remove: 'Remove', cancel: 'Cancel', addPh: 'Search films…', addAsIs: t => 'Add “' + t + '”', noMatch: 'Not in your plan — you can still add it.',
+    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ' · ' + h + (avg ? ' · ★ ' + avg + ' average' : ''),
+    diaryEmpty: 'Your diary is empty. Films you mark as watched show up here.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
+    logOnLb: 'Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied — ready to paste.',
+    syncH: 'Sync', syncOn: login => 'Connected' + (login ? ' as ' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last synced ' + a + '.',
+    syncNow: 'Sync now', disconnect: 'Disconnect this device',
+    syncIntro: 'Your diary — watched films, ratings, likes and reviews — is kept in a private Gist on your GitHub account, so every device stays in step. Add the same token once on each device.',
+    syncSteps: ['Open <a href="https://github.com/settings/tokens/new?scopes=gist&description=five-years-cinema" target="_blank" rel="noopener noreferrer">GitHub’s token page</a>. The name and gist-only access are already filled in.', 'Set Expiration to <b>No expiration</b>, then Generate token.', 'Paste it here — and keep a copy in your password manager.'],
+    connect: 'Connect', tokenNote: 'The token stays on this device and is only sent to api.github.com. With gist access alone, it can’t touch your repositories or account.',
+    testing: 'Checking token…', connected: 'Connected. Everything syncs automatically from now on.', disconnected: 'Disconnected. This device keeps its diary.',
+    postersH: 'Posters', postersOn: 'Posters from TMDB.', postersBad: 'TMDB didn’t accept this token.', removeKey: 'Remove token',
+    postersIntro: 'Posters come from TMDB, using your free API Read Access Token. Add it on one device; it syncs to the others.',
+    postersSteps: ['Create an account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a>.', 'Request a Developer key on the <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API page</a> (personal use).', 'Copy the “API Read Access Token” (the long one, starting with eyJ) and paste it here.'],
+    shortKey: 'That’s the short API Key. Paste the “API Read Access Token” — it starts with eyJ.', checkingKey: 'Checking token…', keyBad: 'TMDB didn’t accept this token.',
     keySaved: 'Saved. Posters will start appearing.', keySavedOffline: 'Saved. Posters will appear once you’re online.',
-    shareH: 'Public page', shareNeedSync: 'Link sync first — the page is published from the same GitHub account.',
-    shareOnP: 'Read-only for everyone else: the current programme (title, year, director, runtime, poster, log date) and, if enabled, your diary with ratings, likes and reviews. Acquisition status, lanes, the schedule and settings never leave your devices.',
-    shareOffP: 'Publish a read-only page — a film diary with a “Now Showing” programme. Visitors can read, never edit. Acquisition status, lanes, the schedule and settings stay private.',
-    shareMake: 'Publish page', shareCopy: 'Copy link', shareStop: 'Unpublish', shareMaking: 'Publishing…', shareMade: 'Published — copy the link and send it.', shareStopping: 'Unpublishing…', shareStopped: 'Unpublished. The old link is dead.',
-    nameL: 'Display name', namePh: 'e.g. Danial', chL: 'Channel link (optional)', chPh: 'https://t.me/yourchannel', pubDiary: 'Include my diary, ratings and reviews',
-    langH: 'Language', langNote: 'Also applies to your public page.',
-    bkH: 'Backup', bkP: 'Export or import your diary as JSON — for migrating from older versions or keeping an offline copy.', bkCopy: 'Copy JSON', bkPh: 'Paste a JSON backup', bkLoad: 'Import', bkDone: n => n + ' imported.', bkBad: 'Not a valid backup — paste the whole text you copied.',
+    shareH: 'Public profile', shareNeedSync: 'Connect sync first — your profile is published from the same GitHub account.',
+    shareOnP: 'Anyone with the link can read it — nobody can change it. It shows this week’s films and, if you choose, your diary with ratings, likes and reviews. Download status, categories, the full plan and your settings stay private.',
+    shareOffP: 'A read-only page for friends and followers: this week’s films and your film diary. Download status, categories, the full plan and your settings stay private.',
+    shareMake: 'Publish', shareCopy: 'Copy link', shareStop: 'Unpublish', shareMaking: 'Publishing…', shareMade: 'Published. Copy the link and share it.', shareStopping: 'Unpublishing…', shareStopped: 'Unpublished. The old link no longer works.',
+    nameL: 'Name', namePh: 'Your name', pubDiary: 'Show my diary, ratings and reviews', linksL: 'Links',
+    links: {lb: ['Letterboxd username', 'username'], tg: ['Telegram channel', 'https://t.me/…'], sp: ['Spotify', 'https://open.spotify.com/…'], ig: ['Instagram', 'https://instagram.com/…'], web: ['Website', 'https://…']},
+    langH: 'Language', langNote: 'Also used on your public profile.',
+    bkH: 'Backup', bkP: 'Copy your diary as JSON, or import one — handy when moving from an older version.', bkCopy: 'Copy JSON', bkPh: 'Paste JSON', bkLoad: 'Import', bkDone: n => n + ' imported.', bkBad: 'That isn’t a valid backup. Paste the whole text you copied.',
     copyPrompt: 'Copy this text:', ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
   },
   fa: {
     thisWeek: 'این هفته', weekDone: 'این هفته تموم شد', surprise: t => 'هفته‌ی سرزده: ' + t,
-    eyebrow: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''),
+    eyebrow: (n, of, rt) => of + ' فیلم' + (rt ? ' · ' + rt : '') + (n !== '۰' ? ' · ' + n + ' دیده شد' : ''),
     hm: m => m >= 60 ? Math.floor(m / 60) + ' ساعت و ' + (m % 60) + ' دقیقه' : m + ' دقیقه',
     whenReady: 'هر وقت آماده بودی:', showNext: 'هفته‌ی بعد رو نشونم بده',
     restP: 'این هفته برنامه نداره. هر چی دلت خواست ببین، یا هیچی.', restSug: 'اگه دنبال یه فیلم بودی:', restGo: 'بریم سراغ هفته‌ی بعد',
@@ -58,8 +59,8 @@ const FX_STR = {
     watchedN: n => 'دفتر · ' + n + ' فیلم', skipped: 'رد شد', notWatched: 'نه، ندیدم', restore: 'برگردون',
     skip: 'رد', skipTitle: 'این یکی رو بی‌خیال شو', watched: 'دیدمش', other: 'یه چیز دیگه دیدم', otherPh: 'اسم فیلمی که دیدی', save: 'ثبت',
     anything: 'هر چی دلت خواست', yourPick: 'خودت انتخاب کردی', free: 'آزاد', lanes: {H: 'تاریخ', A: 'مؤلف', C: 'امروز', P: 'پاپ'},
-    st: {ok: 'روی هارد', dl: 'در حال دانلود', need: 'دانلود کن'}, min: n => n + ' دقیقه', firstBy: 'اولین فیلمت ازش', marathon: (k, n) => 'ماراتن ' + k + ' از ' + n,
-    friends: 'دوستات', friendsTitle: n => 'میانگین امتیاز ' + n + ' نفر از دوستات', howWas: 'چطور بود؟', liked: 'دوستش داشتم', stars: n => n + ' ستاره',
+    st: {ok: 'روی هارد', dl: 'در حال دانلود', need: 'دانلود کن'}, min: n => n + ' دقیقه', firstBy: d => 'اولین فیلمت از ' + d, marathon: (k, n) => 'ماراتن ' + k + ' از ' + n,
+    reviewed: 'ریویو', friends: 'دوستات', friendsTitle: n => 'میانگین امتیاز ' + n + ' نفر از دوستات', howWas: 'چطور بود؟', liked: 'دوستش داشتم', stars: n => n + ' ستاره',
     review: '✎ ریویو', editReview: '✎ ویرایش ریویو', reviewPh: 'ریویوت رو بنویس… دفتر خودته، اسپویل هم آزاده.',
     settings: 'تنظیمات', full: 'نقشه‌ی پنج سال', diaryLink: 'دفتر', back: 'برگرد به این هفته', end: 'تموم شد', endP: 'همه‌ی هفته‌ها رو رفتی. حالا دیگه هر چی دلت خواست.',
     add: '+ یه فیلم اضافه کن', addH: 'یه فیلم به این هفته اضافه کن', replace: 'عوض کن', replaceH: t => 'به‌جای ' + t + '…', insteadOf: t => 'به‌جای ' + t, added: 'اضافه',
@@ -78,11 +79,12 @@ const FX_STR = {
     postersSteps: ['تو <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a> حساب بساز (اگه نداری).', 'از <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">صفحه‌ی API</a> یه کلید Developer بگیر.', '«API Read Access Token» (رشته‌ی بلندی که با eyJ شروع می‌شه) رو کپی کن و اینجا بچسبون.'],
     shortKey: 'این «API Key» کوتاهه؛ «API Read Access Token» رو بچسبون (با eyJ شروع می‌شه).', checkingKey: 'دارم کلید رو امتحان می‌کنم…', keyBad: 'TMDB این کلید رو قبول نکرد.',
     keySaved: 'ذخیره شد؛ پوسترها کم‌کم میان.', keySavedOffline: 'ذخیره شد؛ وقتی اینترنت بود پوسترها میان.',
-    shareH: 'صفحه‌ی عمومی', shareNeedSync: 'اول همگام‌سازی رو وصل کن؛ صفحه از همون حساب گیت‌هاب منتشر می‌شه.',
+    shareH: 'پروفایل عمومی', shareNeedSync: 'اول همگام‌سازی رو وصل کن؛ صفحه از همون حساب گیت‌هاب منتشر می‌شه.',
     shareOnP: 'بقیه فقط می‌تونن بخونن: برنامه‌ی همین هفته (اسم، سال، کارگردان، مدت، پوستر، تاریخ دیدن) و اگه روشن باشه، دفترت با ستاره‌ها، قلب‌ها و ریویوها. هارد، رگه‌ها، برنامه‌ی کامل و تنظیمات هیچ‌وقت از دستگاه‌هات بیرون نمی‌رن.',
     shareOffP: 'یه صفحه‌ی فقط‌خوندنی منتشر کن: دفتر فیلم‌هات به‌اضافه‌ی برنامه‌ی همین هفته. بقیه می‌تونن بخونن، ولی هیچ‌وقت نمی‌تونن تغییر بدن.',
     shareMake: 'انتشار صفحه', shareCopy: 'کپی لینک', shareStop: 'لغو انتشار', shareMaking: 'دارم منتشر می‌کنم…', shareMade: 'منتشر شد؛ لینک رو کپی کن و بفرست.', shareStopping: 'دارم لغوش می‌کنم…', shareStopped: 'لغو شد؛ لینک قبلی دیگه کار نمی‌کنه.',
-    nameL: 'اسمی که نشون داده بشه', namePh: 'مثلاً دانیال', chL: 'لینک کانال (اختیاری)', chPh: 'https://t.me/yourchannel', pubDiary: 'دفتر، ستاره‌ها و ریویوهام هم منتشر بشه',
+    nameL: 'اسم', namePh: 'اسمت', pubDiary: 'دفتر، ستاره‌ها و ریویوهام هم نشون داده بشه', linksL: 'لینک‌ها',
+    links: {lb: ['نام کاربری لترباکس', 'username'], tg: ['کانال تلگرام', 'https://t.me/…'], sp: ['اسپاتیفای', 'https://open.spotify.com/…'], ig: ['اینستاگرام', 'https://instagram.com/…'], web: ['وب‌سایت', 'https://…']},
     langH: 'زبان', langNote: 'صفحه‌ی عمومی هم همین زبان رو می‌گیره.',
     bkH: 'پشتیبان', bkP: 'برای آوردن دفتر از نسخه‌های قبلی یا نگه داشتن یه نسخه‌ی دستی.', bkCopy: 'کپی پشتیبان', bkPh: 'متن پشتیبان رو اینجا بچسبون', bkLoad: 'بازگردانی', bkDone: n => n + ' مورد اضافه شد.', bkBad: 'این متن پشتیبان درست نیست؛ کل متنی که کپی کردی رو بچسبون.',
     copyPrompt: 'این متن رو کپی کن:', ago: m => m < 1 ? 'همین الان' : m < 60 ? m + ' دقیقه پیش' : m < 1440 ? Math.round(m / 60) + ' ساعت پیش' : Math.round(m / 1440) + ' روز پیش',
@@ -196,7 +198,9 @@ function fxShare(D, seen, posterUrl) {
   const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', w: day || ''});
   const day = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '';
   const ch = /^https:\/\/[^\s"<>]+$/.test(seen['cfg:channel'] || '') ? seen['cfg:channel'] : '';
-  const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, now: {films: []}, diary: []};
+  const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
+  const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
+  const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
   if (w > D.W.length) out.now.end = 1;
   else {
     const films = out.now.films;
@@ -260,27 +264,42 @@ function mountFocus(root, D, S, opts) {
   const itemDone = it => it.add ? fxAddDone(seen(), it.k) : res(it.k);
   const itemSeen = it => it.add ? (it.i != null ? !!seen()[KEY(it.i)] : !!seen()['v:' + it.k]) : !!seen()[it.k];
 
-  function friends(i) {
-    const avg = F[i][14], n = F[i][15];
-    return n >= 3 ? `<span class="fx-fr" title="${esc(T().friendsTitle(fa(n)))}"><i aria-hidden="true"></i>${fa1(avg / 10)}<span class="fx-frn">${T().friends}</span></span>` : '';
-  }
+  const hmin = m => L() === 'fa' ? T().min(fa(m)) : T().hm(m);
+  // "Your first Ozu": family name, family-name-first for Chinese/Korean names, full name when two directors share it
+  const FAMILY_FIRST = new Set(['Jia', 'Wang', 'Bi', 'Hou', 'Tsai', 'Wong', 'Hong', 'Lee', 'Bong', 'Park', 'Kim', 'Zhang', 'Chen', 'Hu', 'Lou', 'Diao', 'Tian', 'Feng', 'King', 'Tsui', 'Lim', 'Hur', 'Im', 'Ozu']);
+  const SHORT = (() => {
+    const all = new Set(); F.forEach(f => f[2].split(', ').forEach(d => all.add(d)));
+    const short = d => { const p = d.split(' '); if (p.length < 2) return d; if (p[0] === 'Apichatpong') return 'Apichatpong'; if (FAMILY_FIRST.has(p[0]) && p.length === 2 && /-|^[A-Z][a-z]+$/.test(p[1]) && !/^(Ozu)$/.test(p[0])) return p[0]; return p[p.length - 1]; };
+    const count = {}, m = {};
+    all.forEach(d => { const s2 = short(d); count[s2] = (count[s2] || 0) + 1; m[d] = s2; });
+    all.forEach(d => { if (count[m[d]] > 1) m[d] = d; });
+    return m;
+  })();
+  const firstDir = i => { const d = F[i][2].split(', ')[0]; return L() === 'fa' ? FA[d] || d : SHORT[d] || d; };
   function marathon(s) {
     const d = String(s).replace(/[۰-۹]/g, c => '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)).match(/(\d+)\D+(\d+)/);
     return d && +d[2] > 1 ? T().marathon(fa(d[1]), fa(d[2])) : '';
   }
-  function meta(i, lane, free, extra) {
-    const st = STK[F[i][4]] || 'need', t = T(), bits = [];
-    if (extra) bits.push(extra);
-    else if (free) bits.push(`<span class="fx-lane F">${t.free}</span>`);
-    else if (t.lanes[lane]) bits.push(`<span class="fx-lane ${lane}">${t.lanes[lane]}</span>`);
-    bits.push(`<bdi>${esc(dirName(i))}</bdi>`);
-    if (F[i][3]) bits.push(`<span class="fx-rt">${t.min(fa(F[i][3]))}</span>`);
-    bits.push(friends(i));
-    const mt = F[i][11] ? marathon(F[i][11]) : '';
-    if (mt) bits.push(`<span class="fx-tag">${esc(mt)}</span>`);
-    else if (F[i][10] && !free && !extra) bits.push(`<span class="fx-tag">${t.firstBy}</span>`);
-    bits.push(`<span class="fx-st ${st}">${t.st[st]}</span>`);
-    return bits.join('');
+  function titleLine(i, text) {
+    if (i != null) return `<div class="fx-tl"><a class="fx-film" href="${link(i)}" target="_blank" rel="noopener noreferrer">${esc(F[i][0])}</a><span class="fx-y">${F[i][1]}</span></div>`;
+    return `<div class="fx-tl"><a class="fx-film" dir="auto" href="${lbSearch(text)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a></div>`;
+  }
+  const subLine = i => i == null ? '' : `<div class="fx-sub"><span class="fx-tw"><bdi>${esc(dirName(i))}</bdi>${F[i][3] ? `<span>${hmin(F[i][3])}</span>` : ''}</span></div>`;
+  // one quiet line of context: lane, series or first film by the director, friends' average, and a warning only if there's no copy yet
+  function tagLine(i, lane, extra) {
+    const t = T(), tags = [];
+    if (extra) tags.push(`<span class="fx-tg x">${extra}</span>`);
+    else if (lane === 'F') tags.push(`<span class="fx-tg lane F"><i class="fx-ldot"></i>${t.free}</span>`);
+    else if (t.lanes[lane]) tags.push(`<span class="fx-tg lane ${lane}"><i class="fx-ldot"></i>${t.lanes[lane]}</span>`);
+    if (i != null) {
+      const mt = F[i][11] ? marathon(F[i][11]) : '';
+      if (mt) tags.push(`<span class="fx-tg">${esc(mt)}</span>`);
+      else if (F[i][10] && !extra && lane !== 'F') tags.push(`<span class="fx-tg">${esc(t.firstBy(firstDir(i)))}</span>`);
+      if (F[i][15] >= 3) tags.push(`<span class="fx-tg fr" title="${esc(t.friendsTitle(fa(F[i][15])))}">${t.friends}<i aria-hidden="true"></i>${fa1(F[i][14] / 10)}</span>`);
+      const st = STK[F[i][4]];
+      if (st === 'need' || st === 'dl') tags.push(`<span class="fx-tg warn">${t.st[st]}</span>`);
+    }
+    return tags.length ? `<div class="fx-tags"><span class="fx-tw">${tags.join('')}</span></div>` : '';
   }
   function poster(i, title) {
     if (!posterOn()) return '';
@@ -305,12 +324,14 @@ function mountFocus(root, D, S, opts) {
     const s = seen(), r = +(s['r:' + rk] || 0), l = !!s['l:' + rk];
     return (r ? `<span class="fx-mini" dir="ltr">${'★'.repeat(Math.floor(r / 2))}${r % 2 ? '½' : ''}</span>` : '') + (l ? '<span class="fx-mh">♥︎</span>' : '');
   }
-  const chk = done => `<button type="button" class="fx-chk" data-tick aria-pressed="${done}" aria-label="${T().watched}">${done ? '✓' : ''}</button>`;
-  function sideBtns(done, skipped, canReplace) {
+  const chk = done => `<button type="button" class="fx-chk" data-tick aria-pressed="${done}" aria-label="${T().watched}" title="${T().watched}">${done ? '✓' : ''}</button>`;
+  function actions(done, skipped, kind) {
     const t = T();
-    if (skipped) return `<div class="fx-side"><button type="button" class="fx-link" data-unskip>${t.restore}</button></div>`;
-    if (done) return '<div class="fx-side"></div>';
-    return `<div class="fx-side"><button type="button" class="fx-link fx-skipb" data-skip title="${esc(t.skipTitle)}">${t.skip}</button>${canReplace ? `<button type="button" class="fx-link fx-skipb" data-replace>${t.replace}</button>` : ''}</div>`;
+    let links = '';
+    if (kind === 'add') links = `<button type="button" class="fx-link fx-al" data-remove>${t.remove}</button>`;
+    else if (skipped) links = `<button type="button" class="fx-link fx-al" data-unskip>${t.restore}</button>`;
+    else if (!done) links = `<button type="button" class="fx-link fx-al" data-skip title="${esc(t.skipTitle)}">${t.skip}</button><button type="button" class="fx-link fx-al" data-replace>${t.replace}</button>`;
+    return `<div class="fx-acts">${skipped ? '<span class="fx-chk ghost" aria-hidden="true"></span>' : chk(done)}${links}</div>`;
   }
   const tonightTag = k => pickK === k ? `<span class="fx-tonight">${T().tonightTag}</span>` : '';
   function card(w, it, n) {
@@ -318,29 +339,26 @@ function mountFocus(root, D, S, opts) {
     if (it.add) {
       const done = itemSeen(it), rk = it.i != null ? KEY(it.i) : it.k;
       const orig = it.rp ? origTitle(it.rp) : '';
-      const tag = `<span class="fx-lane F">${orig ? esc(t.insteadOf(orig)) : t.added}</span>`;
-      const title = it.i != null ? `<a class="fx-film" href="${link(it.i)}" target="_blank" rel="noopener noreferrer">${esc(F[it.i][0])}</a> <span class="fx-y">${F[it.i][1]}</span>` : `<a class="fx-film" dir="auto" href="${lbSearch(it.title)}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a>`;
-      const sub = it.i != null ? `<div class="fx-m">${meta(it.i, '', false, tag)}</div>` : `<div class="fx-m">${tag}</div>`;
-      return `<li class="fx-i fx-add ${done ? 'done' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${chk(done)}${poster(it.i, it.i == null ? it.title : '')}
-        <div class="fx-b">${tonightTag(it.k)}<div>${title}</div>${sub}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
-        <div class="fx-side"><button type="button" class="fx-link fx-skipb" data-remove>${t.remove}</button></div></li>`;
+      const extra = esc(orig ? t.insteadOf(orig) : t.added);
+      return `<li class="fx-i fx-add ${done ? 'done' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(it.i, it.i == null ? it.title : '')}
+        <div class="fx-b">${tonightTag(it.k)}${titleLine(it.i, it.title)}${subLine(it.i)}${tagLine(it.i, '', extra)}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
+        ${actions(done, false, 'add')}</li>`;
     }
     if (it.free) {
       const v = s[it.k] || '', skipped = !!s['sk:' + it.k];
       const i = sugFor(w, n), txt = v && !v.startsWith('k:') ? v : '';
       const done = !!v, cls = done ? 'done' : skipped ? 'skip' : '';
       const rk = v.startsWith('k:') ? v.slice(2) : it.k;
-      const title = txt ? `<span class="fx-film" dir="auto">${esc(txt)}</span>` : i != null ? `<a class="fx-film" href="${link(i)}" target="_blank" rel="noopener noreferrer">${esc(F[i][0])}</a> <span class="fx-y">${F[i][1]}</span>` : `<span class="fx-film">${t.anything}</span>`;
-      const sub = txt ? `<div class="fx-m"><span class="fx-lane F">${t.free}</span><span>${t.yourPick}</span></div>` : i != null ? `<div class="fx-m">${meta(i, '', true)}</div>` : '';
-      const alt = !done && !skipped ? (altOpen[it.k] ? `<form class="fx-alt" data-alt="${esc(it.k)}"><input type="text" dir="auto" placeholder="${esc(t.otherPh)}" aria-label="${esc(t.otherPh)}" required><button type="submit">${t.save}</button></form>` : `<button type="button" class="fx-link" data-open-alt="${esc(it.k)}">${t.other}</button>`) : '';
-      return `<li class="fx-i ${cls}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}" data-sug="${i != null ? i : ''}">${chk(done)}${poster(txt ? null : i, txt)}
-        <div class="fx-b">${tonightTag(it.k)}<div>${title}</div>${sub}${alt}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
-        ${sideBtns(done, skipped, true)}</li>`;
+      const body = txt ? titleLine(null, txt) + tagLine(null, '', esc(t.yourPick)) : i != null ? titleLine(i) + subLine(i) + tagLine(i, 'F') : `<div class="fx-tl"><span class="fx-film">${t.anything}</span></div>`;
+      const alt = !done && !skipped ? (altOpen[it.k] ? `<form class="fx-alt" data-alt="${esc(it.k)}"><input type="text" dir="auto" placeholder="${esc(t.otherPh)}" aria-label="${esc(t.otherPh)}" required><button type="submit">${t.save}</button></form>` : `<button type="button" class="fx-link fx-other" data-open-alt="${esc(it.k)}">${t.other}</button>`) : '';
+      return `<li class="fx-i ${cls}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}" data-sug="${i != null ? i : ''}">${poster(txt ? null : i, txt)}
+        <div class="fx-b">${tonightTag(it.k)}${body}${alt}${done ? rateRow(rk) + reviewBlock(rk) : ''}</div>
+        ${actions(done, skipped, 'film')}</li>`;
     }
     const i = it.i, done = !!s[it.k], skipped = !done && !!s['sk:' + it.k];
-    return `<li class="fx-i ${done ? 'done' : skipped ? 'skip' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${chk(done)}${poster(i)}
-      <div class="fx-b">${tonightTag(it.k)}<div><a class="fx-film" href="${link(i)}" target="_blank" rel="noopener noreferrer">${esc(F[i][0])}</a> <span class="fx-y">${F[i][1]}</span></div><div class="fx-m">${meta(i, it.lane, false)}</div>${done ? rateRow(it.k) + reviewBlock(it.k) : ''}</div>
-      ${sideBtns(done, skipped, true)}</li>`;
+    return `<li class="fx-i ${done ? 'done' : skipped ? 'skip' : ''}${pickK === it.k ? ' pick' : ''}" data-k="${esc(it.k)}">${poster(i)}
+      <div class="fx-b">${tonightTag(it.k)}${titleLine(i)}${subLine(i)}${tagLine(i, it.lane)}${done ? rateRow(it.k) + reviewBlock(it.k) : ''}</div>
+      ${actions(done, skipped, 'film')}</li>`;
   }
   function origTitle(k) {
     if (KEYIDX[k] !== undefined) return F[KEYIDX[k]][0];
@@ -405,7 +423,7 @@ function mountFocus(root, D, S, opts) {
     const finished = w < cur;
     const th = m.th ? (L() === 'fa' ? m.th : FX_TH_EN[m.th] || m.th) : '';
     const rt = list.reduce((a, it) => { const i = it.free ? (seen()[it.k] && !String(seen()[it.k]).startsWith('k:') ? null : sugFor(w, it.n)) : it.i; return a + (i != null && !seen()['sk:' + it.k] ? F[i][3] || 0 : 0); }, 0);
-    const eye = list.length ? `<div class="fx-eye">${esc(t.eyebrow(fa(list.filter(itemSeen).length), fa(list.filter(it => !seen()['sk:' + it.k]).length), rt ? t.hm(rt).replace(/\d+/g, d => fa(d)) : ''))}</div>` : '';
+    const eye = list.length ? `<div class="fx-eye">${esc(t.eyebrow(fa(list.filter(itemSeen).length), fa(list.filter(it => !seen()['sk:' + it.k]).length), rt ? (L() === 'fa' ? t.hm(rt).replace(/\d+/g, d => fa(d)) : t.hm(rt)) : ''))}</div>` : '';
     h += `<header class="fx-head">${eye}<div class="fx-hrow"><h1 class="fx-h1">${finished ? t.weekDone : t.thisWeek}</h1>${th && !m.free ? `<span class="fx-th">${esc(t.surprise(th))}</span>` : ''}</div>${m.free && !list.length ? '' : dots(list)}</header>`;
     if (finished) h += `<div class="fx-next"><span>${t.whenReady}</span><button type="button" class="fx-btn primary" data-advance>${t.showNext}</button></div>`;
     if (m.free) {
@@ -447,14 +465,13 @@ function mountFocus(root, D, S, opts) {
     list.forEach(e => {
       const d = new Date(e.date + 'T12:00:00'), mk = mf.format(d);
       if (mk !== month) { if (month) h += '</ul>'; month = mk; h += `<h2 class="fx-mon">${esc(mk)}</h2><ul class="fx-dl">`; }
-      const title = e.i != null ? `<a class="fx-film" href="${link(e.i)}" target="_blank" rel="noopener noreferrer">${esc(F[e.i][0])}</a> <span class="fx-y">${F[e.i][1]}</span>` : `<span class="fx-film" dir="auto">${esc(e.t)}</span>`;
       const ed = editK === e.k;
       h += `<li class="fx-de${ed ? ' open' : ''}" data-dk="${esc(e.k)}"><span class="fx-dday">${dayN.format(d)}</span>${posterOn() ? poster(e.i, e.i == null ? e.t : '') : ''}
-        <div class="fx-db"><div>${title}</div><div class="fx-dm">${starsText(e.k)}${e.rv ? '<span class="fx-rvi" aria-label="review">✎</span>' : ''}${e.i != null ? `<bdi class="fx-hd">${esc(dirName(e.i))}</bdi>` : ''}</div>
+        <div class="fx-b">${titleLine(e.i, e.t)}${subLine(e.i)}${e.r || e.l || e.rv ? `<div class="fx-dm">${starsText(e.k)}${e.rv ? `<span class="fx-rvi">${t.reviewed}</span>` : ''}</div>` : ''}
         ${ed ? `<div class="fx-ded"><label class="fx-dlab">${t.watchedOn} <input type="date" class="fx-date" value="${e.date}" max="${today()}"></label>${rateRow(e.k)}<textarea class="fx-rv" data-rv="${esc(e.k)}" dir="auto" rows="5" placeholder="${esc(t.reviewPh)}">${esc(e.rv)}</textarea>
           <div class="fx-row"><button type="button" class="fx-btn primary" data-dedone>${t.done}</button><button type="button" class="fx-btn" data-post>${t.copyPost}</button>${e.i != null ? `<a class="fx-link" href="${link(e.i)}" target="_blank" rel="noopener noreferrer">${t.logOnLb}</a>` : ''}<button type="button" class="fx-link" data-unlog>${t.unlog}</button></div>${note.post && note.post[2] === e.k ? `<p class="fx-note ok">${esc(note.post[1])}</p>` : ''}</div>`
         : (e.rv ? `<p class="fx-rvx" dir="auto">${esc(e.rv.length > 280 ? e.rv.slice(0, 280) + '…' : e.rv)}</p>` : '')}</div>
-        ${ed ? '' : `<button type="button" class="fx-link fx-skipb" data-dedit>${t.edit}</button>`}</li>`;
+        <div class="fx-acts">${ed ? '' : `<button type="button" class="fx-link fx-al" data-dedit>${t.edit}</button>`}</div></li>`;
     });
     h += '</ul></div>';
     h += `<div class="fx-row"><button type="button" class="fx-btn primary" data-back>${t.back}</button></div>`;
@@ -481,7 +498,7 @@ function mountFocus(root, D, S, opts) {
       else {
         h += `<p>${sid ? t.shareOnP : t.shareOffP}</p>
           <label class="fx-field"><span>${t.nameL}</span><input type="text" data-cfg="cfg:name" maxlength="60" dir="auto" placeholder="${esc(t.namePh)}" value="${esc(seen()['cfg:name'] || '')}"></label>
-          <label class="fx-field"><span>${t.chL}</span><input type="url" data-cfg="cfg:channel" dir="ltr" placeholder="${esc(t.chPh)}" value="${esc(seen()['cfg:channel'] || '')}"></label>
+          <div class="fx-field"><span>${t.linksL}</span><div class="fx-links-ed">${[['lb', 'cfg:lb', 'text'], ['tg', 'cfg:channel', 'url'], ['sp', 'cfg:sp', 'url'], ['ig', 'cfg:ig', 'url'], ['web', 'cfg:web', 'url']].map(([k, ck, ty]) => `<label><span>${t.links[k][0]}</span><input type="${ty}" data-cfg="${ck}" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="${esc(t.links[k][1])}" value="${esc(seen()[ck] || '')}"></label>`).join('')}</div></div>
           <label class="fx-check"><input type="checkbox" data-pubdiary${seen()['cfg:pubdiary'] !== '0' ? ' checked' : ''}> ${t.pubDiary}</label>`;
         if (sid) h += `<pre class="fx-pre fx-link-pre" dir="ltr">${esc(ST.shareUrl(sid))}</pre><div class="fx-row"><button type="button" class="fx-btn primary" data-share-copy>${t.shareCopy}</button><button type="button" class="fx-link" data-share-off>${t.shareStop}</button></div>`;
         else h += `<div class="fx-row"><button type="button" class="fx-btn primary" data-share-on>${t.shareMake}</button></div>`;
@@ -542,7 +559,12 @@ function mountFocus(root, D, S, opts) {
   });
   root.addEventListener('change', e => {
     const c = e.target.closest('input[data-cfg]');
-    if (c) { const v = c.value.trim(); if (c.dataset.cfg === 'cfg:channel' && v && !/^https:\/\/\S+$/.test(v)) { c.value = ''; return; } S.set(c.dataset.cfg, v || null); return; }
+    if (c) {
+      let v = c.value.trim();
+      if (c.dataset.cfg === 'cfg:lb') { v = v.replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, ''); if (v && !/^[A-Za-z0-9_]{1,40}$/.test(v)) v = ''; c.value = v; }
+      else if (c.type === 'url' && v && !/^https:\/\/[^\s"<>]+$/.test(v)) { if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) v = 'https://' + v; else v = ''; c.value = v; }
+      S.set(c.dataset.cfg, v || null); return;
+    }
     if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
     const d = e.target.closest('input.fx-date');
     if (d && /^\d{4}-\d\d-\d\d$/.test(d.value)) { const k = d.closest('[data-dk]').dataset.dk; if (k.startsWith('add:') || k.startsWith('free:')) S.set('v:' + k, d.value); else S.set(k, d.value); render(); }

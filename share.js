@@ -4,16 +4,17 @@
   const root = document.getElementById('root');
   const hm = (location.hash.match(/^#([0-9a-f]{20,40})(?:\/([a-z0-9-]{1,120}))?$/i) || []);
   const id = hm[1], focusId = hm[2] || '';
-  let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, jumped = false;
+  let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, jumped = false, withP = false;
   const TX = {
-    en: {diary: 'Film diary', title: 'Film Diary', now: 'Now Showing', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
-      prog: (n, of, rt) => 'Programme · ' + n + '/' + of + ' logged' + (rt ? ' · ' + rt + ' runtime' : ''), end: 'The five-year programme is complete.', rest: 'Intermission — no programme this week.',
-      watched: 'Logged', min: n => n + '′', films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h watched', avg: a => 'avg ★' + a, likes: n => n + ' ♥', reviews: n => n + (n === 1 ? ' review' : ' reviews'),
-      discuss: 'Discuss on the channel ↗', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
-      spread: 'Rating spread', decades: 'By decade', directors: 'Most-logged directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'total runtime',
-      bad: 'This link is incomplete', gone: 'This page is no longer published', fail: 'Couldn’t load right now', later: 'Try again in a few minutes.',
+    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', updated: a => 'updated ' + a,
+      prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'The five-year plan is complete.', rest: 'A free week — nothing scheduled.',
+      watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => n + 'h', avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
+      perma: 'Copy link to this entry', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      spread: 'Ratings', decades: 'Decades', directors: 'Most-watched directors', totals: 'Totals', rated: 'rated', liked: 'liked', reviewed: 'reviewed', runtime: 'watched',
+      bad: 'This link is incomplete', gone: 'This profile is no longer published', fail: 'Couldn’t load', later: 'Try again in a few minutes.',
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
-      hmf: m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm', attr: 'Posters: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.'},
+      hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
+      links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
     fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
@@ -21,6 +22,7 @@
       spread: 'پخش امتیازها', decades: 'به تفکیک دهه', directors: 'کارگردان‌های پرتکرار', totals: 'جمع', rated: 'امتیازدار', liked: 'قلب‌دار', reviewed: 'ریویودار', runtime: 'زمان کل',
       bad: 'این لینک کامل نیست', gone: 'این صفحه دیگه منتشر نمی‌شه', fail: 'الان باز نشد', later: 'چند دقیقه‌ی دیگه دوباره امتحان کن.',
       ago: m => m < 1 ? 'همین الان' : m < 60 ? m + ' دقیقه پیش' : m < 1440 ? Math.round(m / 60) + ' ساعت پیش' : Math.round(m / 1440) + ' روز پیش',
+      links: {lb: 'لترباکس', tg: 'تلگرام', sp: 'اسپاتیفای', ig: 'اینستاگرام', web: 'وب‌سایت'},
       hmf: m => m >= 60 ? Math.floor(m / 60) + ' ساعت و ' + (m % 60) + ' دقیقه' : m + ' دقیقه', attr: 'پوسترها: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.'},
   };
   const T = () => TX[lang];
@@ -38,19 +40,28 @@
   const permalink = eid => location.href.replace(/#.*$/, '') + '#' + id + '/' + eid;
 
   function poster(f) {
+    if (!withP) return '';
     return `<span class="fx-pos${okPoster(f.p) ? '' : ' none'}" aria-hidden="true">${okPoster(f.p) ? `<img alt="" loading="lazy" src="${f.p}">` : ''}<span class="fx-pt" dir="ltr">${esc(f.t)}</span></span>`;
   }
-  function titleOf(f) {
-    const link = okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : '';
+  const lbUser = () => (data && data.links && /^[A-Za-z0-9_]{1,40}$/.test(data.links.lb || '')) ? data.links.lb : '';
+  function titleOf(f, own) {
+    const u = lbUser(), link = okSlug(f.l) ? (own && u ? `https://letterboxd.com/${u}/film/${f.l}/` : `https://letterboxd.com/film/${f.l}/`) : '';
     const t = link ? `<a class="fx-film" href="${link}" target="_blank" rel="noopener noreferrer">${esc(f.t)}</a>` : `<span class="fx-film" dir="auto">${esc(f.t)}</span>`;
-    return t + (f.y ? ` <span class="fx-y">${f.y}</span>` : '');
+    return `<div class="fx-tl">${t}${f.y ? `<span class="fx-y">${f.y}</span>` : ''}</div>`;
+  }
+  const subOf = f => (f.d || f.m) ? `<div class="fx-sub"><span class="fx-tw">${f.d ? `<bdi>${esc(f.d)}</bdi>` : ''}${f.m ? `<span>${lang === 'fa' ? faDigits(T().hmf(+f.m)) : T().hmf(+f.m)}</span>` : ''}</span></div>` : '';
+  function linksRow() {
+    const t = T(), L = data.links || {}, out = [];
+    const lb = lbUser(); if (lb) out.push(`<a href="https://letterboxd.com/${lb}/" target="_blank" rel="noopener noreferrer">${t.links.lb}</a>`);
+    [['tg', L.tg || data.ch], ['sp', L.sp], ['ig', L.ig], ['web', L.web]].forEach(([k, u]) => { if (okUrl(u)) out.push(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t.links[k]}</a>`); });
+    return out.length ? `<div class="fx-links"><span class="fx-tw">${out.join('')}</span></div>` : '';
   }
   function header() {
     const t = T(), d = data.diary || [], mins = d.reduce((a, e) => a + (+e.m || 0), 0), rated = d.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
-    const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', t.likes(d.filter(e => e.h).length), t.reviews(d.filter(e => e.rv).length)].filter(Boolean).map(faDigits).join(' · ') : '';
-    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-eye fx-strip">${esc(strip)}</div>` : ''}${okUrl(data.ch) ? `<a class="fx-link fx-ch" href="${esc(data.ch)}" target="_blank" rel="noopener noreferrer">${t.discuss}</a>` : ''}</header>`;
+    const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(faDigits).join('  ·  ') : '';
+    let h = `<header class="fx-head"><div class="fx-eye">${esc(t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}</header>`;
     if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
@@ -62,18 +73,18 @@
     let h = `<div class="fx-eye">${esc(faDigits(t.prog(films.filter(f => f.w).length, films.length, rt ? t.hmf(rt) : '')))}</div>`;
     h += `<div class="fx-dots">${films.map(f => `<i class="${f.w ? 'on' : ''}"></i>`).join('')}</div>`;
     h += '<ul class="fx-list">' + films.map(f => {
-      const meta = [f.d ? `<bdi>${esc(f.d)}</bdi>` : '', f.m ? `<span class="fx-rt">${t.min(fa(f.m))}</span>` : ''].join('');
-      const watched = f.w ? `<span class="fx-seen">${t.watched}${pdate(f.w) ? ' · ' + pdate(f.w) : ''}</span>` : '';
-      return `<li class="fx-i fx-ro${f.w ? ' done' : ''}"><span class="fx-chk" aria-hidden="true">${f.w ? '✓' : ''}</span>${poster(f)}<div class="fx-b"><div>${titleOf(f)}</div><div class="fx-m">${meta}</div>${watched}</div><span></span></li>`;
+      const watched = f.w ? `<div class="fx-seen">${t.watched}${pdate(f.w) ? ' ' + pdate(f.w) : ''}</div>` : '';
+      return `<li class="fx-i fx-ro${f.w ? ' done' : ''}">${poster(f)}<div class="fx-b">${titleOf(f)}${subOf(f)}${watched}</div><div class="fx-acts"><span class="fx-chk" aria-hidden="true">${f.w ? '✓' : ''}</span></div></li>`;
     }).join('') + '</ul>';
     return h;
   }
   function entry(e, full) {
     const t = T(), long = (e.rv || '').length > 320, isOpen = full || open[e.id] || e.id === focusId;
     const rv = e.rv ? `<p class="fx-rvx" dir="auto">${esc(isOpen || !long ? e.rv : e.rv.slice(0, 320) + '…')}</p>${long && !full ? `<button type="button" class="fx-link fx-rvb" data-more="${esc(e.id)}">${isOpen ? t.less : t.more}</button>` : ''}` : '';
+    const dm = (e.r || e.h || full) ? `<div class="fx-dm">${e.r ? `<span class="fx-mini" dir="ltr">${stars(e.r)}</span>` : ''}${e.h ? '<span class="fx-mh">♥︎</span>' : ''}${full ? `<span class="fx-hd">${t.watched} ${pdate(e.w)}</span>` : ''}</div>` : '';
     return `<li class="fx-de${e.id === focusId ? ' hl' : ''}" id="e-${esc(e.id)}"><span class="fx-dday">${faDigits(day.test(e.w) ? +e.w.slice(8) : '')}</span>${poster(e)}
-      <div class="fx-db"><div>${titleOf(e)}</div><div class="fx-dm"><span class="fx-mini" dir="ltr">${stars(e.r)}</span>${e.h ? '<span class="fx-mh">♥︎</span>' : ''}${e.d ? `<bdi class="fx-hd">${esc(e.d)}</bdi>` : ''}${full ? `<span class="fx-hd">${pdate(e.w)}</span>` : ''}</div>${rv}</div>
-      <button type="button" class="fx-link fx-skipb" data-perma="${esc(e.id)}" title="${t.perma}">#</button></li>`;
+      <div class="fx-b">${titleOf(e, true)}${subOf(e)}${dm}${rv}</div>
+      <button type="button" class="fx-perma" data-perma="${esc(e.id)}" title="${t.perma}" aria-label="${t.perma}">#</button></li>`;
   }
   function diaryView() {
     const d = data.diary || [];
@@ -112,7 +123,7 @@
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
     document.title = (data && data.name ? data.name + ' · ' : '') + t.title;
     const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : nowView();
-    const hasP = /fx-pos"|fx-pos /.test(body) && /<img/.test(body);
+    const hasP = withP;
     root.innerHTML = `<div class="fx fx-share fx-pub${hasP ? ' fx-hasp' : ''}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${header()}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
@@ -142,6 +153,7 @@
       lang = data.lang === 'fa' ? 'fa' : 'en';
       if (!Array.isArray(data.diary)) data.diary = [];
       data.diary = data.diary.filter(e => e && typeof e.t === 'string');
+      withP = [].concat((data.now && data.now.films) || data.films || [], data.diary).some(f => f && okPoster(f.p));
       updated = g.updated_at;
       render();
       if (focusId && !jumped) { jumped = true; const el = document.getElementById('e-' + focusId); if (el) el.scrollIntoView({block: 'center'}); }
