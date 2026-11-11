@@ -103,7 +103,11 @@ const FXLB = (() => {
       const put = (p, v) => { if (v && !cur[p + k]) { set(p + k, v); ch = true; } };
       put('r:', r.r || 0); put('l:', r.l ? 1 : 0); put('rw:', r.rw ? 1 : 0);
       if (r.rv && !cur['rv:' + k]) { set('rv:' + k, r.rv); if (r.sp) set('sp:' + k, 1); ch = true; }
-      if (r.tg && r.tg.length) put('tg:', r.tg.join(', '));
+      // Letterboxd habit: "w/ milad" tags say who you watched with
+      const tg = r.tg || [], ww = tg.filter(x => /^w\/\s*\S/i.test(x)).map(x => x.replace(/^w\/\s*/i, '').trim());
+      const rest = tg.filter(x => !/^w\/\s*\S/i.test(x));
+      if (ww.length || r.ww) put('ww:', r.ww || ww.join(', '));
+      if (rest.length) put('tg:', rest.join(', '));
       return ch;
     }
     const res = {added: 0, ticked: 0, merged: 0, same: 0};
