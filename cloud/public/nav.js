@@ -48,9 +48,9 @@ const fxNav = (() => {
   function restore(y) { want = y > 0 ? y : null; until = Date.now() + 5000; if (want === null) window.scrollTo(0, 0); else settle(); }
   try { new ResizeObserver(() => settle()).observe(document.documentElement); } catch (e) {}
   ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, () => { want = null; }, {passive: true, capture: true}));
-  function push(url) {
+  function push(url, extra) {
     remember();
-    history.pushState({app: 1, n: (st().n || 0) + 1}, '', url);
+    history.pushState(Object.assign({app: 1, n: (st().n || 0) + 1}, extra || {}), '', url);
   }
   // a link while a sheet is open: the sheet's own history step becomes the new screen's
   function dropModal() { if (!modal) return false; modal = null; return true; }
@@ -60,9 +60,9 @@ const fxNav = (() => {
     else push(url);
     if (handler) handler(url, 'push');
   }
-  function note(url) {
+  function note(url, extra) {
     if (url === location.pathname + location.search) return;
-    if (dropModal()) history.replaceState(Object.assign({}, st(), {m: 0}), '', url); else push(url);
+    if (dropModal()) history.replaceState(Object.assign({}, st(), {m: 0}, extra || {}), '', url); else push(url, extra);
   }
   function replace(url) { if (url !== location.pathname + location.search) history.replaceState(Object.assign({}, st()), '', url); }
   function back(fallback) {
@@ -89,5 +89,5 @@ const fxNav = (() => {
     if (handler) handler(location.pathname + location.search, 'pop');
   });
   return {film, director, parseFilm, slug, setHandler: fn => { handler = fn; }, open, note, replace, back, modal: modalOpen, unmodal: modalClose,
-    savedY: () => +st().y || 0, depth: () => st().n || 0, restore, top: () => restore(0)};
+    savedY: () => +st().y || 0, depth: () => st().n || 0, state: () => st(), restore, top: () => restore(0)};
 })();

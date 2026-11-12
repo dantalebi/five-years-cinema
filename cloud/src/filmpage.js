@@ -13,7 +13,8 @@ function fxFilmPages(o) {
   const cache = new Map();
   async function tmdb(path) {
     if (cache.has(path)) return cache.get(path);
-    const p = fetch('/api/tmdb' + path, {headers: {accept: 'application/json'}, credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
+    const p0 = fetch('/api/tmdb' + path, {headers: {accept: 'application/json'}, credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
+    const p = typeof fxTune !== 'undefined' ? fxTune.wrap(p0) : p0;  // the page waits on it: the stripe along the top
     cache.set(path, p);
     const j = await p; if (!j) cache.delete(path);
     return j;
@@ -143,6 +144,7 @@ function fxFilmPages(o) {
       ${meta.length ? `<p class="dx-meta">${meta.join('<i aria-hidden="true"></i>')}</p>` : ''}${gen.length ? `<p class="dx-meta">${gen.join('<i aria-hidden="true"></i>')}</p>` : ''}</div></section>`;
     h += `<div class="dx-acts"><button type="button" class="fx-btn${wl ? '' : ' primary'} dx-wlb" data-fp-wl aria-pressed="${wl}">${wl ? 'On your watchlist' : 'Add to watchlist'}</button>`
       + (logger ? `<button type="button" class="fx-btn" data-fp-log>${seen ? 'Log again' : 'Log'}</button>` : '')
+      + (o.addToList ? `<button type="button" class="fx-btn" data-fp-addlist>Add to a list</button>` : '')
       + `<a class="fx-btn" href="${esc(lb)}" target="_blank" rel="noopener noreferrer">Letterboxd ↗</a></div>`;
     // you and this film
     const pw = fp.pl && o.planWeek ? o.planWeek(fp.pl.row[8]) : null;
@@ -238,6 +240,7 @@ function fxFilmPages(o) {
       if (b.hasAttribute('data-fp-back')) { fxNav.back('/discover'); return true; }
       if (!fp || fp.state !== 'ready') return false;
       if (b.hasAttribute('data-fp-wl') && WL) { const F = film(), r = wlRef(F), on = !WL.has(r); WL.set(r, on); render(); typeof fxOSD === 'function' && fxOSD(on ? 'On your watchlist' : 'Off your watchlist'); return true; }
+      if (b.hasAttribute('data-fp-addlist') && o.addToList) { const F = film(); o.addToList({t: F.t, y: F.y, tm: F.tm, p: F.p}); return true; }
       if (b.hasAttribute('data-fp-log') && logger) {
         const F = film();
         logger(F.t, F.y, {tm: F.tm > 0 ? F.tm : 0, t: F.t, y: F.y, d: F.dirs.join(', '), m: F.rt, p: F.p, k: fp.pl ? fp.pl.row[8] : ''});

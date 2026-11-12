@@ -171,6 +171,10 @@ const CloudSync = (() => {
     react: o => api('POST', '/react', o), inbox: () => api('GET', '/inbox'),
     // a film among the members: the people you follow (every entry), watchlists, everyone's ratings counted
     filmRatings: keys => api('GET', '/film?' + keys.map(k => 'k=' + encodeURIComponent(k)).join('&')),
+    // who follows someone and whom they follow; lists of films (yours, someone's, one by its address)
+    follows: (u, which) => api('GET', '/u/' + u + '/' + (which === 'following' ? 'following' : 'followers')),
+    lists: {mine: () => api('GET', '/lists'), create: o => api('POST', '/lists', o), update: (id, o) => api('PUT', '/lists/' + id, o), remove: id => api('DELETE', '/lists/' + id),
+      of: u => api('GET', '/u/' + u + '/lists'), one: (u, slug) => api('GET', '/u/' + u + '/list/' + slug)},
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

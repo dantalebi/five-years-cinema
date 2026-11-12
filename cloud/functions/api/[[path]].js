@@ -29,6 +29,8 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS blocks_b ON blocks(b)`,
   // a profile picture: a small square JPEG (the app crops and shrinks it to 256 pixels), as base64
   `CREATE TABLE IF NOT EXISTS avatars (uid INTEGER PRIMARY KEY, img TEXT NOT NULL, updated INTEGER NOT NULL)`,
+  // lists of films: public ones are on the owner's profile and anyone with the link can read them; films is JSON
+  `CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', pub INTEGER NOT NULL DEFAULT 1, ranked INTEGER NOT NULL DEFAULT 0, films TEXT NOT NULL DEFAULT '[]', n INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE (uid, slug))`,
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
 // users.av: when the profile picture last changed (0: none), so its address changes with it and can be cached for good
@@ -318,6 +320,90 @@ on('POST', '/api/follow', async (req, env, u) => {
   else await env.DB.prepare('INSERT OR IGNORE INTO follows (a, b, at) VALUES (?, ?, ?)').bind(u.id, x.id, Date.now()).run();
   return json({ok: true});
 }, {auth: true});
+// who follows someone, and whom they follow: [{username, name, av, following (you follow them), you (it's you)}]
+on('GET', '/api/u/([a-z0-9_]{3,24})/(followers|following)', async (req, env, u, m) => {
+  const x = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
+  if (!x || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
+  const me = u ? u.id : 0, col = m[2] === 'followers' ? ['a', 'b'] : ['b', 'a'];
+  const rows = (await env.DB.prepare(`SELECT y.username, y.name, y.av, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = y.id) AS fol
+      FROM follows f JOIN users y ON y.id = f.${col[0]} WHERE f.${col[1]} = ?
+        AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = y.id) OR (a = y.id AND b = ?)) ORDER BY f.at DESC LIMIT 1000`).bind(me, x.id, me, me).all()).results || [];
+  return json({people: rows.map(r => ({username: r.username, name: r.name || '', av: +r.av || 0, following: !!r.fol, you: !!u && r.username === u.username}))}, 200, {'cache-control': 'private, no-store'});
+}, {optionalAuth: true});
+
+// ---- lists of films ----
+const LSLUG = /^[a-z0-9-]{1,80}$/;
+const lslug = n => String(n || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'list';
+const okPath = p => typeof p === 'string' && /^\/[A-Za-z0-9._-]{1,80}$/.test(p);
+// a list's description: line breaks kept, other control characters out
+const cleanNote = v => String(v == null ? '' : v).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 2000);
+// the films as stored: [{t, y, tm, p, c}] (c: a comment on the film, in this list), at most 2,000
+function listFilms(a) {
+  if (!Array.isArray(a)) return null;
+  const out = [];
+  for (const f of a.slice(0, 2000)) {
+    if (!f || typeof f.t !== 'string' || !f.t.trim()) continue;
+    const o = {t: clean1(f.t, 200), y: Math.max(0, Math.min(2100, +f.y || 0)), tm: Math.max(-1e9, Math.min(1e9, Math.round(+f.tm || 0)))};
+    if (okPath(f.p)) o.p = f.p;
+    const c = clean1(f.c, 500); if (c) o.c = c;
+    out.push(o);
+  }
+  return out;
+}
+const listRow = (r, full) => Object.assign({id: r.id, slug: r.slug, name: r.name, note: r.note, pub: !!r.pub, ranked: !!r.ranked, n: r.n, created: r.created, updated: r.updated},
+  full ? {films: JSON.parse(r.films || '[]')} : {posters: JSON.parse(r.films || '[]').slice(0, 5).map(f => f.p || '')});
+// your own lists, whole
+on('GET', '/api/lists', async (req, env, u) => {
+  const rows = (await env.DB.prepare('SELECT * FROM lists WHERE uid = ? ORDER BY updated DESC LIMIT 500').bind(u.id).all()).results || [];
+  return json({lists: rows.map(r => listRow(r, true))}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+on('POST', '/api/lists', async (req, env, u) => {
+  const b = await body(req, 400000), name = clean1(b.name, 100);
+  if (!name) return fail('noname', 400);
+  const films = listFilms(b.films || []) || [];
+  const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM lists WHERE uid = ?').bind(u.id).first();
+  if (n.n >= 500) return fail('full', 413);
+  if (await limited(env.DB, 'list:' + u.id, 120, 36e5)) return fail('slow', 429);
+  let slug = lslug(name), k = 1;
+  while (await env.DB.prepare('SELECT 1 FROM lists WHERE uid = ? AND slug = ?').bind(u.id, slug).first()) slug = lslug(name).slice(0, 56) + '-' + (++k);
+  const now = Date.now();
+  const r = await env.DB.prepare('INSERT INTO lists (uid, slug, name, note, pub, ranked, films, n, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(u.id, slug, name, cleanNote(b.note), b.pub === false ? 0 : 1, b.ranked ? 1 : 0, JSON.stringify(films), films.length, now, now).first();
+  return json({list: listRow(r, true)});
+}, {auth: true});
+on('PUT', '/api/lists/(\\d{1,12})', async (req, env, u, m) => {
+  const b = await body(req, 400000);
+  const r = await env.DB.prepare('SELECT * FROM lists WHERE id = ? AND uid = ?').bind(+m[1], u.id).first();
+  if (!r) return fail('none', 404);
+  const o = {name: r.name, note: r.note, pub: r.pub, ranked: r.ranked, films: r.films, n: r.n};
+  if (b.name !== undefined) { o.name = clean1(b.name, 100); if (!o.name) return fail('noname', 400); }
+  if (b.note !== undefined) o.note = cleanNote(b.note);
+  if (b.pub !== undefined) o.pub = b.pub ? 1 : 0;
+  if (b.ranked !== undefined) o.ranked = b.ranked ? 1 : 0;
+  if (b.films !== undefined) { const f = listFilms(b.films); if (!f) return fail('bad', 400); o.films = JSON.stringify(f); o.n = f.length; }
+  const now = Date.now();
+  await env.DB.prepare('UPDATE lists SET name = ?, note = ?, pub = ?, ranked = ?, films = ?, n = ?, updated = ? WHERE id = ?').bind(o.name, o.note, o.pub, o.ranked, o.films, o.n, now, r.id).run();
+  return json({list: listRow(Object.assign({}, r, o, {updated: now}), true)});
+}, {auth: true});
+on('DELETE', '/api/lists/(\\d{1,12})', async (req, env, u, m) => {
+  await env.DB.prepare('DELETE FROM lists WHERE id = ? AND uid = ?').bind(+m[1], u.id).run();
+  return json({ok: true});
+}, {auth: true});
+// someone's lists (the public ones; all of them for the owner), and one list by its address: anyone can read a public
+// list, signed in or not, even when its owner's profile is private
+on('GET', '/api/u/([a-z0-9_]{3,24})/lists', async (req, env, u, m) => {
+  const x = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(m[1]).first();
+  if (!x || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
+  const own = !!u && u.id === x.id;
+  const rows = (await env.DB.prepare(`SELECT * FROM lists WHERE uid = ?${own ? '' : ' AND pub = 1'} ORDER BY updated DESC LIMIT 500`).bind(x.id).all()).results || [];
+  return json({lists: rows.map(r => listRow(r, false))}, 200, {'cache-control': 'private, no-store'});
+}, {optionalAuth: true});
+on('GET', '/api/u/([a-z0-9_]{3,24})/list/([a-z0-9-]{1,80})', async (req, env, u, m) => {
+  const r = await env.DB.prepare('SELECT l.*, x.username, x.name AS uname, x.av FROM lists l JOIN users x ON x.id = l.uid WHERE x.username = ? AND l.slug = ?').bind(m[1], m[2]).first();
+  if (!r || (!r.pub && !(u && u.id === r.uid)) || (u && u.id !== r.uid && await blocked(env, u.id, r.uid))) return fail('none', 404);
+  return json({list: listRow(r, true), by: {username: r.username, name: r.uname || '', av: +r.av || 0}, own: !!u && u.id === r.uid}, 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=30'});
+}, {optionalAuth: true});
+
 // profile pictures: set (a JPEG of at most 120 KB), remove, and fetch by username (?v= the version, so it caches for good)
 on('PUT', '/api/avatar', async (req, env, u) => {
   const b = await body(req, 170000), img = String(b.img || '');

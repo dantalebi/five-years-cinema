@@ -942,16 +942,16 @@ function mountFocus(root, D, S, opts) {
     if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
     const bd = view === 'week' ? fxBd(seen()) : null, chg = view !== viewShown;
     const top = opts.brand ? opts.brand(view) : '', y0 = window.scrollY;
-    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() + (opts.homeExtra ? opts.homeExtra() : '') : ''}${tabbar()}</div>`;
+    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}" srcset="${fxTmdbBd(bd.p, 'w780')} 780w, ${fxTmdbBd(bd.p)} 1280w" sizes="100vw" decoding="async"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() + (opts.homeExtra ? opts.homeExtra() : '') : ''}${tabbar()}</div>`;
     // the set switches on once per visit (not on every reload); after that, changing screens changes channel
-    // the same screen drawn again keeps its place, even if something on it was briefly shorter
-    if (!chg && y0 && Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);
     if (chg && opts.flip !== false) { let on = viewShown === null; if (on) { try { on = !sessionStorage.getItem('fx-on'); sessionStorage.setItem('fx-on', '1'); } catch (e) {} } if (on || viewShown !== null) fxFlip(on); }
     if (just) { const c = root.querySelector('.fx-i[data-k="' + CSS.escape(just) + '"] .fx-chk[aria-pressed="true"]'); if (c) c.classList.add('just'); just = ''; }
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
     if (posterOn()) P.fill(root);
     if (picker) { const q = root.querySelector('.fx-pick-q'); if (q && picker.focus) { q.focus(); const n = q.value.length; q.setSelectionRange(n, n); picker.focus = false; } }
     if (xt && xt.after) xt.after(root);
+    // the same screen drawn again keeps its place, even if something on it was briefly shorter
+    if (!chg && y0 && Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);
     if (view !== viewShown) { const was = viewShown; viewShown = view; if (was !== null && !routing && opts.onView) opts.onView(view); }
     // an open picker (the + box, adding a film to a week) is closed by Back
     if (!!picker !== pickShown) { pickShown = !!picker; if (opts.modal) { if (pickShown) opts.modal.open('pick', () => { picker = null; render(); }); else opts.modal.close('pick'); } }
@@ -1510,6 +1510,8 @@ function mountFocus(root, D, S, opts) {
   render();
   return {
     render: () => { if (P) P.setToken(seen()['cfg:tmdb']); if (!root.querySelector('input:focus, textarea:focus')) render(); },
+    // drawn even while someone types (the caller puts the focus back)
+    renderNow: () => render(),
     current: () => fxCur(WK, seen()),
     lang: L,
     setPlan,

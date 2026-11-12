@@ -104,7 +104,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   // someone without an account
   const v = await dev('V');
   await v.goto(B + '/u/danial'); await v.waitForSelector('.fx-pmeta', {timeout: 10000});
-  ok((await v.$eval('.fx-pmeta a', e => e.getAttribute('href'))) === '/', 'visitors get a sign-in link instead of Follow');
+  ok((await v.$eval('.fx-pmeta a.fx-btn', e => e.getAttribute('href'))) === '/', 'visitors get a sign-in link instead of Follow');
   const vt = await v.$$eval('.fx-tabs button', l => l.map(x => x.textContent));
   ok(vt.length >= 6 && vt.includes('Films'), 'every tab on a member’s profile, Films among them', vt);
   await v.screenshot({path: path.join(OUT, 'cl-profile.png')});

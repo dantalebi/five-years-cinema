@@ -14,9 +14,12 @@
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   if (typeof fxTune !== 'undefined' && !window.fxFetch0) {
     const f0 = window.fxFetch0 = window.fetch.bind(window);
-    window.fetch = (u, o) => /\/api\/(sync|inbox|me)\b/.test(String(u && u.url || u)) ? f0(u, o) : fxTune.wrap(f0(u, o));
+    // (not for what happens in the background: syncing, the inbox, poster and film-detail lookups, pictures, the catalog)
+    window.fetch = (u, o) => /\/api\/(sync|inbox|me|tmdb|avatar)\b|\/catalog\//.test(String(u && u.url || u)) ? f0(u, o) : fxTune.wrap(f0(u, o));
   }
   Posters.setProxy('/api/tmdb');
+  // a poster the catalog already knows needs no search
+  if (typeof fxCat !== 'undefined') Posters.setResolver((t, y) => { if (!fxCat.get()) return ''; const f = fxCat.find({t: String(t || ''), y: +y || 0}); return f && f.p || ''; });
   CloudSync.setLang(() => lang());
   Posters.setChosen(k => Store.data['ps:' + k] || '');
 
@@ -303,6 +306,8 @@
   const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync, {toSettings: () => { if (FX && (FX.view() !== 'settings' || FX.section())) fxNav.open('/settings'); }}) : null;
   const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
+  // lists of films (yours and everyone's); a public one opens for anyone, signed in or not
+  const LISTS = typeof fxLists === 'function' ? fxLists(CloudSync, {redraw: force => redrawAll(force), member: () => !!CloudSync.me(), open: url => { if (FX) fxNav.open(url); else location.href = url; }}) : null;
   // the app opens on Home (This week and the rest), or on Activity if you'd rather
   const startView = () => FR && Store.data['cfg:home'] === 'friends' ? 'friends' : 'week';
   const HM = typeof fxHome === 'function' ? fxHome({FR, redraw: () => FX && FX.render()}) : null;
@@ -310,7 +315,7 @@
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
   const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
-  const pathOf = v => v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
+  const pathOf = v => v === 'profile' ? PV.url() : v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
     const u = new URL(url, location.origin), p = u.pathname.replace(/\/+$/, '') || '/';
@@ -319,6 +324,7 @@
     else if (p === '/activity' || p.startsWith('/activity/')) { if (FR) FR.fromPath(p); v = 'friends'; }
     else if ((p === '/discover' || p.startsWith('/discover/')) && DX) { DX.fromUrl(p, u.searchParams); v = 'discover'; }
     else if (p.startsWith('/film/') && FP) { FP.openFilm(fxNav.parseFilm(p)); v = 'film'; }
+    else if (p.startsWith('/u/')) { const m = p.match(/^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|list\/[a-z0-9-]{1,80}))?$/); if (m) { PV.open(m[1], m[2] || '', (location.hash.match(/^#([a-z0-9-]{1,120})$/i) || [])[1]); v = 'profile'; } else v = startView(); }
     else if (p === '/settings' || p.startsWith('/settings/')) { FX.setSection(p.slice(10)); v = 'settings'; }
     else if (p.startsWith('/director/') && FP) { FP.openDirector(p.slice(10).replace(/[^a-z0-9-]/g, '').slice(0, 120)); v = 'director'; }
     else v = VIEWS[p] || startView();
@@ -336,7 +342,7 @@
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
-    if (!/^\/((film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|$)|$)/.test(href)) return;
+    if (!/^\/((u|film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|#|$)|$)/.test(href)) return;
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
   });
   // where a plan film sits in your plan, for its page
@@ -396,11 +402,13 @@
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
-    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), planWeek, openEntry: ek => FX && FX.openEntry(ek)});
+    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
-      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : '')), settingsBack: () => fxNav.back('/settings'), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
+      // a section's back link: to the list it was opened from, or to Settings when it was opened some other way
+      settingsBack: () => { if (fxNav.state().fromIdx) history.back(); else fxNav.open('/settings', 'replace'); }, modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
@@ -414,10 +422,14 @@
       root.addEventListener('change', e => { if (e.target.matches && e.target.matches('input[data-ac-avfile]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) AC.file(f, () => FX && FX.render()); } });
     }
     route(location.pathname + location.search, 'init');
-    root.addEventListener('input', e => { if (FR) FR.input(e.target); });
+    root.addEventListener('input', e => { if (FR) FR.input(e.target); if (LISTS) LISTS.input(e.target); });
+    root.addEventListener('change', e => { if (LISTS && e.target.matches && e.target.matches('input[type=checkbox][data-ls-f]')) LISTS.input(e.target); });
+    root.addEventListener('submit', e => { const f = e.target.closest('form'); if (f && LISTS && LISTS.submit(f)) e.preventDefault(); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {
       const h = e.target.closest('button'); if (h && HM && HM.click(h)) return;
+      if (h && h.dataset.pvfollow) { pvFollow(h.dataset.pvfollow); return; }
+      if (h && LISTS && LISTS.click(h)) return;
       const b = e.target.closest('[data-home]'); if (!b) return;
       Store.set('cfg:home', b.dataset.home === 'friends' ? 'friends' : null); if (FX) FX.render();
     });
@@ -439,7 +451,7 @@
   function planChanged() {
     clearTimeout(rt);
     rt = setTimeout(async () => {
-      if (!CloudSync.me() || location.pathname.startsWith('/u/') || keyHold) return;
+      if (!CloudSync.me() || keyHold) return;
       const want = Store.data['cfg:plan'] || '';
       if (want !== kind) { if (want) start(); else if (FX) onboard(); return; }
       if (FX && kind === 'list') { const sg = FXL.sig(Store.data); if (sg !== sig) { sig = sg; const D = await planData(); window.D = D; FX.setPlan(D); return; } }
@@ -509,17 +521,19 @@
   }
 
   // ================= /u/<name>: a member's profile =================
-  function profilePage(name) {
-    fresh();
-    const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m ? m[1] : '';
+  // For members it's a screen of the app (the tab bar, Back, the corner); for visitors, a page of its own. Its parts:
+  // /u/<name>/followers, /u/<name>/following, /u/<name>/list/<slug> (a list anyone can open when it's public).
+  let curPF = null;
+  function makeProfile(name, eid, el, inApp) {
     const me = CloudSync.me();
-    let meta = null, mine = null, pmore = false, pblock = false, pnote = '';
+    let meta = null, mine = null, pmore = false, pblock = false, pnote = '', PF = null;
+    const rer = () => PF && PF.render();
     const metaHtml = L => {
       const t = GT[L === 'fa' ? 'fa' : 'en'], fa = n => L === 'fa' ? Number(n).toLocaleString('fa-IR') : String(n);
       if (!meta) return '';
       let btn = '';
       if (!me) btn = `<a class="fx-btn" href="/">${t.join}</a>`;
-      else if (meta.self) btn = `<a class="fx-btn" href="/">${t.mine}</a>`;
+      else if (meta.self) btn = `<a class="fx-btn" href="/settings/profile">Edit profile</a>`;
       else btn = `<button type="button" class="fx-btn${meta.follows ? '' : ' primary'}" data-pfollow aria-pressed="${!!meta.follows}">${meta.follows ? t.unfollow : t.follow}</button>`
         + `<button type="button" class="fx-link" data-pmore aria-expanded="${pmore}">More</button>`;
       let more = '';
@@ -528,35 +542,97 @@
           + (pblock ? `<p class="fx-note bad">Block @${esc(name)}? They won’t be able to follow you, react to or comment on your entries, or see your profile while signed in. They aren’t told.</p><div class="fx-row"><button type="button" class="fx-btn fx-danger" data-pblockyes>Block</button><button type="button" class="fx-btn" data-pblockno>Cancel</button></div>`
             : `<button type="button" class="fx-btn" data-pblock>Block @${esc(name)}</button>`) + (pnote ? `<p class="fx-note ok">${esc(pnote)}</p>` : '') + '</div>';
       }
-      return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))}, ${esc(t.following(fa(meta.following)))}${meta.followsYou && !meta.self ? ' <span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
+      const cnt = (n, which, label) => `<a class="pf-cnt" href="/u/${esc(name)}/${which}"><b>${esc(fa(n))}</b> ${label}</a>`;
+      return `<div class="fx-pmeta"><span class="pf-cnts">${cnt(meta.followers, 'followers', meta.followers === 1 ? 'follower' : 'followers')}${cnt(meta.following, 'following', 'following')}${meta.followsYou && !meta.self ? '<span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
     };
-    if (!eid) fxNav.restore(fxNav.savedY());  // back from a film opened here: the same place on the profile
-    PF = fxProfile(root, name, eid, {
-      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: brandBar(),
+    PF = fxProfile(el, name, eid, {
+      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: inApp ? '' : brandBar(),
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
       // on someone else's grids, the films you've seen too
       seenMine: f => !!mine && mine.has(+f.tm > 0 ? 'tm' + f.tm : norm(String(f.t || '').replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (+f.y || 0)),
       avatar: d => typeof fxAvatar === 'function' ? fxAvatar(name, d.name, d.av, 'xl') : '',
-      // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
       lang: () => 'en',
+      // their lists, as a tab of the profile
+      extraTabs: LISTS ? [{id: 'lists', label: 'Lists', view: () => LISTS.profileTab(name, !!me && me.username === name)}] : [],
       headerExtra: metaHtml,
       onButton: (b, render) => {
+        if (LISTS && LISTS.click(b)) return true;
         if (!meta) return false;
         if (b.hasAttribute('data-pmore')) { pmore = !pmore; pblock = false; pnote = ''; render(); return true; }
         if (b.hasAttribute('data-pblock')) { pblock = true; render(); return true; }
         if (b.hasAttribute('data-pblockno')) { pblock = false; render(); return true; }
-        if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) location.href = '/settings/privacy'; }); return true; }
+        if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) { if (inApp) fxNav.open('/settings/privacy'); else location.href = '/settings/privacy'; } }); return true; }
         if (b.hasAttribute('data-prmfollower')) { CloudSync.removeFollower(name).then(r => { if (r.ok) { meta.followsYou = false; meta.followers = Math.max(0, meta.followers - 1); pnote = '@' + name + ' no longer follows you.'; render(); } }); return true; }
         if (!b.hasAttribute('data-pfollow')) return false;
         const on = !meta.follows; meta.follows = on; meta.followers += on ? 1 : -1; render(); typeof fxOSD === 'function' && fxOSD(on ? 'Following' : 'Unfollowed');
         CloudSync.follow(name, on).then(r => { if (!r.ok) { meta.follows = !on; meta.followers += on ? -1 : 1; render(); } });
+        ppl.clear();
         return true;
       },
     });
-    CloudSync.meta(name).then(r => { if (r.ok) { meta = r.j; PF && PF.render(); } });
+    CloudSync.meta(name).then(r => { if (r.ok) { meta = r.j; rer(); } });
     // a member visiting someone else: their own diary, ready for the taste match
-    if (me && me.username !== name) myFilms(me.username).then(x => { mine = x; PF && PF.render(); });
+    if (me && me.username !== name) myFilms(me.username).then(x => { mine = x; rer(); });
+    curPF = PF;
+    return PF;
+  }
+  // who follows someone, and whom they follow
+  const ppl = new Map();
+  function peopleView(name, which, inApp) {
+    const k = name + '/' + which; let st = ppl.get(k);
+    if (!st) { st = {state: 'loading', people: []}; ppl.set(k, st); CloudSync.follows(name, which).then(r => { st.state = r.ok ? 'ready' : 'none'; st.people = r.ok ? r.j.people || [] : []; redrawAll(); }); }
+    const me = CloudSync.me(), seg = ['followers', 'following'].map(w => `<a class="fx-btn${w === which ? ' primary' : ''}" href="/u/${esc(name)}/${w}" aria-current="${w === which ? 'page' : 'false'}">${w === 'followers' ? 'Followers' : 'Following'}</a>`).join('');
+    let h = `<header class="fx-head"><div class="fx-hrow"><a class="fx-link fx-bk" href="/u/${esc(name)}">@${esc(name)}</a></div><h1 class="fx-h1">${which === 'followers' ? 'Followers' : 'Following'}</h1><div class="fx-row pf-seg">${seg}</div></header>`;
+    if (st.state === 'loading') return h + '<p class="fx-muted">Tuning in…</p>';
+    if (st.state === 'none') return h + '<p class="fx-muted">This profile isn’t public.</p>';
+    if (!st.people.length) return h + `<div class="fx-blank"><p class="fx-muted">${which === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</p></div>`;
+    return h + `<ul class="fx-people pf-people">${st.people.map(x => `<li><a class="pf-who" href="/u/${esc(x.username)}">${typeof fxAvatar === 'function' ? fxAvatar(x.username, x.name, x.av, 'm') : ''}<span><b dir="auto">${esc(x.name || x.username)}</b><small>@${esc(x.username)}</small></span></a>`
+      + (me && !x.you ? `<button type="button" class="fx-btn${x.following ? '' : ' primary'}" data-pvfollow="${esc(x.username)}" aria-pressed="${x.following}">${x.following ? 'Following' : 'Follow'}</button>` : x.you ? '<span class="fx-muted">You</span>' : '') + '</li>').join('')}</ul>`;
+  }
+  async function pvFollow(u) {
+    const all = [...ppl.values()].flatMap(st => st.people.filter(x => x.username === u));
+    if (!all.length) return;
+    const on = !all[0].following; all.forEach(x => { x.following = on; }); redrawAll();
+    typeof fxOSD === 'function' && fxOSD(on ? 'Following' : 'Unfollowed');
+    const r = await CloudSync.follow(u, on);
+    if (!r.ok) { all.forEach(x => { x.following = !on; }); redrawAll(); }
+  }
+  // inside the app: a screen that isn't in the bar
+  const PV = (() => {
+    let name = '', sub = '', el = null, PFi = null;
+    return {
+      id: 'profile', hidden: true, label: {en: 'Profile', fa: 'Profile'},
+      open(n, s, eid) {
+        sub = s || '';
+        if (n !== name || !PFi) {
+          if (PFi) PFi.stop();
+          name = n; el = document.createElement('div'); el.className = 'pf-in';
+          // the profile's own buttons are its own: the app around it doesn't act on them too
+          el.addEventListener('click', e => { if (e.target.closest('button')) e.stopPropagation(); });
+          PFi = makeProfile(n, eid || '', el, true);
+        } else curPF = PFi;
+      },
+      view() {
+        if (sub === 'followers' || sub === 'following') return peopleView(name, sub, true);
+        if (sub.startsWith('list/')) return LISTS ? LISTS.page(name, sub.slice(5), true) : '';
+        return '<div class="pf-host"></div>';
+      },
+      after(root) { if (!sub) { const h = root.querySelector('.pf-host'); if (h && el && el.parentNode !== h) h.appendChild(el); } },
+      url: () => '/u/' + name + (sub ? '/' + sub : '') + (!sub && /^#[a-z0-9-]{1,120}$/i.test(location.hash) ? location.hash : ''),
+      left() { if (LISTS) LISTS.reset(); },
+    };
+  })();
+  // a visitor: the page on its own
+  let standalone = null;
+  function redrawAll(force) { if (FX) { if (force) FX.renderNow(); else FX.render(); } if (curPF) curPF.render(); if (standalone) standalone(); }
+  function profilePage(name, sub) {
+    fresh();
+    if (sub === 'followers' || sub === 'following') { standalone = () => shell(brandBar() + peopleView(name, sub, false), 'fx-share'); standalone(); return; }
+    if (sub && sub.startsWith('list/')) { standalone = () => shell(brandBar() + (LISTS ? LISTS.page(name, sub.slice(5), false) : ''), 'fx-share'); standalone(); return; }
+    const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m ? m[1] : '';
+    if (!eid) fxNav.restore(fxNav.savedY());  // back from a film opened here: the same place on the profile
+    PF = makeProfile(name, eid, root, false);
   }
   async function myFilms(username) {
     const out = new Map();
@@ -577,9 +653,10 @@
 
   // ================= which face =================
   async function home() {
-    const um = location.pathname.match(/^\/u\/([a-z0-9_]{3,24})\/?$/);
+    const um = location.pathname.match(/^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|list\/[a-z0-9-]{1,80}))?\/?$/);
     await Store.load();
-    if (um) { profilePage(um[1]); return; }
+    // a visitor sees a profile (or a list) on its own; a member, inside the app
+    if (um && !CloudSync.me()) { profilePage(um[1], um[2] || ''); return; }
     let me = CloudSync.me();
     if (!me && /^\/about\/?$/.test(location.pathname)) { fresh(); shell(AC.about(), 'fx-about'); root.addEventListener('click', e => { if (e.target.closest('[data-ac-back]')) { if (history.length > 1) history.back(); else location.href = '/'; } }); return; }
     if (!me) { authScreen(); return; }

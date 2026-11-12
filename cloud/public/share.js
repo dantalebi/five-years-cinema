@@ -50,7 +50,7 @@ function fxProfile(root, id, focusId, opts) {
   const ago = iso => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return !isFinite(m) ? '' : faDigits(T().ago(m)); };
   const okPoster = p => typeof p === 'string' && /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+\/[A-Za-z0-9._-]+$/.test(p);
   // the profile backdrop, like Letterboxd's: a still across the top, fading into the page
-  const hero = () => data && data.bd && okPoster(data.bd.p) ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${data.bd.p}"></div>` : '';
+  const hero = () => data && data.bd && okPoster(data.bd.p) ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${data.bd.p}" srcset="${data.bd.p.replace(/\/w\d+\//, '/w780/')} 780w, ${data.bd.p} 1280w" sizes="100vw" decoding="async"></div>` : '';
   const okSlug = l => typeof l === 'string' && /^[a-z0-9-]+$/.test(l);
   const okUrl = u => typeof u === 'string' && /^https:\/\/[^\s"<>]+$/.test(u);
   const stars = r => r ? '★'.repeat(Math.floor(r / 2)) + (r % 2 ? '½' : '') : '';
@@ -96,10 +96,13 @@ function fxProfile(root, id, focusId, opts) {
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
     const strip = all.length ? [t.films(all.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', all.some(e => e.h) ? t.likes(all.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(x => '<span>' + esc(faDigits(x)) + '</span>').join('') : '';
-    let h = `${opts.top || ''}<header class="fx-head">${opts.top ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
+    let h = `${opts.top || ''}<header class="fx-head">${opts.top !== undefined ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
-    if (d.length || (Array.isArray(data.seen) && data.seen.length)) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]].concat(Array.isArray(data.wl) ? [['wl', t.tWl]] : [], [['stats', t.tStats]], PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
+    // the films tabs when the diary is public; the watchlist when it is; lists and the rest whenever they're there
+    const hasD = d.length || (Array.isArray(data.seen) && data.seen.length);
+    const tabsL = [['now', t.now]].concat(hasD ? [['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]] : [], Array.isArray(data.wl) ? [['wl', t.tWl]] : [], (opts.extraTabs || []).map(x => [x.id, x.label]), hasD ? [['stats', t.tStats]] : [], PL && hasD ? [['play', t.tPlay]] : []);
+    if (tabsL.length > 1) h += `<nav class="fx-tabs" role="tablist">${tabsL.map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
   // a signed-in visitor sees at once how close their taste is to this person's
@@ -301,8 +304,9 @@ function fxProfile(root, id, focusId, opts) {
       return;
     }
     if (tab === 'wl' && !Array.isArray(data.wl)) tab = 'now';
-    const body = tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
-    const yn = tab === 'now' || tab === 'play' || tab === 'wl' || tab === 'films' ? '' : yearNav();
+    const xtab = (opts.extraTabs || []).find(x => x.id === tab);
+    const body = xtab ? xtab.view() : tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
+    const yn = xtab || tab === 'now' || tab === 'play' || tab === 'wl' || tab === 'films' ? '' : yearNav();
     root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
@@ -388,7 +392,7 @@ function fxProfile(root, id, focusId, opts) {
   }
   load();
   const timer = opts.data ? 0 : setInterval(() => { if (document.visibilityState === 'visible') load(); }, 300000);
-  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data};
+  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data, tab: () => tab};
 }
 // share.html#<gist id>[/<entry>] — the original address, still valid for links already shared
 if (document.documentElement.dataset.page === 'share') {

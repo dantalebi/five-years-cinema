@@ -62,7 +62,7 @@ const Posters = (() => {
     return cache[key][0];
   }
   function pump() {
-    while (busy < 3 && queue.length) {
+    while (busy < 6 && queue.length) {
       const [key, t, y] = queue.shift(); busy++;
       lookup(key, t, y).catch(() => null).then(p => { busy--; (waiting[key] || []).forEach(f => f(p)); delete waiting[key]; pump(); });
     }
@@ -71,18 +71,27 @@ const Posters = (() => {
   let chosen = () => '';
   const okPath = p => typeof p === 'string' && /^\/[A-Za-z0-9._-]+$/.test(p);
   function src(key) { const o = chosen(key); if (okPath(o)) return IMG + o; const c = cache[key]; return c && c[0] ? IMG + c[0] : ''; }
+  // a site can know a film's poster without asking TMDB (its own catalog): Posters.setResolver((t, y) => path or '')
+  let resolver = null;
   function want(key, t, y, cb) {
     const o = chosen(key); if (okPath(o)) { cb(IMG + o); return; }
     const c = cache[key];
     if (fresh(c)) { cb(c[0] ? IMG + c[0] : ''); return; }
+    if (resolver) { let r = ''; try { r = resolver(t, y); } catch (e) {} if (okPath(r)) { cache[key] = [r, Date.now()]; save(); cb(IMG + r); return; } }
     if ((!token && !proxy) || authFail) { cb(''); return; }
     if (waiting[key]) { waiting[key].push(p => cb(p ? IMG + p : '')); return; }
     waiting[key] = [p => cb(p ? IMG + p : '')]; queue.push([key, t, y]); pump();
   }
-  // fill every <img data-pk> under root that has no picture yet
+  // fill every <img data-pk> under root that has no picture yet. Known posters at once; the ones that need looking up
+  // only when they come near the screen (a long diary doesn't send hundreds of searches at once)
+  const one = img => want(img.dataset.pk, img.dataset.pt, +img.dataset.py, url => { if (url) img.src = url; else img.closest('.fx-pos') && img.closest('.fx-pos').classList.add('none'); });
+  let io = null;
   function fill(root) {
     root.querySelectorAll('img[data-pk]:not([src])').forEach(img => {
-      want(img.dataset.pk, img.dataset.pt, +img.dataset.py, url => { if (url) img.src = url; else img.closest('.fx-pos') && img.closest('.fx-pos').classList.add('none'); });
+      const k = img.dataset.pk, o = chosen(k), c = cache[k];
+      if (okPath(o) || fresh(c) || typeof IntersectionObserver === 'undefined') { one(img); return; }
+      if (!io) io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); one(e.target); } }), {rootMargin: '900px 0px'});
+      io.observe(img);
     });
   }
   async function test(t) {
@@ -130,5 +139,5 @@ const Posters = (() => {
   }
   function put(key, path) { if (path && /^\/[A-Za-z0-9._-]+$/.test(path)) { cache[key] = [path, Date.now()]; save(); } }
   const url = path => path && /^\/[A-Za-z0-9._-]+$/.test(path) ? IMG + path : '';
-  return {setToken, setProxy: p => { proxy = p || ''; }, proxied: () => !!proxy, on: () => !!(token || proxy), failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, meta, put, url};
+  return {setToken, setProxy: p => { proxy = p || ''; }, setResolver: f => { resolver = f; }, proxied: () => !!proxy, on: () => !!(token || proxy), failed: () => authFail, shared: () => usingDef, setChosen: f => { chosen = f; }, src, fill, test, search, details, match, images, meta, put, url};
 })();
