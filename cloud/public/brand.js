@@ -16,8 +16,8 @@ const FX_BRAND = (() => {
     o = o || {};
     const ink = o.ink || 'currentColor', on = o.on || OSD, h = o.h || 20;
     return `<svg class="${o.cls || 'fx-word'}" viewBox="0 0 541 100" width="${Math.round(h * 5.41)}" height="${h}" role="img" aria-label="TVC15" focusable="false">` +
-      `<g fill="${ink}" stroke="${ink}" stroke-width="0">${T}${V}</g><g stroke="${ink}">${C}</g>` +
-      `<g fill="${on}">${ONE}</g><g stroke="${on}">${FIVE}</g></svg>`;
+      `<g class="w-ink" fill="${ink}" stroke="${ink}" stroke-width="0">${T}${V}</g><g class="w-ink" stroke="${ink}">${C}</g>` +
+      `<g class="w-on" fill="${on}">${ONE}</g><g class="w-on" stroke="${on}">${FIVE}</g></svg>`;
   }
   // "15" alone, for the mark's corner (the digits from the wordmark, moved to the origin)
   const digits = (w = 0) => `<g transform="translate(-377 0)"><path stroke-width="${w}" stroke-linejoin="round" d="${ONE.match(/d="([^"]+)"/)[1]}"/><path fill="none" stroke-width="${22 + w}" stroke-linejoin="${w ? 'round' : 'miter'}" d="${FIVE.match(/d="([^"]+)"/)[1]}"/></g>`;

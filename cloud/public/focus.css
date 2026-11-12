@@ -1221,10 +1221,16 @@ a.fx-tgbig{display:block}
 .fx-bk:hover{color:var(--ink)}
 
 /* the top of a screen: the wordmark, your picture opposite */
-.fx-topbar{display:flex; align-items:center; min-height:42px; margin-block:-6px -4px}
+.fx-topbar{display:flex; align-items:center; min-height:42px; margin-block:-4px -6px}
+.fx-word .w-on[fill]{fill:var(--osd)} .fx-word .w-on[stroke]{stroke:var(--osd)}
+/* over a backdrop: the wordmark sits on the picture like a channel's logo in the corner */
+.fx-app.fx-withbd > .fx-topbar:not(.fx-hero){position:absolute; z-index:7; margin:0; top:max(18px, env(safe-area-inset-top, 0px)); inset-inline-start:max(16px, env(safe-area-inset-left, 0px))}
+.fx-app.fx-withbd > .av-top:not(.fx-hero){position:absolute}
+.fx-withbd > .fx-topbar .fx-brand{color:#E6EFE9; filter:drop-shadow(0 1px 8px rgba(0,0,0,.5))}
+.fx-withbd > .fx-topbar .w-on[fill]{fill:#4BE37E} .fx-withbd > .fx-topbar .w-on[stroke]{stroke:#4BE37E}
 .fx-brand{display:inline-flex; align-items:center; color:var(--ink); text-decoration:none; border-radius:6px; padding:6px 2px}
 .fx-brand .fx-word{display:block; height:15px; width:auto; overflow:visible}
-.fx-brand:hover .fx-word g:last-child, .fx-brand:hover .fx-word g:nth-child(3){filter:drop-shadow(0 0 4px var(--glow))}
+.fx-brand:hover .fx-word .w-on{filter:drop-shadow(0 0 5px var(--osd))}
 .fx-brand:active{transform:scale(.97)}
 
 /* headings: expanded, tight, never shouting */
