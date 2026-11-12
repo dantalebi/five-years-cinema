@@ -19,7 +19,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const z = await person('zack', [['Heat', 1995, 9], ['Fargo', 1996, 8], ['Alien', 1979, 7], ['Jaws', 1975, 5]]);
   await z.goto(B + '/u/amy'); await z.waitForSelector('.fx-tchip', {timeout: 10000});
   const chip = await z.$eval('.fx-tchip', e => e.innerText.replace(/\s+/g, ' '));
-  ok(/87% taste match · 3 films in common/.test(chip), 'taste match in the header', chip);
+  ok(/87% taste match, 3 films in common/.test(chip), 'taste match in the header', chip);
   await z.click('.fx-tchip'); await z.waitForSelector('.fx-score');
   ok(/87/.test(await z.$eval('.fx-score', e => e.innerText)) && /Your ratings vs./.test(await z.$eval('.fx-gintro', e => e.innerText)), 'opens the full comparison');
   await a.goto(B + '/u/amy'); await a.waitForSelector('.fx-pmeta', {timeout: 10000}); await a.waitForTimeout(800);

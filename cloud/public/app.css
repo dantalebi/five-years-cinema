@@ -1,9 +1,31 @@
-:root{--bg:#F6F7F8;--surface:#FFFFFF;--sunk:#EEF0F2;--ink:#14181C;--muted:#5C6773;--faint:#8F9AA5;--line:#E1E4E8;
-  --lA:#2a78d6;--lC:#1baf7a;--lP:#eb6834;--lH:#4A4F5C;--ready:#2F6B4F;--ready-soft:#E1EFE7;--need:#8A5300;--need-soft:#F6E9D2;--dl:#5B4BB8;--dl-soft:#E7E4F7;color-scheme:light}
-@media (prefers-color-scheme: dark){:root{--bg:#14181c;--surface:#1c2228;--sunk:#202830;--ink:#eef2f5;--muted:#9ab;--faint:#678;--line:#2c3440;
-  --lA:#40bcf4;--lC:#00c98d;--lP:#ff8000;--lH:#8899aa;--ready:#00e054;--ready-soft:#16302a;--need:#f5b74e;--need-soft:#33270f;--dl:#ABA2F2;--dl-soft:#25213F;color-scheme:dark}}
+/* TVC15, "Station": the app as a television you programme yourself.
+   Unlit glass and phosphor at night, daylight on a switched-off set by day; the plan's strands take the test card's
+   colour bars; channel green means on: watched, saved, yours. One family, Archivo, at three widths. */
+:root{
+  --bg:#EDEFEA; --surface:#F8F9F6; --sunk:#E2E7E1; --raise:#FFFFFF; --ink:#13201D; --muted:#4D605A; --faint:#5B6E67; --line:#D3DAD4; --line2:#C2CBC4;
+  --osd:#0F7538; --on-osd:#FFFFFF; --glow:transparent;
+  --lH:#7A6200; --lA:#0A7480; --lC:#9E3A87; --lP:#BC3B2A; --lF:#3F52BD;
+  --ready:#0F7538; --ready-soft:#DCEBDF; --need:#7A5200; --need-soft:#F1E6CC; --dl:#3F52BD; --dl-soft:#E1E5F6;
+  --shadow:0 1px 2px rgba(19,32,29,.06), 0 8px 24px rgba(19,32,29,.08);
+  --display:"Archivo", "Vazirmatn", system-ui, sans-serif;
+  --text:"Archivo", "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#121D1B; --surface:#182624; --sunk:#1E2D2A; --raise:#22332F; --ink:#E6EFE9; --muted:#9BB0A8; --faint:#80958D; --line:#263734; --line2:#33474360;
+  --osd:#4BE37E; --on-osd:#0B2414; --glow:rgba(75,227,126,.35);
+  --lH:#E8C547; --lA:#3FC1D0; --lC:#D978C4; --lP:#EF6B5A; --lF:#7D90F2;
+  --ready:#4BE37E; --ready-soft:#173327; --need:#E8C547; --need-soft:#352E14; --dl:#9AA9F5; --dl-soft:#222A4A;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:"Vazirmatn",Tahoma,system-ui,sans-serif;font-size:15px;line-height:1.65;-webkit-tap-highlight-color:transparent}
-#root .fx{padding-top:max(22px, calc(env(safe-area-inset-top) + 12px));padding-bottom:max(28px, calc(env(safe-area-inset-bottom) + 16px));padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right))}
-.boot{padding:40px 16px;text-align:center;color:var(--muted)}
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%; scrollbar-color:var(--line2) transparent}
+body{margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:var(--text); font-size:15px; line-height:1.6; -webkit-tap-highlight-color:transparent; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; font-kerning:normal; font-optical-sizing:auto; text-rendering:optimizeLegibility; caret-color:var(--osd)}
+::selection{background:color-mix(in srgb, var(--osd) 32%, transparent); color:inherit}
+#root .fx{padding-top:max(22px, calc(env(safe-area-inset-top) + 12px)); padding-bottom:max(28px, calc(env(safe-area-inset-bottom) + 16px)); padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right))}
+/* before the app starts: the screen warming up */
+.boot{min-height:70vh; display:grid; place-items:center; align-content:center; gap:18px; padding:40px 16px; text-align:center; color:var(--muted); font-size:0}
+.boot svg{width:96px; height:auto; animation:fx-boot 1.6s ease-in-out infinite alternate}
+@keyframes fx-boot{from{opacity:.55} to{opacity:1}}
+@media (prefers-reduced-motion: reduce){.boot svg{animation:none}}

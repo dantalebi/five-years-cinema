@@ -10,8 +10,8 @@ function fxProfile(root, id, focusId, opts) {
   const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink, lbProxy: opts.lbProxy || '', mine: opts.mine || null}) : null;
   let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
-    en: {diary: 'Film diary', title: 'Film Diary', now: 'This Week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'Updated ' + a,
-      prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n ? ' · ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
+    en: {diary: 'Film diary', title: 'Film diary', now: 'This week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'Updated ' + a,
+      prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ', ' + rt : '') + (n ? ', ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => Number(n).toLocaleString('en-US') + (n === 1 ? ' hour' : ' hours'), avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
       allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show it anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
       big: {films: 'Films', hours: 'Hours', dirs: 'Directors', countries: 'Countries', multi: 'Double-feature days'},
@@ -87,8 +87,8 @@ function fxProfile(root, id, focusId, opts) {
     const t = T(), d = data.diary || [], mins = d.reduce((a, e) => a + (+e.m || 0), 0), rated = d.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
-    const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(faDigits).join('  ·  ') : '';
-    let h = `<header class="fx-head"><div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div>${ident(name || t.title)}${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
+    const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(x => '<span>' + esc(faDigits(x)) + '</span>').join('') : '';
+    let h = `${opts.top || ''}<header class="fx-head">${opts.top ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
     if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].concat(PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
@@ -98,7 +98,7 @@ function fxProfile(root, id, focusId, opts) {
   function tasteChip() {
     const r = PL && PL.quick ? PL.quick() : null, t = T();
     if (!r || !r.common) return '';
-    return `<button type="button" class="fx-tchip" data-tmatch>${r.score != null ? `<b>${faDigits(r.score)}%</b> ${esc(t.tmatch)} · ` : ''}${esc(faDigits(t.inCommon(r.common)))}</button>`;
+    return `<button type="button" class="fx-tchip" data-tmatch>${r.score != null ? `<b>${faDigits(r.score)}%</b> ${esc(t.tmatch)}, ` : ''}${esc(faDigits(t.inCommon(r.common)))}</button>`;
   }
   function nowView() {
     const t = T(), now = data.now || {films: data.films || [], rest: data.rest, end: data.end}, films = Array.isArray(now.films) ? now.films : [];
@@ -106,7 +106,7 @@ function fxProfile(root, id, focusId, opts) {
     if (now.rest && !films.length) return `<section class="fx-rest"><p>${t.rest}</p></section>`;
     const rt = films.reduce((a, f) => a + (+f.m || 0), 0);
     let h = `<div class="fx-eye">${esc(faDigits(t.prog(films.filter(f => f.w).length, films.length, rt ? t.hmf(rt) : '')))}</div>`;
-    h += `<div class="fx-dots">${films.map(f => `<i class="${f.w ? 'on' : ''}"></i>`).join('')}</div>`;
+    h += `<div class="fx-bars" aria-hidden="true">${films.map(f => `<i class="N${f.w ? ' on' : ''}"></i>`).join('')}</div>`;
     h += '<ul class="fx-list">' + films.map(f => {
       const watched = f.w ? `<div class="fx-seen">${t.watched}${pdate(f.w) ? ' ' + pdate(f.w) : ''}</div>` : '';
       return `<li class="fx-i fx-ro${f.w ? ' done' : ''}">${poster(f)}<div class="fx-b">${titleOf(f)}${subOf(f)}${watched}</div><div class="fx-acts"><span class="fx-chk" aria-hidden="true">${f.w ? '✓' : ''}</span></div></li>`;
@@ -124,7 +124,7 @@ function fxProfile(root, id, focusId, opts) {
     // the diary only says there is a review; the reviews tab shows four lines (never a spoiler)
     const rv = !e.rv || !inReviews ? '' : e.sp ? `<p class="fx-spnote">${t.spoiler}</p>` : `<p class="fx-rvx fx-clamp" dir="auto">${esc(e.rv.slice(0, 1200))}</p>`;
     return `<li class="fx-de fx-tap" data-entry="${esc(e.id)}" id="e-${esc(e.id)}"><span class="fx-dday">${faDigits(day.test(e.w) ? +e.w.slice(8) : '')}</span>${poster(e)}
-      <div class="fx-b">${titleOf(e, true)}${subOf(e)}${metaOf(e, withDate)}${rv}${e.rv ? `<button type="button" class="fx-link fx-rvb" data-entry="${esc(e.id)}">${t.readReview} →</button>` : ''}</div>
+      <div class="fx-b">${titleOf(e, true)}${subOf(e)}${metaOf(e, withDate)}${rv}${e.rv ? `<button type="button" class="fx-link fx-rvb" data-entry="${esc(e.id)}">${t.readReview}</button>` : ''}</div>
       <button type="button" class="fx-perma" data-perma="${esc(e.id)}" title="${t.perma}" aria-label="${t.perma}">#</button></li>`;
   }
   // one entry on its own page: the full review, behind a choice if it has spoilers
@@ -138,7 +138,7 @@ function fxProfile(root, id, focusId, opts) {
     return `<article class="fx-entry">
       <div class="fx-efilm">${big}<div class="fx-b"><div class="fx-eye">${esc(eye)}</div>${titleOf(e, true)}${subOf(e)}</div></div>
       ${rating}
-      <div class="fx-ewhen">${e.rw ? `<i class="fx-ico rw" aria-hidden="true"></i>${t.rewatchedOn}` : t.watchedOn} ${esc(longDate)}${e.ww ? ` · <span class="fx-ww">${esc(t.withShort(String(e.ww).slice(0, 80)))}</span>` : ''}</div>
+      <div class="fx-ewhen">${e.rw ? `<i class="fx-ico rw" aria-hidden="true"></i>${t.rewatchedOn}` : t.watchedOn} ${esc(longDate)}${e.ww ? `, <span class="fx-ww">${esc(t.withShort(String(e.ww).slice(0, 80)))}</span>` : ''}</div>
       ${rv}
       ${tags.length ? `<div class="fx-dm">${tags.map(x => `<span class="fx-tagc">${esc(x.slice(0, 30))}</span>`).join('')}</div>` : ''}
       <div class="fx-row"><button type="button" class="fx-btn" data-perma="${esc(e.id)}">${t.perma}</button></div>
@@ -204,7 +204,7 @@ function fxProfile(root, id, focusId, opts) {
   function nameList(rows, mode) {
     if (!rows.length) return `<p class="fx-muted fx-few">${T().few}</p>`;
     const nm = n => opts.dirHref && opts.dirLinks ? `<a href="${esc(opts.dirHref(n))}" data-app>${esc(n)}</a>` : esc(n);
-    return `<ol class="fx-top">${rows.map(r => `<li><bdi>${nm(r[0])}</bdi><span class="fx-rn"><bdi>${mode === 'n' ? esc(faDigits(T().films(r[1]))) : avgTxt(r[3]) + ' · ' + fa(r[2])}</bdi></span></li>`).join('')}</ol>`;
+    return `<ol class="fx-top">${rows.map(r => `<li><bdi>${nm(r[0])}</bdi><span class="fx-rn"><bdi>${mode === 'n' ? esc(faDigits(T().films(r[1]))) : avgTxt(r[3]) + ', ' + fa(r[2])}</bdi></span></li>`).join('')}</ol>`;
   }
   const card = (title, tools, body) => `<section class="fx-card"><div class="fx-cardh"><h2>${title}</h2>${tools || ''}</div>${body}</section>`;
   const dirsOf = f => String(f.d || '').split(/,\s*|،\s*/).filter(Boolean);
@@ -223,7 +223,7 @@ function fxProfile(root, id, focusId, opts) {
     if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang], jal())}</section>`;
     const hist = Array(11).fill(0); d.concat(extra).forEach(e => { if (e.r) hist[e.r]++; });
     const hm = Math.max(1, ...hist);
-    h += `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★ · ${n}"><i style="height:${Math.round(n / hm * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
+    h += `<section class="fx-card"><h2>${t.spread}</h2><div class="fx-hist2" dir="ltr">${hist.slice(1).map((n, k) => `<div class="fx-bar" title="${(k + 1) / 2}★: ${n}"><i style="height:${Math.round(n / hm * 100)}%"></i></div>`).join('')}</div><div class="fx-hist2-ax" dir="ltr"><span>½★</span><span>★★★★★</span></div></section>`;
     // decades: how many, or how well liked
     const dec = tally(films, f => f.y ? [Math.floor(f.y / 10) * 10] : []);
     const decRows = stv.dec === 'n' ? dec.sort((x, y) => x[0] - y[0]) : ranked(dec, 'r', 12);
@@ -242,7 +242,7 @@ function fxProfile(root, id, focusId, opts) {
     opts.dirLinks = true; h += card(t.dirsH, seg('dir', mw), nameList(ranked(tally(films, dirsOf), stv.dir, 10), stv.dir)); opts.dirLinks = false;
     if (hasMeta) h += card(t.cast, seg('cast', mw), nameList(ranked(tally(films, f => f.ca || []), stv.cast, 10), stv.cast));
     const mins = d.reduce((a, e) => a + (+e.m || 0), 0);
-    h += `<section class="fx-card"><h2>${t.totals}</h2><div class="fx-eye fx-strip">${esc(faDigits([t.films(d.length), t.runtime + ' ' + t.hmf(mins), d.filter(e => e.r).length + ' ' + t.rated, d.filter(e => e.h).length + ' ' + t.liked, d.filter(e => e.rv).length + ' ' + t.reviewed].join(' · ')))}</div></section>`;
+    h += `<section class="fx-card"><h2>${t.totals}</h2><div class="fx-eye fx-strip"><span class="fx-tw">${[t.films(d.length), t.runtime + ' ' + t.hmf(mins), d.filter(e => e.r).length + ' ' + t.rated, d.filter(e => e.h).length + ' ' + t.liked, d.filter(e => e.rv).length + ' ' + t.reviewed].map(x => '<span>' + esc(faDigits(x)) + '</span>').join('')}</span></div></section>`;
     return h;
   }
   function render() {
@@ -253,11 +253,11 @@ function fxProfile(root, id, focusId, opts) {
       root.innerHTML = `<div class="fx-statsonly" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${yearNav()}${statsView()}</div>`; return;
     }
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-    document.title = (data && data.name ? data.name + ' · ' : '') + (opts.site || t.title);
+    document.title = (data && data.name ? data.name + ' – ' : '') + (opts.site || t.title);
     const dir = lang === 'fa' ? 'rtl' : 'ltr', e = cur ? (data.diary || []).find(x => x.id === cur) : null;
     if (e) {
       const name = String(data.name || '').trim() || t.title;
-      document.title = (e.t || '') + ' · ' + name;
+      document.title = (e.t || '') + ' – ' + name;
       root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc(t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }

@@ -6,9 +6,9 @@
  "start_url": "/",
  "scope": "/",
  "display": "standalone",
- "background_color": "#0E1014",
- "theme_color": "#0E1014",
- "description": "Log what you watch. See what your friends are watching. Pick tonight’s movie together.",
+ "background_color": "#121D1B",
+ "theme_color": "#121D1B",
+ "description": "A film diary with a plan. Log what you watch, follow your friends, and pick tonight’s film together.",
  "icons": [
   {
    "src": "/icon192.png",

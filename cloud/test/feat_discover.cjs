@@ -78,7 +78,7 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.click('.dx-list a[href="/discover/movement/french-new-wave"]'); await p.waitForSelector('.dx-grid');
   ok(p.url().endsWith('/discover/movement/french-new-wave'), 'the movement has its own address', p.url());
   ok(await p.$eval('.dx-h1', e => e.textContent) === 'French New Wave', 'the movement’s page');
-  ok(/Movement · 1958–1968/.test(await p.$eval('.dx-head .fx-eye', e => e.textContent)), 'its years');
+  ok(/Movement, 1958–1968/.test(await p.$eval('.dx-head .fx-eye', e => e.textContent)), 'its years');
   let titles = await p.$$eval('.dx-grid .dx-ct', es => es.map(e => e.textContent));
   ok(titles.length === 2 && titles.includes('Breathless'), 'its films', titles);
   await p.selectOption('[data-dx-sort]', 'old');

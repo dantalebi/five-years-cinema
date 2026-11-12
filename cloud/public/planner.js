@@ -259,7 +259,7 @@ function fxPlanner(o) {
   }
   function view() {
     const C = U.get();
-    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-pb-back>${tab.inApp ? '← Back' : '← Other ways to start'}</button></div>
+    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-pb-back>${tab.inApp ? 'Back' : 'Other ways to start'}</button></div>
       <div class="fx-eye">Your plan</div><h1 class="fx-h1 dx-h1">Build your plan</h1>
       <p class="dx-lede">A week-by-week schedule made from the ${C ? num(C.films.length) + '-film ' : ''}Discover catalog. It leaves out what you’ve seen and mixes film history, great directors, recent films and popular favorites.</p></header>`;
     if (!C) {
@@ -299,7 +299,7 @@ function fxPlanner(o) {
     const groups = new Map(); D.W.forEach(wk => wk.forEach(it => { if (it[2] === 1) { const g = D.F[it[1]][13]; if (g >= 0 && (D.gkind[g] === 'movement' || D.gkind[g] === 'period') && D.groups[g] !== 'Other Landmarks') groups.set(g, (groups.get(g) || 0) + 1); } }));
     const gtop = [...groups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
     const cell = n => { const r = D.F[n], p = (D.posters.find(x => x[0] === r[8]) || [])[1] || ''; return U.cell({t: r[0], y: r[1], slug: r[5], tm: r[16], p}, {seen: () => '', wl: () => false}); };
-    let h = `<section class="fx-card pb-sec"><div class="fp-prog"><b>${num(D.W.length)} weeks · ${num(mix.t)} films · about ${num(hoursOf(D))} hours</b></div>
+    let h = `<section class="fx-card pb-sec"><div class="fp-prog"><b>${num(D.W.length)} weeks, ${num(mix.t)} films, about ${num(hoursOf(D))} hours</b></div>
       <div class="pb-mix">${['H', 'A', 'C', 'P'].filter(k => mix.n[k]).map(k => `<span><i class="l-${k}"></i>${LANE_NAME[k]} <b>${Math.round(mix.n[k] / mix.t * 100)}%</b></span>`).join('')}${cfg.open ? `<span><i class="l-F"></i>One open slot a week</span>` : ''}</div></section>`;
     first.forEach((wk, k) => { h += `<section class="fx-card pb-sec"><h2>Week ${k + 1}</h2><ul class="dx-grid pb-week">${wk.filter(it => it[2] === 1).map(it => cell(it[1])).join('')}</ul></section>`; });
     if (dirs.length) h += `<section class="fx-card pb-sec"><h2>Directors you’ll follow</h2><p class="pb-names">${dirs.map(d => `<span>${esc(d.en)} <b>${d.f.length}</b></span>`).join('')}</p></section>`;

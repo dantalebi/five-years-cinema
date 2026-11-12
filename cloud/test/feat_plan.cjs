@@ -25,7 +25,7 @@ const here = p => p.url().replace(B, '');
   await p.click('[data-pb-years="1"]'); await p.click('[data-pb-per="3"]');
   await p.click('[data-pb-go]'); await p.waitForSelector('[data-pb-start]', {timeout: 15000});
   const pv = await p.$eval('.fx-app', e => e.innerText.replace(/\s+/g, ' '));
-  ok(/52 weeks · 104 films/.test(pv), 'the preview: a year, two films a week and an open slot', pv.slice(0, 160));
+  ok(/52 weeks, 104 films/.test(pv), 'the preview: a year, two films a week and an open slot', pv.slice(0, 160));
   ok(/Directors you’ll follow/i.test(pv) && /Week 1/i.test(pv), 'it shows the first weeks and the directors');
   await p.screenshot({path: path.join(OUT, 'plan-preview.png'), fullPage: true});
   await p.click('[data-pb-start]'); await p.waitForSelector('.fx-tabbar', {timeout: 15000}); await p.waitForTimeout(600);

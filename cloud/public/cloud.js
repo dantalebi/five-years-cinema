@@ -12,14 +12,18 @@
   const num = n => lang() === 'fa' ? Number(n).toLocaleString('fa-IR') : Number(n).toLocaleString('en-US');
   const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+  if (typeof fxTune !== 'undefined' && !window.fxFetch0) {
+    const f0 = window.fxFetch0 = window.fetch.bind(window);
+    window.fetch = (u, o) => /\/api\/(sync|inbox|me)\b/.test(String(u && u.url || u)) ? f0(u, o) : fxTune.wrap(f0(u, o));
+  }
   Posters.setProxy('/api/tmdb');
   CloudSync.setLang(() => lang());
   Posters.setChosen(k => Store.data['ps:' + k] || '');
 
   const GT = {
     en: {
-      site: C.siteName || 'Film Diary', tag: 'Log what you watch. See what your friends are watching. Pick tonight’s movie together.', eyebrow: 'A film diary for friends', langL: 'فارسی',
-      about: 'Named after David Bowie’s “TVC 15,” a song about a TV set that swallows people whole.',
+      site: C.siteName || 'Film Diary', tag: 'A film diary with a plan. Log what you watch, follow your friends, and pick tonight’s film together.', langL: 'فارسی',
+      about: 'Named after “TVC 15,” David Bowie’s song about a television set that swallows people whole.',
       signin: 'Sign in', signup: 'Create an account', user: 'Username', userPh: 'Letters, numbers and underscores', pass: 'Password', passNew: 'Password (at least 8 characters)', name: 'Your name', namePh: 'Shown on your profile', code: 'Invite code',
       pub: 'Make my profile public (people can see your diary and follow you)', go: 'Sign in', make: 'Create account', working: 'One moment…', short: 'Your password needs at least 8 characters.',
       privacy: 'Your password is scrambled on your device before it’s sent, so the site never sees it. No email or phone number required.',
@@ -60,7 +64,7 @@
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
     if (authMode === 'rec') { recoverScreen(); return; }
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.eyebrow || t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
+    shell(`<header class="fx-head fx-authhead">${typeof FX_BRAND !== 'undefined' ? `${FX_BRAND.mark({h: 64, id: 'auth', cls: 'fx-authmark'})}<h1 class="fx-authword">${FX_BRAND.word({h: 40})}</h1>` : `<h1 class="fx-h1">${esc(t.site)}</h1>`}<p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
       <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>
@@ -104,7 +108,7 @@
   // forgot your password: username, recovery key, a new password
   function recoverScreen(note) {
     fresh();
-    shell(`<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-amode="in">← Sign in</button></div><h1 class="fx-h1">Reset your password</h1>
+    shell(`<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-amode="in">Sign in</button></div><h1 class="fx-h1">Reset your password</h1>
       <p class="fx-lede">Use the recovery key you saved when you made your account (or later, in Settings).</p></header>
       <form class="fx-card fx-authf" data-recover novalidate>
         <label class="fx-field"><span>Username</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
@@ -300,6 +304,8 @@
   const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
   const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
+  // the top of each main screen: the wordmark, which takes you home
+  const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
   const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
   const pathOf = v => v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
@@ -326,7 +332,7 @@
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
-    if (!/^\/(film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|$)/.test(href)) return;
+    if (!/^\/((film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|$)|$)/.test(href)) return;
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
   });
   // where a plan film sits in your plan, for its page
@@ -390,7 +396,7 @@
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
-      topButton: AC ? on => AC.corner(on) : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), profileMore: true, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
@@ -421,7 +427,7 @@
   function homeChoice(L) {
     const week = Store.data['cfg:home'] === 'week';
     const gen = typeof fxPlanner === 'function' ? `<section class="fx-card"><h2>Build a new plan</h2><p class="fx-muted">A schedule made from the Discover catalog, with your choice of length, pace and balance. It leaves out everything you’ve logged, so it’s worth rebuilding after you bring in your Letterboxd history.</p><div class="fx-row"><a class="fx-btn" href="/plan/new" data-app>Build a new plan</a></div></section>` : '';
-    return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This Week</button></div></section>`;
+    return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This week</button></div></section>`;
   }
   function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
   let rt = null;
@@ -517,10 +523,10 @@
           + (pblock ? `<p class="fx-note bad">Block @${esc(name)}? They won’t be able to follow you, react to or comment on your entries, or see your profile while signed in. They aren’t told.</p><div class="fx-row"><button type="button" class="fx-btn fx-danger" data-pblockyes>Block</button><button type="button" class="fx-btn" data-pblockno>Cancel</button></div>`
             : `<button type="button" class="fx-btn" data-pblock>Block @${esc(name)}</button>`) + (pnote ? `<p class="fx-note ok">${esc(pnote)}</p>` : '') + '</div>';
       }
-      return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))} · ${esc(t.following(fa(meta.following)))}${meta.followsYou && !meta.self ? ' · <span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
+      return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))}, ${esc(t.following(fa(meta.following)))}${meta.followsYou && !meta.self ? ' <span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
     };
     PF = fxProfile(root, name, eid, {
-      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary',
+      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: brandBar(),
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
       avatar: d => typeof fxAvatar === 'function' ? fxAvatar(name, d.name, d.av, 'xl') : '',
@@ -535,7 +541,7 @@
         if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) location.href = '/settings'; }); return true; }
         if (b.hasAttribute('data-prmfollower')) { CloudSync.removeFollower(name).then(r => { if (r.ok) { meta.followsYou = false; meta.followers = Math.max(0, meta.followers - 1); pnote = '@' + name + ' no longer follows you.'; render(); } }); return true; }
         if (!b.hasAttribute('data-pfollow')) return false;
-        const on = !meta.follows; meta.follows = on; meta.followers += on ? 1 : -1; render();
+        const on = !meta.follows; meta.follows = on; meta.followers += on ? 1 : -1; render(); typeof fxOSD === 'function' && fxOSD(on ? 'Following' : 'Unfollowed');
         CloudSync.follow(name, on).then(r => { if (!r.ok) { meta.follows = !on; meta.followers += on ? -1 : 1; render(); } });
         return true;
       },

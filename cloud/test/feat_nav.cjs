@@ -37,7 +37,7 @@ const here = p => p.url().replace(B, '');
   await p.goBack(); await p.waitForSelector('.dx-ft');
   ok(here(p) === href, 'Back: the film again', here(p));
   await p.goBack(); await p.waitForTimeout(300);
-  ok(here(p) === '/week' && /This Week/.test(await p.$eval('.fx-h1', e => e.textContent)), 'Back: This Week again', here(p));
+  ok(here(p) === '/week' && /This week/i.test(await p.$eval('.fx-h1', e => e.textContent)), 'Back: This Week again', here(p));
 
   // the + box and the log sheet close on Back, and Back with an unsaved review asks first
   await p.click('.fx-tplus'); await p.waitForSelector('.fx-pick-q');

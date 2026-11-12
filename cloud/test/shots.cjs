@@ -11,7 +11,8 @@ const fakeImg = r => {
   const b = await chromium.launch();
   const vp = SIZE === 'desk' ? {width: 1280, height: 860} : {width: 390, height: 844};
   const c = await b.newContext({viewport: vp, serviceWorkers: 'block', storageState: WHO === 'none' ? undefined : path.join(OUT, 'state-' + WHO + '.json'), colorScheme: process.env.SCHEME || 'dark'});
-  await c.route(/image\.tmdb\.org/, fakeImg); await c.route(/fonts\.g/, r => r.fulfill({status: 200, body: ''}));
+  await c.route(/image\.tmdb\.org/, fakeImg); // no font downloads here: Inter (installed) stands in for Archivo
+  await c.route(/fonts\.g/, r => r.fulfill({status: 200, contentType: 'text/css', body: "@font-face{font-family:Archivo;src:local('Inter');font-weight:100 900;font-stretch:62% 125%}@font-face{font-family:Archivo;src:local('Inter Black');font-weight:850 900}@font-face{font-family:Archivo;src:local('Inter ExtraBold');font-weight:750 849}"}));
   const p = await c.newPage();
   p.on('pageerror', e => console.log('pageerror', e.message));
   for (const s of SHOTS) {

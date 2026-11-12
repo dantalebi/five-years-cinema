@@ -16,7 +16,7 @@ function fxFriendsTab(CS) {
       if (mine) return others.length ? 'On your watchlist and ' + list(others.map(poss)) : 'On your watchlist';
       return others.length === 1 ? 'On ' + poss(others[0]) + ' watchlist' : 'On ' + list(others.map(poss)) + ' watchlists';
     }, loved: (n, r) => n + ' gave it ' + r + ', and nobody else has seen it'},
-    none: 'Follow people to see what they’re watching.', findPeople: 'Find people to follow',
+    none: 'Nothing on this channel yet. Follow people to see what they’re watching.', findPeople: 'Find people to follow',
     find: 'Search people', follow: 'Follow', following: 'Following', followBack: 'Follow back', followsYou: 'Follows you', loading: 'Loading…', fail: 'Couldn’t load this.', retry: 'Try again',
     alone: 'No one else is here yet. Send a friend your link.', more: 'Show more',
     heart: 'Like', seen: 'Seen it', want: 'Add to watchlist', comment: 'Comment', reply: 'Reply', send: 'Post', cPh: 'Add a comment…', del: 'Delete', you: 'you',
@@ -137,11 +137,11 @@ function fxFriendsTab(CS) {
   function feedHtml(ix) {
     const rows = feedRows();
     rows.sort((a, b) => String(b.w || '').localeCompare(String(a.w || '')) || ((ix[b.u + '/' + b.id] || {}).last || 0) - ((ix[a.u + '/' + a.id] || {}).last || 0));
-    if (!rows.length) return `<p class="fx-muted">${T.none} <button type="button" class="fx-link" data-seg="p">${T.findPeople}</button></p>`;
+    if (!rows.length) return `<div class="fx-blank"><p class="fx-muted">${T.none} <button type="button" class="fx-link" data-seg="p">${T.findPeople}</button></p></div>`;
     return `<ul class="fx-afeed">${rows.slice(0, shown).map(e => {
       const href = '/u/' + e.u + (okId(e.id) ? '#' + e.id : '');
       return `<li class="fx-actv">${posterBox(e)}<div class="fx-ab">
-        <div class="fx-aw"><a class="fx-who" href="/u/${e.u}">${av(e.u, e.n, e.a)}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a> · <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
+        <div class="fx-aw"><a class="fx-who" href="/u/${e.u}">${av(e.u, e.n, e.a)}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a> <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
         ${filmLink(e, 'fx-at')}
         <div class="fx-fm"><span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}</div>
         ${e.rx ? `<p class="fx-arx" dir="auto">${esc(e.rx)}${String(e.rx).length >= 280 ? '…' : ''}</p>` : e.rv && e.sp ? `<p class="fx-arx fx-muted">${T.spoil}</p>` : ''}
@@ -150,7 +150,7 @@ function fxFriendsTab(CS) {
   }
   function notesHtml(ix) {
     const list = notes(), before = seenBefore === null ? seenAt() : seenBefore;
-    if (!list.length) return `<p class="fx-muted">${T.nNone}</p>`;
+    if (!list.length) return `<div class="fx-blank"><p class="fx-muted">${T.nNone}</p></div>`;
     const following = new Set((people || []).filter(p => p.following).map(p => p.username));
     return `<ul class="fx-notes">${list.slice(0, nShown).map(x => {
       const who = `<a class="fx-who" href="/u/${x.u}">${av(x.u, x.n, x.a)}<b dir="auto">${esc(x.n || '@' + x.u)}</b></a>`;
@@ -168,7 +168,7 @@ function fxFriendsTab(CS) {
   }
   function wlHtml() {
     const list = wlList();
-    let h = `<details class="fx-more fx-wl"${wlOpen ? ' open' : ''}><summary>${T.wlH} · ${T.wlCount(list.length)}</summary>`;
+    let h = `<details class="fx-more fx-wl"${wlOpen ? ' open' : ''}><summary>${T.wlH} <span class="fx-muted">${T.wlCount(list.length)}</span></summary>`;
     if (!list.length) return h + `<p class="fx-muted">${T.wlNone}</p></details>`;
     h += `<ul class="fx-wll">${list.map(x => `<li>${posterBox(x)}<div class="fx-ab">${filmLink(x, 'fx-at')}${x.u ? `<span class="fx-muted fx-small">${esc(T.wlFrom(x.u))}</span>` : ''}</div><div class="fx-wla">${logger ? `<button type="button" class="fx-btn" data-wl-log="${esc(x.k)}">${T.logIt}</button>` : ''}<button type="button" class="fx-link" data-wl-rm="${esc(x.k)}" aria-label="${esc(T.remove)}">${T.remove}</button></div></li>`).join('')}</ul>`;
     return h + '</details>';
@@ -249,7 +249,7 @@ function fxFriendsTab(CS) {
     const c = list[tg.i % list.length], rest = list.filter(x => x !== c).slice(0, 5);
     const wl = wlHas(c) || c.loved.some(x => x[0] === me);  // nothing to add for a film you've seen
     h += `<section class="fx-card fx-tgpick"><a class="fx-tgbig" href="${esc(filmHref(c))}" data-app>${c.p ? `<img alt="" src="${c.p}">` : `<span class="fx-pt" dir="ltr">${esc(c.t)}</span>`}</a>
-      <div class="fx-tgb">${filmLink(c, 'fx-at')}${c.d || c.m ? `<div class="fx-muted">${esc(c.d.split(',')[0] || '')}${c.d && c.m ? ' · ' : ''}${c.m ? Math.floor(c.m / 60) + 'h ' + (c.m % 60) + 'm' : ''}</div>` : ''}
+      <div class="fx-tgb">${filmLink(c, 'fx-at')}${c.d || c.m ? `<div class="fx-muted">${esc(c.d.split(',')[0] || '')}${c.d && c.m ? ', ' : ''}${c.m ? Math.floor(c.m / 60) + 'h ' + (c.m % 60) + 'm' : ''}</div>` : ''}
       <ul class="fx-why">${why(c).map(w => `<li>${esc(w)}</li>`).join('')}</ul>
       <div class="fx-row"><button type="button" class="fx-btn primary" data-tgnext>${T.tAgain}</button>${wl ? '' : `<button type="button" class="fx-btn" data-tgwl>${T.tWant}</button>`}${logger && !c.loved.some(x => x[0] === me) ? `<button type="button" class="fx-btn" data-tglog>${T.logIt}</button>` : ''}</div></div></section>`;
     if (rest.length) h += `<section class="fx-card"><h2>${T.tAlso}</h2><ul class="fx-wll">${rest.map(x => `<li>${posterBox(x)}<div class="fx-ab">${filmLink(x, 'fx-at')}<span class="fx-muted fx-small">${esc(why(x)[0] || '')}</span></div><span></span></li>`).join('')}</ul></section>`;
@@ -306,7 +306,7 @@ function fxFriendsTab(CS) {
       if (b.dataset.tglen) { tg.len = b.dataset.tglen === 'short' ? 'short' : 'any'; tg.i = 0; render(); return true; }
       if (b.hasAttribute('data-tggo')) { findTonight().then(() => fillPoster(tgList()[0])); return true; }
       if (b.hasAttribute('data-tgnext')) { tg.i++; render(); const l = tgList(); fillPoster(l[tg.i % Math.max(1, l.length)]); return true; }
-      if (b.hasAttribute('data-tgwl')) { const l = tgList(), c = l[tg.i % l.length]; if (c) { wlSet(c, true, ''); render(); } return true; }
+      if (b.hasAttribute('data-tgwl')) { const l = tgList(), c = l[tg.i % l.length]; if (c) { wlSet(c, true, ''); render(); typeof fxOSD === 'function' && fxOSD('On your watchlist'); } return true; }
       if (b.hasAttribute('data-tglog')) { const l = tgList(), c = l[tg.i % l.length]; if (c && logger) logger(c.t, c.y, {tm: c.tm || 0, t: c.t, y: c.y || 0, p: String(c.p || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '')}); return true; }
       if (b.dataset.seg) { if (seg === 'n' && b.dataset.seg !== 'n') seenBefore = null; seg = b.dataset.seg; render(); window.scrollTo(0, 0); if (typeof fxNav !== 'undefined') fxNav.note(SEGP[seg]); return true; }
       if (b.hasAttribute('data-fr-retry')) { err = false; feed = null; render(); return true; }
@@ -316,7 +316,7 @@ function fxFriendsTab(CS) {
         const kind = b.dataset.rx, owner = b.dataset.o, eid = b.dataset.e, ft = filmOf(owner, eid);
         if (kind === 'w') {  // "want to watch" also puts it on your own watchlist
           const e = entry(owner, eid);
-          if (e) { const on = !wlHas(e); wlSet(e, on, owner); const has = re.some(r => r[1] === owner && r[2] === eid && r[3] === 'w' && r[6] === me); if (has !== on) toggle('w', owner, eid, ft); else render(); }
+          if (e) { const on = !wlHas(e); wlSet(e, on, owner); typeof fxOSD === 'function' && fxOSD(on ? 'On your watchlist' : 'Off your watchlist'); const has = re.some(r => r[1] === owner && r[2] === eid && r[3] === 'w' && r[6] === me); if (has !== on) toggle('w', owner, eid, ft); else render(); }
           return true;
         }
         toggle(kind, owner, eid, ft); return true;
@@ -338,7 +338,7 @@ function fxFriendsTab(CS) {
         const u = b.dataset.frFollow, p = (people || []).find(x => x.username === u), on = p ? !p.following : true;
         if (p) p.following = on;
         if (inbox) inbox.fol.forEach(f => { if (f[0] === u) f[3] = on; });
-        render();
+        render(); typeof fxOSD === 'function' && fxOSD(on ? 'Following' : 'Unfollowed');
         CS.follow(u, on).then(r => { if (!r.ok && p) p.following = !on; feed = null; load(); });
         return true;
       }

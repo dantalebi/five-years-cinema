@@ -46,7 +46,8 @@ function png(w, h) {
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
   ok(p.url().endsWith('/settings') && !(await p.$('.av-menu')), 'Settings from the menu');
 
-  // upload a photo, frame it, save it
+  // upload a photo, frame it, save it (once Settings has finished loading, so the file box isn't redrawn under us)
+  await p.waitForSelector('#ac-security .ac-list li', {timeout: 8000}).catch(() => {}); await p.waitForTimeout(300);
   await p.setInputFiles('input[data-ac-avfile]', pic); await p.waitForSelector('.av-crop canvas');
   await p.$eval('[data-avzoom]', e => { e.value = '1.6'; e.dispatchEvent(new Event('input', {bubbles: true})); });
   const box = await p.$eval('.av-crop canvas', e => { const r = e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; });

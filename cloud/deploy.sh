@@ -11,7 +11,7 @@ mkdir -p "$HERE/catalog/dist"
 [ -f "$REPO/cloud/catalog/dist/catalog.json" ] && cp "$REPO/cloud/catalog/dist/catalog.json" "$HERE/catalog/dist/"
 OUT=${OUT:-/tmp/claude-0/-home-claude/79e1b5ed-ff03-5da8-90ed-2b8ff50601d7/scratchpad} bash "$HERE/test/all.sh"
 for f in build_cloud.py deploy.sh SETUP.md wrangler.toml; do [ -f "$HERE/$f" ] && cp "$HERE/$f" "$REPO/cloud/"; done
-for d in functions public src test; do rm -rf "$REPO/cloud/$d"; cp -r "$HERE/$d" "$REPO/cloud/$d"; done
+for d in functions public src test brand; do rm -rf "$REPO/cloud/$d"; cp -r "$HERE/$d" "$REPO/cloud/$d"; done
 mkdir -p "$REPO/cloud/catalog"
 for f in build.mjs taxonomy.mjs seed.py seed.json; do cp "$HERE/catalog/$f" "$REPO/cloud/catalog/"; done
 [ -d "$HERE/workflows" ] && mkdir -p "$REPO/.github/workflows" && cp "$HERE/workflows/"*.yml "$REPO/.github/workflows/"

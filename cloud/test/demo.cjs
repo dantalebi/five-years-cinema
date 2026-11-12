@@ -23,12 +23,13 @@ async function signup(p, u, n, lang) {
   await p.click('[data-amode="up"]');
   await p.fill('input[name=u]', u); await p.fill('input[name=n]', n); await p.fill('input[name=p]', 'demo pass ' + u);
   await p.click('form[data-auth] button[type=submit]');
+  await p.waitForSelector('[data-knext]', {timeout: 20000}); await p.check('[data-kok]'); await p.click('[data-knext]');
   await p.waitForSelector('[data-omove]', {timeout: 20000});
 }
 (async () => {
   const b = await chromium.launch();
   const plan = JSON.parse(fs.readFileSync(PLAN, 'utf8'));
-  const move = {v: 1, app: 'five-years-cinema', plan, e: {'cfg:lang': ['fa', Date.now()], 'cfg:name': ['Danial Talebi', Date.now()], 'cfg:since': ['2026-03-07', Date.now()]}};
+  const move = {v: 1, app: 'five-years-cinema', plan, e: {'cfg:lang': [process.env.LANG_UI || 'fa', Date.now()], 'cfg:name': ['Danial Talebi', Date.now()], 'cfg:since': ['2026-03-07', Date.now()]}};
   fs.writeFileSync(path.join(OUT, 'demo-move.json'), JSON.stringify(move));
   // talebi: his plan, then his Letterboxd history from Settings
   const T = await person(b, 'talebi', async p => {

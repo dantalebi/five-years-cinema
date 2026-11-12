@@ -165,13 +165,13 @@ function fxDiscover(o) {
   function browse() {
     const pr = st.primary && st.f[st.primary] != null ? st.primary : DIMS.find(d => st.f[d] != null) || '';
     let eye = 'The catalog', title = st.q && !pr ? 'Search' : 'All films', desc = '';
-    if (pr === 'group') { const g = C.groups[st.f.group]; eye = (g.kind === 'period' ? 'Era' : 'Movement') + ' · ' + g.from + '–' + (g.to >= new Date().getFullYear() ? 'now' : g.to); title = g.name; desc = g.desc; }
+    if (pr === 'group') { const g = C.groups[st.f.group]; eye = (g.kind === 'period' ? 'Era' : 'Movement') + ', ' + g.from + '–' + (g.to >= new Date().getFullYear() ? 'now' : g.to); title = g.name; desc = g.desc; }
     else if (pr === 'lens') { const l = C.lenses[st.f.lens]; eye = l.door || 'Collection'; title = l.name; desc = l.desc; }
     else if (pr === 'country') { eye = 'National cinema'; title = 'Cinema of ' + C.cnames[st.f.country]; }
     else if (pr === 'decade') { eye = 'Decade'; title = 'The ' + st.f.decade + 's'; }
     else if (pr === 'genre') { eye = 'Genre'; title = C.gname[st.f.genre]; }
     else if (pr === 'len') { eye = 'Length'; title = label('len', st.f.len); }
-    return `<header class="fx-head dx-head"><div class="fx-hrow">${link('/discover', '← Discover', 'fx-link')}</div>
+    return `<header class="fx-head dx-head"><div class="fx-hrow">${link('/discover', 'Discover', 'fx-link fx-bk')}</div>
       <div class="fx-eye">${esc(eye)}</div><h1 class="fx-h1 dx-h1">${esc(title)}</h1>${desc ? `<p class="dx-lede">${esc(desc)}</p>` : ''}</header>${search()}<div class="dx-dyn">${tools()}${attr()}</div>`;
   }
   // the filters, the sort and the results; redrawn on their own while you type, so the search box keeps focus
@@ -185,8 +185,8 @@ function fxDiscover(o) {
     const chips = DIMS.filter(d => st.f[d] != null).map(d => `<button type="button" class="fx-chip" data-dx-rm="${d}" aria-label="Remove filter: ${esc(label(d, st.f[d]))}">${esc(label(d, st.f[d]))}<i aria-hidden="true">×</i></button>`);
     if (chips.length) h += `<div class="dx-active">${chips.join('')}${chips.length > 1 ? '<button type="button" class="fx-link" data-dx-clear>Clear all</button>' : ''}</div>`;
     const hid = [R.hidS ? num(R.hidS) + ' watched' : '', R.hidW ? num(R.hidW) + ' on your watchlist' : ''].filter(Boolean);
-    h += `<p class="dx-count"><b>${filmsN(R.list.length)}</b>${hid.length ? ` <span>· ${hid.join(' and ')} hidden</span>` : ''}</p>`;
-    if (!R.list.length) h += `<p class="fx-muted dx-none">Nothing matches all of these. Remove a filter${R.hs || R.hw ? ' or show the films you’ve hidden' : ''} to see more.</p>`;
+    h += `<p class="dx-count"><b>${filmsN(R.list.length)}</b>${hid.length ? `<span>, ${hid.join(' and ')} hidden</span>` : ''}</p>`;
+    if (!R.list.length) h += `<div class="fx-blank"><p class="fx-muted dx-none">Nothing matches all of these. Remove a filter${R.hs || R.hw ? ' or show the films you’ve hidden' : ''} to see more.</p></div>`;
     else h += `<ul class="dx-grid">${R.list.slice(0, st.n).map(f => U.cell(f, R.mk)).join('')}</ul>`;
     if (R.list.length > st.n) h += `<div class="dx-more"><button type="button" class="fx-btn" data-dx-more>Show more</button><span class="fx-muted">${num(st.n)} of ${num(R.list.length)}</span></div>`;
     return h;

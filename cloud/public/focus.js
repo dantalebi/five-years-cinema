@@ -8,23 +8,24 @@ const FX_TH_EN = {'عشق': 'Love', 'وحشت': 'Horror', 'خنده': 'Comedy', 
   'میل و وسوسه': 'Desire', 'سینما درباره‌ی سینما': 'Cinema on cinema', 'اکشن و ماجرا': 'Action & adventure', 'وسترن': 'Westerns'};
 const FX_STR = {
   en: {
-    thisWeek: 'This Week', weekDone: 'Week done', surprise: t => t + ' week',
-    eyebrow: (n, of, rt) => of + (of === '1' ? ' film' : ' films') + (rt ? ' · ' + rt : '') + (n !== '0' ? ' · ' + n + ' watched' : ''),
+    thisWeek: 'This week', weekDone: 'Week done', surprise: t => t + ' week',
+    eyebrow: (n, of, rt) => of + (of === '1' ? ' film' : ' films') + (rt ? ', ' + rt : '') + (n !== '0' ? ', ' + n + ' watched' : ''),
+    barsL: (n, of) => n + ' of ' + of + ' watched', osdLogged: 'Logged', osdSaved: 'Saved', osdRemoved: 'Removed',
     hm: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm',
-    whenReady: 'All watched.', showNext: 'Next week →',
-    restP: 'A week off. Nothing’s scheduled, so watch whatever you like, or nothing at all.', restSug: 'Want a suggestion?', restGo: 'On to next week →',
+    whenReady: 'Every film watched.', showNext: 'Start next week',
+    restP: 'A week off. Nothing’s scheduled, so watch whatever you like, or nothing at all.', restSug: 'Want a suggestion?', restGo: 'Go to next week',
     tonight: 'Pick for me', tonightHint: '', tonightTag: 'Tonight',
-    dl: 'Next week’s downloads', copy: 'Copy', copied: 'Copied', selected: 'Selected. Copy it.',
-    watchedN: n => 'Diary · ' + n + (n === '1' ? ' film' : ' films'), skipped: 'Skipped', notWatched: 'Remove', restore: 'Undo',
+    dl: 'Next week’s films as a list', copy: 'Copy', copied: 'Copied', selected: 'Selected. Copy it.',
+    watchedN: n => 'Diary, ' + n + (n === '1' ? ' film' : ' films'), skipped: 'Skipped', notWatched: 'Remove', restore: 'Undo',
     skip: 'Skip', skipTitle: 'Skip this film', watched: 'Watched', other: 'Watched something else?', otherPh: 'Film title', save: 'Save',
     anything: 'Your choice', yourPick: 'Your pick', free: 'Your pick', lanes: {H: 'Classic', A: 'Auteur', C: 'Contemporary', P: 'Popular'},
     st: {ok: 'Downloaded', dl: 'Downloading', need: 'Not downloaded'}, min: n => n + ' min', firstBy: d => 'Your first ' + d, marathon: (k, n) => 'Part ' + k + ' of ' + n,
     friends: 'Friends', friendsTitle: n => 'Average rating from ' + n + ' friends', howWas: 'Rate & review', liked: 'Like', stars: n => n + ' stars', reviewed: 'Review',
     review: 'Add a review', editReview: 'Edit review', reviewPh: 'Add a review…',
-    settings: 'Settings', full: 'Five-Year Plan', planLink: (w, n) => 'Week ' + w + ' of ' + n + ' · See the whole plan →', diaryLink: 'Diary', back: '← This week', end: 'The End', endP: 'Five years, every film. What comes next is up to you.',
+    settings: 'Settings', full: 'The whole plan', planLink: (w, n) => 'Week ' + w + ' of ' + n + ', see the whole plan', diaryLink: 'Diary', back: '← This week', end: 'The end', endP: 'Five years, every film. What comes next is up to you.',
     add: '+ Add a film', addH: 'Add a film', replace: 'Replace', replaceH: t => 'Replace ' + t, insteadOf: t => 'Instead of ' + t, added: 'Added',
     remove: 'Remove', cancel: 'Cancel', addPh: 'Search films…', addAsIs: t => 'Add “' + t + '”', noMatch: 'Not in your plan, but you can still add it.',
-    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ' · ' + h + (avg ? ' · ★ ' + avg + ' average' : ''),
+    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ', ' + h + (avg ? ', averaging ' + avg + ' stars' : ''),
     logFilm: '+ Log a film', logH: 'Log a film', allYears: 'All time', watchedLbl: 'Watched',
     inPlan: 'In your plan', fromTmdb: 'From TMDB', searching: 'Searching TMDB…',
     favH: 'Favorite films', favP: 'Four films that sum up your taste. They sit at the top of your profile.', favAdd: 'Add', favPick: n => 'Favorite #' + n, favRemove: 'Remove',
@@ -33,20 +34,20 @@ const FX_STR = {
     shNew: 'I watched…', shEdit: 'Edit entry', shSave: 'Save', shDate: 'Watched on', shRewatch: 'I’ve watched this film before', shRate: 'Rate', shRated: 'Rated',
     shReviewPh: 'Add a review…', shSpoil: 'Contains spoilers', shTagPh: 'Add tags…', shTagMore: 'Add another…', shTagRm: x => 'Remove tag ' + x,
     shRemove: 'Remove from diary', shRemove2: 'Tap again to remove', shDiscard: 'Discard changes?', shTagHint: 'Press Return or type a comma to add a tag', shMore: 'More',
-    navList: 'List', listH: 'Your List', listEye: (n, w) => n + ' films · ' + w + (w === '1' ? ' week' : ' weeks'), listAdd: '+ Add films', listImport: 'Import from Letterboxd',
+    navList: 'List', listH: 'Your list', listEye: (n, w) => n + ' films over ' + w + (w === '1' ? ' week' : ' weeks'), listAdd: '+ Add films', listImport: 'Import from Letterboxd',
     perWeekL: 'Films a week', listEmpty: 'Nothing here yet. Add films one at a time, or bring in your Letterboxd watchlist.', listAllDone: 'You’ve watched everything on your list. Add a few more?',
     wkLabel: w => 'Week ' + w, thisWeekL: 'this week', moveUp: 'Move up', moveDown: 'Move down', removeL: 'Remove', removeL2: 'Remove?', showAllWeeks: n => 'Show all ' + n + ' weeks', pastWeeks: n => n + (n === '1' ? ' week' : ' weeks') + ' behind you',
-    importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, imported: (a, s2) => a + ' films added' + (s2 ? ' · ' + s2 + ' already there' : '') + '.', importedDiary: (a, s2, u) => a + ' diary entries added' + (u ? ' · ' + u + ' updated' : '') + (s2 ? ' · ' + s2 + ' already there' : '') + '.',
+    importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, imported: (a, s2) => a + ' films added' + (s2 ? '; ' + s2 + ' were already there' : '') + '.', importedDiary: (a, s2, u) => a + ' diary entries added' + (u ? ', ' + u + ' updated' : '') + (s2 ? '; ' + s2 + ' were already there' : '') + '.',
     importBad: 'That doesn’t look like a Letterboxd export (a .csv with Name and Year).', importNoDates: 'This file has no watch dates. To bring in your history, use diary.csv from the export.',
     importHelp: 'On letterboxd.com, go to Settings → Data → Export your data. Use watchlist.csv (or any list) for your list, and diary.csv (or reviews.csv) for your history.',
-    inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list · ' + Number(n).toLocaleString('en-US') + ' films', planSample: 'Sample plan · Five Years of Cinema', planOwn: n => 'Your own plan · ' + Number(n).toLocaleString('en-US') + ' films', planReset: 'Start over with another plan', planReset2: 'Tap again to start over. Your diary stays.',
+    inList: 'In your list', addedL: t => 'Added: ' + t, listPh: 'Search any film', planH: 'Plan', planList: n => 'Your own list of ' + Number(n).toLocaleString('en-US') + ' films', planSample: 'Five Years of Cinema, the plan the site started with', planOwn: n => 'Your own plan of ' + Number(n).toLocaleString('en-US') + ' films', planReset: 'Start over with another plan', planReset2: 'Tap again to start over. Your diary stays.',
     lbH: 'Letterboxd', lbP: 'Bring in your whole Letterboxd history in one go. On letterboxd.com, go to Settings → Data → Export your data, then choose the .zip here. Your diary, ratings, likes and watchlist all come over.', lbPick: 'Import Letterboxd export', lbfL: 'Friends on Letterboxd', lbfP: 'Their usernames, separated by commas. Their public Letterboxd logs are checked every few hours, so your page can show how close your tastes are.',
-    lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m, lk, u) => a + ' diary entries added · ' + k + ' plan films checked off · ' + m + ' updated' + (lk ? ' · ' + lk + ' likes' : '') + (u ? ' · ' + u + ' undated films (counted in your stats)' : '') + '.', lbBad: 'That’s not a Letterboxd export. Choose the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
-    lbAuto: (ago, n) => 'Anything you log on Letterboxd shows up here within a few hours. Last checked ' + ago + (n ? ' · ' + n + ' new' : '') + '.', lbAutoOff: 'Anything you log on Letterboxd will show up here within a few hours.',
+    lbWorking: (d, n) => 'Reading your history… ' + d + ' / ' + n, lbDone: (a, k, m, lk, u) => a + ' diary entries added, ' + k + ' plan films checked off, ' + m + ' updated' + (lk ? ', ' + lk + ' likes' : '') + (u ? ', and ' + u + ' films without a date (they count in your stats)' : '') + '.', lbBad: 'That’s not a Letterboxd export. Choose the .zip from Settings → Data → Export your data (or diary.csv from inside it).',
+    lbAuto: (ago, n) => 'Anything you log on Letterboxd shows up here within a few hours. Last checked ' + ago + (n ? ', ' + n + ' new' : '') + '.', lbAutoOff: 'Anything you log on Letterboxd will show up here within a few hours.',
     changePoster: 'Change poster', posterH: 'Choose a poster', posterDefault: 'Default', imgsLoading: 'Loading from TMDB…', imgsNone: 'TMDB has no other posters for this film.', imgsFail: 'Couldn’t reach TMDB. Try again in a moment.',
     bdH: 'Backdrop', bdP: 'A still from any film, shown across the top of your profile and this app.', bdChoose: 'Choose a film', bdChange: 'Another film', bdRemove: 'Remove', bdFrom: t => 'Stills from ' + t, bdNone: 'TMDB has no stills for this film.', bdPick: 'Choose a film for your backdrop',
-    navWeek: 'This Week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link', cfgSave: 'Save changes', cfgSaved: 'Saved.',
-    diaryEmpty: 'Your diary is empty. Films you check off show up here, or you can log one yourself.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
+    navWeek: 'This week', navDiary: 'Diary', navSettings: 'Settings', preview: 'Preview ↗', linkL: 'Your link', cfgSave: 'Save changes', cfgSaved: 'Saved.',
+    diaryEmpty: 'Nothing logged yet. Films you check off on This week appear here, or log any film with the + below.', edit: 'Edit', watchedOn: 'Watched on', done: 'Done', unlog: 'Delete entry',
     logOnLb: 'Letterboxd ↗', logToLb: 'Log on Letterboxd ↗', copyPost: 'Copy as post', postCopied: 'Copied. Ready to paste.',
     syncH: 'Sync', syncOn: login => 'Connected' + (login ? ' as ' + login : '') + '.', syncBusy: 'Syncing…', syncAt: a => 'Last synced ' + a + '.',
     syncNow: 'Sync now', disconnect: 'Disconnect this device',
@@ -75,6 +76,7 @@ const FX_STR = {
   },
   fa: {
     thisWeek: 'این هفته', weekDone: 'این هفته تموم شد', surprise: t => 'هفته‌ی سرزده: ' + t,
+    barsL: (n, of) => n + ' از ' + of + ' دیده شد', osdLogged: 'ثبت شد', osdSaved: 'ذخیره شد', osdRemoved: 'پاک شد',
     eyebrow: (n, of, rt) => of + ' فیلم' + (rt ? ' · ' + rt : '') + (n !== '۰' ? ' · ' + n + ' دیده شد' : ''),
     hm: m => m >= 60 ? Math.floor(m / 60) + ' ساعت و ' + (m % 60) + ' دقیقه' : m + ' دقیقه',
     whenReady: 'هر وقت آماده بودی:', showNext: 'هفته‌ی بعد رو نشونم بده',
@@ -388,6 +390,37 @@ function fxShare(D, seen, posterUrl) {
 }
 
 // opts: openFull(week), posters (Posters module or null), settings (adapter or null)
+// ---- Station: the TV in the details (shared by every screen of the site) ----
+// the on-screen display: a word in the corner when something's done, the way a TV shows the channel you're on
+function fxOSD(text) {
+  if (typeof document === 'undefined' || !text) return;
+  let el = document.querySelector('.fx-osd');
+  if (!el) { el = document.createElement('div'); el.className = 'fx-osd'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+  el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  clearTimeout(fxOSD.t); fxOSD.t = setTimeout(() => el.classList.remove('on'), 1750);
+  fxBuzz();
+}
+// a short tap from phones that can (never with reduced motion)
+function fxBuzz(ms) { try { if (navigator.vibrate && !matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate(ms || 8); } catch (e) {} }
+// changing channel: the picture folds into a line of light and opens on the next screen; `first`: switching the set on
+function fxFlip(first) {
+  if (typeof document === 'undefined') return;
+  let el = document.querySelector('.fx-tv');
+  if (!el) { el = document.createElement('div'); el.className = 'fx-tv'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<i></i>'; document.body.appendChild(el); }
+  el.className = 'fx-tv'; void el.offsetWidth; el.className = 'fx-tv ' + (first ? 'on' : 'go');
+  clearTimeout(fxFlip.t); fxFlip.t = setTimeout(() => { el.className = 'fx-tv'; }, first ? 720 : 320);
+}
+// tuning: a stripe of the colour bars along the top while something loads (only for waits long enough to notice)
+const fxTune = (() => {
+  let n = 0, el = null, t = null;
+  const show = on => { if (typeof document === 'undefined') return; if (!el) { el = document.createElement('div'); el.className = 'fx-tune'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); } el.classList.toggle('on', on); };
+  return {
+    start() { if (n++ === 0) { clearTimeout(t); t = setTimeout(() => show(true), 280); } },
+    stop() { if (n > 0 && --n === 0) { clearTimeout(t); show(false); } },
+    wrap(p) { this.start(); return Promise.resolve(p).finally(() => this.stop()); },
+  };
+})();
+
 function mountFocus(root, D, S, opts) {
   let F = D.F, W = D.W, WM = D.WM, SG = D.SG || [], NW = W.length, FA = D.faDir || {};
   let WK = fxCompact(D), KEYIDX = fxKeyIdx(D);
@@ -409,7 +442,7 @@ function mountFocus(root, D, S, opts) {
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '', bdPick = null;
-  let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '';
+  let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '', just = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
   const posterOn = () => !!(P && P.on());
@@ -533,8 +566,10 @@ function mountFocus(root, D, S, opts) {
     if (m) { const i = sugFor(+m[1], +m[2]); return i != null ? F[i][0] : T().free; }
     return '';
   }
+  // the week as colour bars: one per film, in its strand's colour, lit once it's watched
   function dots(list) {
-    return `<div class="fx-dots" aria-label="${fa(list.filter(itemDone).length)} / ${fa(list.length)}">${list.map(it => `<i class="${itemSeen(it) ? 'on' : itemDone(it) ? 'sk' : ''}"></i>`).join('')}</div>`;
+    const on = list.filter(itemSeen).length, t = T();
+    return `<div class="fx-bars${list.length && list.every(itemDone) ? ' full' : ''}" role="img" aria-label="${esc(t.barsL ? t.barsL(fa(on), fa(list.length)) : fa(on) + ' / ' + fa(list.length))}">${list.map(it => `<i class="${it.lane && /^[HACP]$/.test(it.lane) ? it.lane : 'F'}${itemSeen(it) ? ' on' : itemDone(it) ? ' sk' : ''}"></i>`).join('')}</div>`;
   }
   function nextList(w) {
     let nw = w + 1;
@@ -557,7 +592,7 @@ function mountFocus(root, D, S, opts) {
   function foot() {
     const t = T();
     if (!opts.openFull && !opts.fullView) return '';
-    return `<footer class="fx-foot"><button type="button" class="fx-link" data-full>${t.full} →</button></footer>`;
+    return `<footer class="fx-foot"><button type="button" class="fx-link" data-full>${t.full}</button></footer>`;
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
@@ -705,7 +740,7 @@ function mountFocus(root, D, S, opts) {
     h += picker && picker.log ? pickerBox() : `<div class="fx-act"><button type="button" class="fx-btn" data-log>${t.logFilm}</button></div>`;
     if (all.length && typeof fxCalendar === 'function') h += `<details class="fx-more fx-calwrap"${calOpen ? ' open' : ''}><summary>${t.calH}</summary>${fxCalendar(all.map(e => e.date), diaryYear === 'all' || diaryYear === null ? 'all' : diaryYear, L(), today(), FX_CAL_L[L()], jal)}</details>`;
     if (years.length > 1) h += `<nav class="fx-years">${years.concat('all').map(y => `<button type="button" data-year="${y}" aria-pressed="${diaryYear === y}">${y === 'all' ? t.allYears : fa(y).replace(/[٬,]/g, '')}</button>`).join('')}</nav>`;
-    if (!all.length) return h + `<p class="fx-muted">${t.diaryEmpty}</p>`;
+    if (!all.length) return h + `<div class="fx-blank"><p class="fx-muted">${t.diaryEmpty}</p></div>`;
     // your year in film (wrapped.js), for a year with a few films in it
     if (opts.wrapped && diaryYear !== 'all' && list.length >= 3) h += `<button type="button" class="fx-wbtn" data-wrapped="${esc(diaryYear)}">Your ${esc(diaryYear)} in film →</button>`;
     // a list, or a wall of posters
@@ -837,8 +872,12 @@ function mountFocus(root, D, S, opts) {
     let html = view === 'settings' && ST ? renderSettings() : view === 'diary' ? renderDiary() : view === 'list' && LS ? renderList() : xt ? xt.view(L()) : renderWeek();
     // the + in the bar: log a film from wherever you are
     if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
-    const bd = view === 'week' ? fxBd(seen()) : null;
-    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${gear()}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
+    const bd = view === 'week' ? fxBd(seen()) : null, chg = view !== viewShown;
+    const top = opts.brand ? opts.brand(view) : '';
+    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
+    // the set switches on once per visit (not on every reload); after that, changing screens changes channel
+    if (chg && opts.flip !== false) { let on = viewShown === null; if (on) { try { on = !sessionStorage.getItem('fx-on'); sessionStorage.setItem('fx-on', '1'); } catch (e) {} } if (on || viewShown !== null) fxFlip(on); }
+    if (just) { const c = root.querySelector('.fx-i[data-k="' + CSS.escape(just) + '"] .fx-chk[aria-pressed="true"]'); if (c) c.classList.add('just'); just = ''; }
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
     if (posterOn()) P.fill(root);
     if (picker) { const q = root.querySelector('.fx-pick-q'); if (q && picker.focus) { q.focus(); const n = q.value.length; q.setSelectionRange(n, n); picker.focus = false; } }
@@ -1139,7 +1178,8 @@ function mountFocus(root, D, S, opts) {
       }
       if (sheet.discard) sheet.discard = false;
       if (b.hasAttribute('data-ssave')) {
-        const r = saveSheet(); closeSheet();
+        const fresh = !sheet.ek, r = saveSheet(); closeSheet();
+        just = fresh ? r.ek : ''; fxOSD(fresh ? t.osdLogged : t.osdSaved);
         if (view === 'diary' && diaryYear !== 'all') diaryYear = typeof fxJalOn === 'function' && fxJalOn(L(), seen()) ? fxYearOf(r.date, true) : r.date.slice(0, 4);
         flash = r.ek; render(); return;
       }
@@ -1150,7 +1190,7 @@ function mountFocus(root, D, S, opts) {
       if (b.dataset.tagadd) { addTags(b.dataset.tagadd); renderSheet(); return; }
       if (b.hasAttribute('data-sdel')) {
         if (!sheet.del) { sheet.del = true; renderSheet(); clearTimeout(delTimer); delTimer = setTimeout(() => { if (sheet && sheet.del) { readSheetInputs(); sheet.del = false; renderSheet(); } }, 4000); return; }
-        deleteEntry(sheet.ek); closeSheet(); render(); return;
+        deleteEntry(sheet.ek); closeSheet(); render(); fxOSD(t.osdRemoved); return;
       }
       if (b.hasAttribute('data-sagain')) {
         saveSheet();
@@ -1161,7 +1201,7 @@ function mountFocus(root, D, S, opts) {
       if (b.hasAttribute('data-spost')) {
         const f = sheet.info;
         const txt = postText({i: f.i != null ? f.i : null, t: f.t, md: f.md, r: d.r, l: d.l, rw: d.rw, ww: d.ww.trim(), rv: d.rv.trim() ? d.rv : '', sp: d.sp, k: sheet.ek});
-        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { if (sheet) { sheet.note = t.postCopied; renderSheet(); } }, () => window.prompt(t.copyPrompt, txt));
+        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { if (sheet) { sheet.note = t.postCopied; renderSheet(); } fxOSD(t.copied); }, () => window.prompt(t.copyPrompt, txt));
       }
     });
     sheetEl.addEventListener('input', e => {
@@ -1328,7 +1368,7 @@ function mountFocus(root, D, S, opts) {
       ST.shareOff().then(r => { note.share = r ? ['bad', r] : ['ok', T().shareStopped]; render(); });
       return;
     }
-    else if (t.hasAttribute('data-cfg-save')) { root.querySelectorAll('[data-cfg]').forEach(saveCfg); const pd = root.querySelector('input[data-pubdiary]'); if (pd) S.set('cfg:pubdiary', pd.checked ? null : '0'); note.cfg = ['ok', tt.cfgSaved]; }
+    else if (t.hasAttribute('data-cfg-save')) { root.querySelectorAll('[data-cfg]').forEach(saveCfg); const pd = root.querySelector('input[data-pubdiary]'); if (pd) S.set('cfg:pubdiary', pd.checked ? null : '0'); note.cfg = ['ok', tt.cfgSaved]; fxOSD(tt.osdSaved); }
     else if (t.hasAttribute('data-share-copy')) { copy(ST.shareUrl(seen()['cfg:share']).replace(/\/$/, ''), t, root.querySelector('.fx-link-pre')); return; }
     else if (t.hasAttribute('data-tmdb-clear')) { S.set('cfg:tmdb', null); P.setToken(null); }
     else if (t.hasAttribute('data-bk-copy')) {

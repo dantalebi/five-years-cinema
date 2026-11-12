@@ -78,11 +78,11 @@ function fxFilmPages(o) {
     };
   }
   function filmView() {
-    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-fp-back>← Back</button></div></header>`;
+    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-fp-back>Back</button></div></header>`;
     if (!fp || fp.state === 'loading') return h + `<p class="fx-muted dx-wait">Loading…</p>`;
     if (fp.state === 'none') return h + `<section class="fx-card"><h2>Film not found</h2><p class="fx-muted">We couldn’t find this film. It may have been removed from TMDB.</p></section>`;
     const F = film(), C = U.get(), mk = U.marks(WL), seen = mk.seen(F), wl = mk.wl(F), entries = mk.entries(F);
-    document.title = F.t + (F.y ? ' (' + F.y + ')' : '') + ' · ' + ((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15');
+    document.title = F.t + (F.y ? ' (' + F.y + ')' : '') + ' – ' + ((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15');
     const lb = F.slug ? 'https://letterboxd.com/film/' + F.slug + '/' : F.tm > 0 ? 'https://letterboxd.com/tmdb/' + F.tm + '/' : 'https://letterboxd.com/search/films/' + encodeURIComponent(F.t) + '/';
     const dn = F.dirs.map(n => `<a class="dx-a" href="${esc(fxNav.director(n))}" data-app>${esc(n)}</a>`);
     const year = F.y ? `<a class="dx-a" href="/discover/decade/${Math.floor(F.y / 10) * 10}s" data-app>${F.y}</a>` : '';
@@ -92,7 +92,7 @@ function fxFilmPages(o) {
     h += `<section class="dx-fh">${U.poster(F, 'w342', 'dx-fpos')}<div class="dx-fi">
       <h1 class="dx-ft">${esc(F.t)}</h1>${F.ot ? `<p class="dx-ot">${esc(F.ot)}</p>` : ''}
       <p class="dx-by">${year ? `<span>${year}</span>` : ''}${dn.length ? `<span>Directed by ${dn.join(', ')}</span>` : ''}</p>
-      ${meta.length ? `<p class="dx-meta">${meta.join('<i>·</i>')}</p>` : ''}${gen.length ? `<p class="dx-meta">${gen.join('<i>·</i>')}</p>` : ''}</div></section>`;
+      ${meta.length ? `<p class="dx-meta">${meta.join('<i aria-hidden="true"></i>')}</p>` : ''}${gen.length ? `<p class="dx-meta">${gen.join('<i aria-hidden="true"></i>')}</p>` : ''}</div></section>`;
     h += `<div class="dx-acts"><button type="button" class="fx-btn${wl ? '' : ' primary'} dx-wlb" data-fp-wl aria-pressed="${wl}">${wl ? 'On your watchlist' : 'Add to watchlist'}</button>`
       + (logger ? `<button type="button" class="fx-btn" data-fp-log>${seen ? 'Log again' : 'Log'}</button>` : '')
       + `<a class="fx-btn" href="${esc(lb)}" target="_blank" rel="noopener noreferrer">Letterboxd ↗</a></div>`;
@@ -104,7 +104,7 @@ function fxFilmPages(o) {
         return `<li><button type="button" class="fp-ent" data-fp-entry="${esc(e.k)}"><span class="fp-ed">${esc(U.longDay(e.date))}</span><span class="fp-eb">${bits || '<span class="fx-muted">No rating</span>'}</span>${e.rv ? `<span class="fp-erv" dir="auto">${esc(String(e.rv).slice(0, 220))}${String(e.rv).length > 220 ? '…' : ''}</span>` : ''}</button></li>`;
       }).join('')}</ul></section>`;
     } else if (seen) h += `<p class="dx-seen">You’ve seen this.</p>`;
-    if (pw) h += `<p class="fp-plan"><span>In your plan</span> ${pw.done ? 'Watched, week ' + num(pw.w) : pw.now ? 'This week' : 'Week ' + num(pw.w) + (pw.when ? ' · ' + esc(pw.when) : '')}</p>`;
+    if (pw) h += `<p class="fp-plan"><span>In your plan</span> ${pw.done ? 'Watched, week ' + num(pw.w) : pw.now ? 'This week' : 'Week ' + num(pw.w) + (pw.when ? ', ' + esc(pw.when) : '')}</p>`;
     if (fp.friends && fp.friends.length) {
       h += `<section class="fx-card dx-sec"><h2>People you follow</h2><ul class="fp-fr">${fp.friends.slice(0, 12).map(e => `<li><a class="fx-who" href="/u/${esc(e.u)}${e.id ? '#' + esc(e.id) : ''}">${typeof fxAvatar === 'function' ? fxAvatar(e.u, e.n, e.a, 's') : ''}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a>`
         + `<span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.w ? `<span class="fx-muted">${esc(U.longDay(e.w))}</span>` : ''}${e.rx ? `<p dir="auto">${esc(String(e.rx).slice(0, 200))}</p>` : ''}</li>`).join('')}</ul></section>`;
@@ -120,7 +120,7 @@ function fxFilmPages(o) {
     }
     if (F.dirs.length && C) {
       const k = C.dirs.indexOf(F.dirs[0]), more = k < 0 ? [] : C.films.filter(g => g !== f && g.d.includes(k) && !(F.tm && g.tm === F.tm)).sort((a, b) => a.y - b.y);
-      h += `<section class="fx-card dx-sec"><div class="dx-sh"><h2>More by ${esc(F.dirs[0])}</h2><a class="fx-link" href="${esc(fxNav.director(F.dirs[0]))}" data-app>All their films →</a></div>`
+      h += `<section class="fx-card dx-sec"><div class="dx-sh"><h2>More by ${esc(F.dirs[0])}</h2><a class="fx-link" href="${esc(fxNav.director(F.dirs[0]))}" data-app>All their films</a></div>`
         + (more.length ? `<ul class="dx-row">${more.slice(0, 12).map(g => U.cell(g, mk)).join('')}</ul>` : '') + '</section>';
     }
     return h + U.attr();
@@ -155,12 +155,12 @@ function fxFilmPages(o) {
     if (redraw) redraw();
   }
   function dirView() {
-    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-fp-back>← Back</button></div>`;
+    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-fp-back>Back</button></div>`;
     if (!dp) return h + '</header>';
     const p = dp.person, name = (p && p.name) || dp.name;
-    document.title = name + ' · ' + ((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15');
+    document.title = name + ' – ' + ((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15');
     const life = p && p.birthday ? yearOf(p.birthday) + (p.deathday ? '–' + yearOf(p.deathday) : '') : '';
-    h += `<div class="fx-eye">Director${life ? ' · ' + esc(life) : ''}</div><h1 class="fx-h1 dx-h1">${esc(name)}</h1>${p && p.place_of_birth ? `<p class="fx-muted fp-born">Born in ${esc(p.place_of_birth)}</p>` : ''}</header>`;
+    h += `<div class="fx-eye">Director${life ? ', ' + esc(life) : ''}</div><h1 class="fx-h1 dx-h1">${esc(name)}</h1>${p && p.place_of_birth ? `<p class="fx-muted fp-born">Born in ${esc(p.place_of_birth)}</p>` : ''}</header>`;
     if (dp.state === 'loading') return h + `<p class="fx-muted dx-wait">Loading…</p>`;
     if (dp.state === 'none') return h + `<p class="fx-muted">We couldn’t find this director’s films.</p>`;
     const bio = p ? String(p.biography || '').trim() : '';
@@ -188,7 +188,7 @@ function fxFilmPages(o) {
     click(b, render) {
       if (b.hasAttribute('data-fp-back')) { fxNav.back('/discover'); return true; }
       if (!fp || fp.state !== 'ready') return false;
-      if (b.hasAttribute('data-fp-wl') && WL) { const F = film(), r = wlRef(F); WL.set(r, !WL.has(r)); render(); return true; }
+      if (b.hasAttribute('data-fp-wl') && WL) { const F = film(), r = wlRef(F), on = !WL.has(r); WL.set(r, on); render(); typeof fxOSD === 'function' && fxOSD(on ? 'On your watchlist' : 'Off your watchlist'); return true; }
       if (b.hasAttribute('data-fp-log') && logger) {
         const F = film();
         logger(F.t, F.y, {tm: F.tm > 0 ? F.tm : 0, t: F.t, y: F.y, d: F.dirs.join(', '), m: F.rt, p: F.p, k: fp.pl ? fp.pl.row[8] : ''});

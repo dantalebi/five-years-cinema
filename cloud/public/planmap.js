@@ -108,14 +108,14 @@ function fxPlanMap() {
     const w = Math.max(1, Math.min(m.weeks.length, sel || m.cur)), wk = m.weeks[w - 1];
     const label = wk.free ? 'Unscheduled week' : wk.th && theme(wk.th) ? 'Themed week: ' + theme(wk.th) : '';
     let h = `<section class="fx-card pm-weekc" id="pm-week"><div class="pm-whead"><button type="button" class="fx-btn" data-pmstep="-1" aria-label="Previous week"${w <= 1 ? ' disabled' : ''}>←</button>
-      <div><div class="fx-eye">Year ${yearOf(w) + 1} · ${esc(YEARS[yearOf(w)] ? YEARS[yearOf(w)][0] : '')}</div><h2 class="pm-wt">Week ${w}${w === m.cur ? ' <span class="pm-now">Current</span>' : w < m.cur ? ' <span class="pm-past">Completed</span>' : ''}</h2>${label ? `<div class="fx-muted">${esc(label)}</div>` : ''}</div>
+      <div><div class="fx-eye">Year ${yearOf(w) + 1}: ${esc(YEARS[yearOf(w)] ? YEARS[yearOf(w)][0] : '')}</div><h2 class="pm-wt">Week ${w}${w === m.cur ? ' <span class="pm-now">Current</span>' : w < m.cur ? ' <span class="pm-past">Completed</span>' : ''}</h2>${label ? `<div class="fx-muted">${esc(label)}</div>` : ''}</div>
       <button type="button" class="fx-btn" data-pmstep="1" aria-label="Next week"${w >= m.weeks.length ? ' disabled' : ''}>→</button></div>`;
     if (wk.free) return h + `<p class="fx-muted">An unscheduled week. Watch anything you like, or take a break.</p></section>`;
     h += `<ul class="pm-wl">${wk.cells.map(c => {
       const state = c.s === 'w' ? `<span class="pm-st w">✓ Watched${m.S[c.free || m.F[c.i][8]] && /^\d{4}/.test(m.S[c.free || m.F[c.i][8]]) ? ' ' + esc(day.format(new Date(m.S[c.free || m.F[c.i][8]] + 'T12:00:00'))) : ''}</span>` : c.s === 's' ? '<span class="pm-st s">Skipped</span>' : '';
       if (c.free) return `<li class="pm-wi"><span class="fx-pos pm-pos none" aria-hidden="true"></span><div><div class="pm-ft">Open slot</div><div class="fx-muted fx-small">Your choice</div>${state}</div><i class="pm-lane l-F">Open</i></li>`;
       const f = m.F[c.i];
-      return `<li class="pm-wi">${poster(m, c.i)}<div><div class="pm-ft"><bdi>${esc(f[0])}</bdi> <span class="fx-y">${f[1] || ''}</span></div><div class="fx-muted fx-small">${esc(String(f[2] || '').split(',')[0])}${f[3] ? ' · ' + Math.floor(f[3] / 60) + 'h ' + (f[3] % 60) + 'm' : ''}</div>${state}</div><i class="pm-lane l-${c.lane}">${esc(LANE[c.lane] || '')}</i></li>`;
+      return `<li class="pm-wi">${poster(m, c.i)}<div><div class="pm-ft"><bdi>${esc(f[0])}</bdi> <span class="fx-y">${f[1] || ''}</span></div><div class="fx-muted fx-small">${esc(String(f[2] || '').split(',')[0])}${f[3] ? ', ' + Math.floor(f[3] / 60) + 'h ' + (f[3] % 60) + 'm' : ''}</div>${state}</div><i class="pm-lane l-${c.lane}">${esc(LANE[c.lane] || '')}</i></li>`;
     }).join('')}</ul>${w !== m.cur ? `<div class="fx-row"><button type="button" class="fx-link" data-pmgo="${m.cur}">Back to the current week</button></div>` : ''}</section>`;
     return h;
   }
@@ -123,19 +123,19 @@ function fxPlanMap() {
 
   function view() {
     const m = model();
-    let h = `<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-nav="week">← This Week</button></div>`;
+    let h = `<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-nav="week">This week</button></div>`;
     if (!m) return h + `<h1 class="fx-h1">Your plan</h1><p class="fx-muted">There’s no plan to map yet.</p></header>`;
     const total = m.films.length + m.slotsAll.length, doneN = m.watched.length + m.slotsAll.filter(c => c.s === 'w').length;
     const pct = total ? Math.round(doneN / total * 1000) / 10 : 0;
     const gap = m.cur - m.expected, nw = m.weeks.length, years = Math.ceil(nw / 52);
     const pace = m.done >= nw ? 'Complete' : gap === 0 ? 'On schedule' : gap > 0 ? gap + (gap === 1 ? ' week ahead' : ' weeks ahead') : -gap + (gap === -1 ? ' week behind' : ' weeks behind');
-    h += `<div class="fx-eye">Week ${Math.min(m.cur, nw)} of ${nw}${YEARS[yearOf(Math.min(m.cur, nw))] && m.D.years ? ' · Year ' + (yearOf(Math.min(m.cur, nw)) + 1) + ': ' + YEARS[yearOf(Math.min(m.cur, nw))][0] : ''}</div>
-      <h1 class="fx-h1">${years === 5 ? 'The Five-Year Plan' : 'Your plan'}</h1>
+    h += `<div class="fx-eye">Week ${Math.min(m.cur, nw)} of ${nw}${YEARS[yearOf(Math.min(m.cur, nw))] && m.D.years ? ', year ' + (yearOf(Math.min(m.cur, nw)) + 1) + ': ' + YEARS[yearOf(Math.min(m.cur, nw))][0] : ''}</div>
+      <h1 class="fx-h1">${years === 5 ? 'The five-year plan' : 'Your plan'}</h1>
       <p class="fx-lede">${num(m.films.length)} films over ${nw} weeks${m.slotsAll.length ? ', plus ' + num(m.slotsAll.length) + ' open slots' : ''}${m.shelf > 0 ? ' and a reserve shelf of ' + num(m.shelf) + ' films' : ''}. Each square represents one film and fills in once you’ve watched it.</p></header>`;
     h += `<section class="pm-stats">
       <div><b>${num(doneN)}</b><span>of ${num(total)} watched</span>${bar(doneN, total)}</div>
       <div><b>${pct}%</b><span>complete</span></div>
-      <div><b>${num(m.hoursLeft)}</b><span>hours remaining${m.hoursDone ? ' · ' + num(m.hoursDone) + ' watched' : ''}</span></div>
+      <div><b>${num(m.hoursLeft)}</b><span>hours to go${m.hoursDone ? ', ' + num(m.hoursDone) + ' watched' : ''}</span></div>
       <div><b class="${gap < 0 ? 'behind' : ''}">${esc(pace)}</b><span>${m.done >= nw ? '' : 'Projected finish: ' + mon.format(m.finish)}</span></div></section>`;
     // the map
     h += `<section class="fx-card pm-mapc"><div class="pm-legend">${LANES.filter(([k]) => m.lanes.some(l => l.k === k)).map(([k, n]) => `<span><i class="l-${k}"></i>${esc(n)}</span>`).join('')}<span class="pm-lg2"><i class="s-n"></i>Not yet watched</span><span class="pm-lg2"><i class="s-w"></i>Watched</span><span class="pm-lg2"><i class="pm-you-k"></i>Current week</span></div>`;
@@ -194,7 +194,7 @@ function fxPlanMap() {
     const v = el.getAttribute('data-pmf'), wk = +el.closest('[data-pmwk]').dataset.pmwk;
     let html;
     if (v.startsWith('f:')) html = `<b>Open slot</b><span>Week ${wk}</span>`;
-    else { const f = m.F[+v], s = m.S[f[8]] && !m.S['sk:' + f[8]] ? '✓ Watched' : m.S['sk:' + f[8]] ? 'Skipped' : ''; html = `<b>${esc(f[0])}</b><span>${f[1] || ''} · ${esc(String(f[2] || '').split(',')[0])}</span><span>Week ${wk} · ${esc(LANE[f[6]] || '')}${s ? ' · ' + s : ''}</span>`; }
+    else { const f = m.F[+v], s = m.S[f[8]] && !m.S['sk:' + f[8]] ? '✓ Watched' : m.S['sk:' + f[8]] ? 'Skipped' : ''; html = `<b>${esc(f[0])}</b><span>${f[1] || ''}, ${esc(String(f[2] || '').split(',')[0])}</span><span>Week ${wk}, ${esc(LANE[f[6]] || '')}${s ? ', ' + s : ''}</span>`; }
     if (!tip) { tip = document.createElement('div'); tip.className = 'pm-tip'; document.body.appendChild(tip); }
     tip.innerHTML = html; tip.hidden = false;
     const r = el.getBoundingClientRect(), tw = tip.offsetWidth;

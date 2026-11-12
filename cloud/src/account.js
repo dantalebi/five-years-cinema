@@ -84,7 +84,7 @@ function fxAccount(CS, o) {
   async function click(b, render) {
     const d = b.dataset;
     if (b.hasAttribute('data-ac-menu')) { st.menu = !st.menu; render(); return true; }
-    if (b.hasAttribute('data-ac-avstill')) { const v = await fxAvatarEditor.stills(); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); } return true; }
+    if (b.hasAttribute('data-ac-avstill')) { const v = await fxAvatarEditor.stills(); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); typeof fxOSD === 'function' && fxOSD('Picture saved'); } return true; }
     if (b.hasAttribute('data-ac-avrm')) { const r = await CS.removeAvatar(); st.note.av = r.ok ? null : ['bad', CS.say(r.code)]; render(); return true; }
     if (b.hasAttribute('data-ac-out') || b.hasAttribute('data-ac-retry')) {
       st.note.out = null; b.disabled = true; st.menu = false;
@@ -143,7 +143,7 @@ function fxAccount(CS, o) {
   // ---- about the site, and what it keeps about you ----
   function about() {
     const n = esc(siteName());
-    return `<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-ac-back>← Back</button></div><div class="fx-eye">About</div><h1 class="fx-h1">${n}</h1>
+    return `<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-ac-back>Back</button></div><h1 class="fx-h1">${n}</h1>
       <p class="dx-lede">A film diary for friends: log what you watch, follow what your friends are watching, plan what to see next.</p></header>
       <section class="fx-card ac-doc"><h2>What ${n} keeps</h2><ul>
         <li>Your username and display name.</li>
@@ -171,7 +171,7 @@ function fxAccount(CS, o) {
       <p class="fx-muted dx-attr">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>`;
   }
   // a picture from this device: frame it, save it
-  async function file(f, render) { const v = await fxAvatarEditor.open(f); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); } }
+  async function file(f, render) { const v = await fxAvatarEditor.open(f); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); typeof fxOSD === 'function' && fxOSD('Picture saved'); } }
   // the corner of every screen: your picture, opening a small menu (your profile, Settings, About, Sign out)
   function corner(onSettings) {
     const me = CS.me() || {}, sync = CS.status ? CS.status() : {};
