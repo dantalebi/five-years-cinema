@@ -1655,3 +1655,26 @@ a.fx-pg:active{transform:scale(.97)}
 /* a theme in season (Halloween in October, Christmas in December): the first chip, outlined in the channel's green */
 .dx-chip.dx-season{box-shadow:inset 0 0 0 1.5px var(--osd); font-weight:650}
 .dx-chip.dx-season span{color:var(--osd)}
+
+/* the owner's page */
+.ad-head .fx-eye{color:var(--osd)}
+.ad-lines{list-style:none; margin:0; padding:0; display:grid; gap:8px}
+.ad-lines li{display:flex; align-items:baseline; gap:8px; font-size:14.5px; line-height:1.45; color:var(--muted)}
+.ad-lines b{flex:none; min-width:3.2em; text-align:end; color:var(--ink); font-family:var(--display); font-weight:800; font-variant-numeric:tabular-nums}
+.ad-months{margin-top:6px}
+.ad-people{display:grid; gap:10px}
+.ad-ph{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px}
+.ad-ph h2{margin:0}
+.ad-list{list-style:none; margin:0; padding:0; display:grid}
+.ad-list li{display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 12px; padding:14px 0; border-top:1px solid var(--line)}
+.ad-list li:first-child{border-top:0}
+.fx .ad-who{display:flex; align-items:center; gap:12px; min-width:0; color:var(--ink); text-decoration:none}
+.ad-n{display:grid; min-width:0}
+.ad-n b{font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ad-n small{font-size:12.5px; color:var(--muted)}
+.ad-tags{display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px}
+.ad-tag{padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; color:var(--muted); box-shadow:inset 0 0 0 1px var(--line)}
+.ad-tag.priv{color:var(--ink); box-shadow:inset 0 0 0 1px var(--muted)}
+.ad-when, .ad-facts{grid-column:1 / -1; margin:0; font-size:13px; line-height:1.5; color:var(--muted)}
+.ad-facts{color:var(--ink)}
+.ad-note{font-size:12.5px}

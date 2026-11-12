@@ -177,6 +177,8 @@ const CloudSync = (() => {
       of: u => api('GET', '/u/' + u + '/lists'), one: (u, slug) => api('GET', '/u/' + u + '/list/' + slug)},
     // the films the most members watched lately: who 'friends' or 'everyone'; span week, month, year, all or auto
     popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
+    // the owner's page: the site's numbers and every account
+    admin: () => api('GET', '/admin'),
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

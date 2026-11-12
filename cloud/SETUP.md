@@ -25,6 +25,7 @@ Everything fits in Cloudflare's free plan.
 5. **Secrets:** go to Settings → Variables and Secrets and add these, each as **Secret**:
    - `TMDB_TOKEN`: your TMDB "API Read Access Token". Posters and film search for everyone go through the site, so nobody else needs their own key.
    - `SIGNUP_CODE`: an invite code you give your friends. Without it, anyone could sign up.
+   - `OWNER` *(optional)*: your username (or several, separated by commas). The owner gets one more page, **Your site** (`/admin`): how many people have joined and how active they are, and every account, public or private, with counts only. Until it's set, the owner is `talebi`.
    - `PEPPER` *(optional)*: any long random text. Set it **before the first account** and never change it. Moving to a new project with the same database: copy the same value over, or nobody can sign in.
 6. **Redeploy:** under Deployments, choose Retry deployment, so the database and the secrets take effect.
 

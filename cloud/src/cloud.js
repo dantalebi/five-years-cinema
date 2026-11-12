@@ -311,10 +311,12 @@
   // Popular: what the people you follow, or everyone, watched most lately (a page of its own, and a row on Home and Discover)
   const POP = typeof fxPopular === 'function' ? fxPopular(CloudSync, {redraw: () => FX && FX.render(), wl: FR ? FR.wl : null}) : null;
   const HM = typeof fxHome === 'function' ? fxHome({FR, pop: POP, redraw: () => FX && FX.render()}) : null;
+  // the owner's page: the site's numbers and every account (the server answers only its owner)
+  const ADMIN = typeof fxAdmin === 'function' ? fxAdmin(CloudSync, {redraw: () => FX && FX.render()}) : null;
   // the top of each main screen: the wordmark, which takes you home
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
-  const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
+  const VIEWS = {'/plan/new': 'build', '/about': 'about', '/admin': 'admin', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
   const pathOf = v => v === 'profile' ? PV.url() : v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'popular' && POP ? POP.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
@@ -343,7 +345,7 @@
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
-    if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about)(\/|\?|#|$)|$)/.test(href)) return;
+    if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about|admin)(\/|\?|#|$)|$)/.test(href)) return;
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
   });
   // where a plan film sits in your plan, for its page
@@ -417,7 +419,7 @@
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null, top: () => POP ? POP.teaser('everyone') : ''});
     if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP, ADMIN].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
       topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
       // a section's back link: to the list it was opened from, or to Settings when it was opened some other way

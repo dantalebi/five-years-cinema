@@ -108,6 +108,10 @@ async function startSession(env, uid, req) {
   return sessionCookie(token, SESSION_DAYS * 86400);
 }
 const me = u => ({username: u.username, name: u.name});
+// whoever runs the site: OWNER in the Pages settings (a username, or several with commas); talebi until it's set.
+// The owner has one page more than anyone else: the site's numbers and every account (/api/admin)
+const owners = env => String(env.OWNER || 'talebi').toLowerCase().split(/[\s,]+/).filter(Boolean);
+const isOwner = (env, u) => !!u && owners(env).includes(u.username);
 // a recovery key: the way back in after a forgotten password (there's no email). Shown once, kept only as a hash.
 const RK_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newRecoveryKey = () => [...crypto.getRandomValues(new Uint8Array(20))].map(b => RK_ALPHA[b % 32]).join('').replace(/(.{5})(?=.)/g, '$1-');
@@ -149,7 +153,7 @@ on('POST', '/api/logout', async (req, env, u) => {
 }, {auth: true});
 on('GET', '/api/me', async (req, env, u) => {
   const r = await env.DB.prepare('SELECT rk, av FROM users WHERE id = ?').bind(u.id).first();
-  return json({me: Object.assign(me(u), {rk: !!(r && r.rk), av: (r && r.av) || 0})});
+  return json({me: Object.assign(me(u), {rk: !!(r && r.rk), av: (r && r.av) || 0}, isOwner(env, u) ? {owner: true} : {})});
 }, {auth: true});
 // where you're signed in: each session with its browser and when it was last used (id: the start of the session's hash)
 on('GET', '/api/sessions', async (req, env, u) => {
@@ -614,6 +618,46 @@ on('GET', '/api/popular', async (req, env, u) => {
   if (span === 'auto') span = names.find(s => R[s].films.length >= min) || 'all';
   else if (!names.includes(span)) span = 'week';
   return json({who, span, sizes: Object.fromEntries(names.map(s => [s, R[s].total])), people: R[span].people, films: R[span].films}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+// ---- the owner's page: how the site is doing, and every account on it, public or private. Counts only: nothing
+// anyone wrote, and nothing from a private diary but how many entries it has ----
+on('GET', '/api/admin', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const all = q => env.DB.prepare(q).all().then(r => r.results || []);
+  const [users, sess, profs, kv, cfg, fol, fby, rx, ls] = await Promise.all([
+    all('SELECT id, username, name, av, created FROM users ORDER BY created'),
+    all('SELECT uid, MAX(seen) AS seen, COUNT(*) AS n FROM sessions GROUP BY uid'),
+    all('SELECT uid, public, updated FROM profiles'),
+    // a diary entry: a date under v:<entry> or a film ticked in a plan (a key with no prefix); seen without a date: wx:
+    all(`SELECT uid, SUM(CASE WHEN (k LIKE 'v:%' OR instr(k, ':') = 0) AND v LIKE '"____-__-__"' THEN 1 ELSE 0 END) AS entries,
+      SUM(CASE WHEN k LIKE 'rv:%' THEN 1 ELSE 0 END) AS reviews, SUM(CASE WHEN k LIKE 'wx:%' THEN 1 ELSE 0 END) AS seen,
+      SUM(CASE WHEN k LIKE 'wl:%' THEN 1 ELSE 0 END) AS wl, MAX(ms) AS last FROM kv WHERE v IS NOT NULL AND v != 'null' GROUP BY uid`),
+    all(`SELECT uid, k, v FROM kv WHERE k IN ('cfg:plan', 'cfg:pubdiary', 'cfg:pubwl', 'cfg:lb') AND v IS NOT NULL`),
+    all('SELECT a AS uid, COUNT(*) AS n FROM follows GROUP BY a'),
+    all('SELECT b AS uid, COUNT(*) AS n FROM follows GROUP BY b'),
+    all('SELECT kind, COUNT(*) AS n FROM reacts GROUP BY kind'),
+    all('SELECT uid, COUNT(*) AS n, SUM(pub) AS pub FROM lists GROUP BY uid'),
+  ]);
+  const by = rows => new Map(rows.map(r => [r.uid, r]));
+  const S = by(sess), P = by(profs), K = by(kv), F1 = by(fol), F2 = by(fby), L = by(ls), C = new Map();
+  cfg.forEach(r => { let v = null; try { v = JSON.parse(r.v); } catch (e) {} if (!C.has(r.uid)) C.set(r.uid, {}); C.get(r.uid)[r.k.slice(4)] = v; });
+  const now = Date.now(), within = (t, d) => t && now - t < d * DAY;
+  const people = users.map(x => {
+    const s = S.get(x.id) || {}, p = P.get(x.id), k = K.get(x.id) || {}, c = C.get(x.id) || {}, l = L.get(x.id) || {};
+    return {username: x.username, name: x.name || '', av: +x.av || 0, joined: x.created, seen: Math.max(+s.seen || 0, +k.last || 0), devices: +s.n || 0,
+      public: !!(p && p.public), diary: !!(p && p.public) && c.pubdiary !== '0', plan: typeof c.plan === 'string' ? c.plan : '', lb: !!c.lb,
+      entries: +k.entries || 0, reviews: +k.reviews || 0, seenOnly: +k.seen || 0, wl: +k.wl || 0,
+      following: +(F1.get(x.id) || {}).n || 0, followers: +(F2.get(x.id) || {}).n || 0, lists: +l.n || 0, publicLists: +l.pub || 0};
+  });
+  const sum = f => people.reduce((a, x) => a + f(x), 0), R = {}; rx.forEach(r => { R[r.kind] = r.n; });
+  const months = {}; users.forEach(x => { const m = new Date(x.created).toISOString().slice(0, 7); months[m] = (months[m] || 0) + 1; });
+  return json({at: now, owner: u.username, people, totals: {
+    members: people.length, newWeek: people.filter(x => within(x.joined, 7)).length, newMonth: people.filter(x => within(x.joined, 30)).length,
+    activeDay: people.filter(x => within(x.seen, 1)).length, activeWeek: people.filter(x => within(x.seen, 7)).length, activeMonth: people.filter(x => within(x.seen, 30)).length,
+    publicProfiles: people.filter(x => x.public).length, publicDiaries: people.filter(x => x.diary).length, letterboxd: people.filter(x => x.lb).length,
+    entries: sum(x => x.entries), reviews: sum(x => x.reviews), seenOnly: sum(x => x.seenOnly), watchlists: sum(x => x.wl),
+    follows: sum(x => x.following), lists: sum(x => x.lists), publicLists: sum(x => x.publicLists),
+    hearts: R.h || 0, comments: R.c || 0, seenToo: R.s || 0, wants: R.w || 0}, months}, 200, {'cache-control': 'private, no-store'});
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
 // with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]
