@@ -1004,7 +1004,6 @@ span.fx-tgc{cursor:default}
 .dx-bd{position:relative; z-index:0; margin:-74px calc(50% - 50vw) -150px; height:clamp(220px, 52vw, 400px); overflow:hidden; pointer-events:none}
 .dx-bd img{width:100%; height:100%; object-fit:cover; object-position:center 25%; display:block}
 .dx-bd::after{content:""; position:absolute; inset:0; background:linear-gradient(to bottom, color-mix(in srgb, var(--bg) 25%, transparent) 0%, transparent 30%, color-mix(in srgb, var(--bg) 78%, transparent) 70%, var(--bg) 100%), linear-gradient(to right, color-mix(in srgb, var(--bg) 55%, transparent), transparent 22%, transparent 78%, color-mix(in srgb, var(--bg) 55%, transparent))}
-@media (min-width:700px){ .dx-bd{margin-left:-60px; margin-right:-60px; border-radius:0 0 14px 14px} }
 .dx-head, .dx-fh, .dx-acts, .dx-seen, .dx-ov{position:relative; z-index:1}
 .dx-fh{display:grid; grid-template-columns:118px minmax(0, 1fr); gap:16px; align-items:end}
 @media (min-width:520px){ .dx-fh{grid-template-columns:168px minmax(0, 1fr); gap:22px} }
