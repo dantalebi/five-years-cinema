@@ -30,7 +30,7 @@ const DB = {
 const env = {DB, TMDB_TOKEN: 'test-token', SIGNUP_CODE: process.env.SIGNUP_CODE || ''};
 
 // outside services, from fixtures
-const realFetch = globalThis.fetch;
+const realFetch = globalThis.fetch, PEOPLE = new Map();
 const FIX = path.join(ROOT, 'test', 'fixtures');
 globalThis.fetch = async (url, opts) => {
   const u = new URL(typeof url === 'string' ? url : url.url);
@@ -45,8 +45,13 @@ globalThis.fetch = async (url, opts) => {
     const qid = q ? 1000 + [...q.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 900000, 7) : 0;
     if (u.pathname.endsWith('/search/movie')) return Response.json({results: q ? [{id: qid, title: q, release_date: (u.searchParams.get('year') || '2001') + '-01-01', poster_path: '/s' + qid + '.jpg'}] : []});
     if (u.pathname.endsWith('/search/tv')) return Response.json({results: []});
+    // people: a director by any name, with two films
+    if (u.pathname.endsWith('/search/person')) { PEOPLE.set(qid, q); return Response.json({results: q ? [{id: qid, name: q, known_for_department: 'Directing', popularity: 5}] : []}); }
+    const pm = u.pathname.match(/\/person\/(\d+)$/);
+    if (pm) { const n = PEOPLE.get(+pm[1]) || 'Someone'; return Response.json({id: +pm[1], name: n, biography: n + ' is a filmmaker.', birthday: '1930-12-03', place_of_birth: 'Paris, France', profile_path: '/pp.jpg',
+      movie_credits: {crew: [{id: 101, job: 'Director', title: 'Breathless', release_date: '1960-03-16', poster_path: '/br.jpg', vote_count: 9000}, {id: 777, job: 'Director', title: 'A Later Film', release_date: '1965-05-01', poster_path: '/lf.jpg', vote_count: 50}]}}); }
     if (mm && mm[3]) return Response.json({posters: [{file_path: '/a.jpg'}, {file_path: '/b.jpg'}], backdrops: [{file_path: '/bd.jpg', width: 1280, height: 720}]});
-    if (mm) return Response.json({id: +mm[2], runtime: 110, poster_path: '/p' + mm[2] + '.jpg', genres: [{id: 18}], production_countries: [{iso_3166_1: 'FR'}], original_language: 'fr',
+    if (mm) return Response.json({id: +mm[2], title: 'Film ' + mm[2], release_date: '1962-05-01', overview: 'A story told in fixtures.', runtime: 110, poster_path: '/p' + mm[2] + '.jpg', genres: [{id: 18}], production_countries: [{iso_3166_1: 'FR'}], original_language: 'fr',
       credits: {crew: [{job: 'Director', name: 'Agnès Varda'}], cast: [{name: 'Someone', order: 0}]}});
     return Response.json({});
   }
@@ -66,7 +71,9 @@ http.createServer(async (req, res) => {
   let p = url.pathname;
   // like Cloudflare Pages: "pretty URLs" (/index.html → /, /x.html → /x) and the /u/* rewrite from public/_redirects
   if (/\.html$/.test(p)) { res.writeHead(308, {location: p.replace(/index\.html$/, '').replace(/\.html$/, '')}); res.end(); return; }
-  if (/^\/u\/[^/]+\/?$/.test(p)) p = '/index.html';
+  // the app's own addresses (public/_redirects): all the same page
+  const RW = fs.existsSync(path.join(PUB, '_redirects')) ? fs.readFileSync(path.join(PUB, '_redirects'), 'utf8').split('\n').map(l => l.trim().split(/\s+/)[0]).filter(Boolean) : [];
+  if (RW.some(r => r.endsWith('/*') ? p.startsWith(r.slice(0, -1)) && p.length > r.length - 1 : p === r)) p = '/index.html';
   if (p.endsWith('/')) p += 'index.html';
   const f = path.join(PUB, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
   if (!f.startsWith(PUB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('not found'); return; }

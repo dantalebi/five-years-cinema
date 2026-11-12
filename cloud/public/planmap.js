@@ -24,6 +24,9 @@ function fxPlanMap() {
     'Iranian Cinema', 'Latin American Cinema', 'South Asian, African, Middle Eastern & Southeast Asian Cinema', 'Contemporary American Cinema', 'Contemporary European Cinema', 'Contemporary Japanese Cinema', 'Documentary, Experimental & Animation', 'Other'];
   const GKIND = [['Movements & Periods', [0, 1, 2, 3, 4, 6, 7, 13]], ['National & Regional Cinemas', [5, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20]], ['Forms', [21]], ['Other', [22]]];
   const LANE = Object.fromEntries(LANES.map(([k, n]) => [k, n]));
+  // a plan made by the builder names its own groups and says what kind each is
+  const gkinds = m => !m.D.gen ? GKIND : [['Movements & Periods', ['movement', 'period']], ['National Cinemas', ['nation']], ['Forms', ['form']]]
+    .map(([t, ks]) => [t, (m.D.gkind || []).map((k, i) => ks.includes(k) ? i : -1).filter(i => i >= 0)]);
   const ORDER = {H: 0, A: 1, C: 2, P: 3, F: 4};
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const num = n => Number(n).toLocaleString('en-US');
@@ -152,22 +155,22 @@ function fxPlanMap() {
     if (m.groups.length) {
       const row = g => {
         const open = openG === g.gi;
-        let x = `<li class="${open ? 'open' : ''}"><button type="button" class="pm-gb" data-pmg="${g.gi}" aria-expanded="${open}"><span class="pm-gn">${esc(GROUPS[g.gi] || m.D.groups[g.gi])}</span><span class="fx-muted">${num(g.w)} / ${num(g.n)}</span>${bar(g.w, g.n)}</button>`;
+        let x = `<li class="${open ? 'open' : ''}"><button type="button" class="pm-gb" data-pmg="${g.gi}" aria-expanded="${open}"><span class="pm-gn">${esc(m.D.gen ? m.D.groups[g.gi] : GROUPS[g.gi] || m.D.groups[g.gi])}</span><span class="fx-muted">${num(g.w)} / ${num(g.n)}</span>${bar(g.w, g.n)}</button>`;
         if (open) {
           const list = m.films.filter(c => m.F[c.i][13] === g.gi).sort((a, b) => m.filmWeek[a.i] - m.filmWeek[b.i]);
           x += `<ol class="pm-fl">${list.map(c => `<li class="${c.s === 'w' ? 'w' : c.s === 's' ? 's' : ''}"><button type="button" class="fx-link pm-wkb" data-pmgo="${m.filmWeek[c.i]}">Wk ${m.filmWeek[c.i]}</button><span><bdi>${esc(m.F[c.i][0])}</bdi> <span class="fx-y">${m.F[c.i][1] || ''}</span></span>${c.s === 'w' ? '<i>✓</i>' : ''}</li>`).join('')}</ol>${g.shelf ? `<p class="fx-muted fx-small">Plus ${num(g.shelf)} more on the shelf for open slots.</p>` : ''}`;
         }
         return x + '</li>';
       };
-      h += `<section class="fx-card"><h2>Movements & cinemas</h2><p class="fx-muted">Select one to see its films and where they fall in the plan.</p>${GKIND.map(([title, ids]) => {
-        const gs = m.groups.filter(g => ids.includes(g.gi) || (title === 'Other' && g.gi >= GROUPS.length));
+      h += `<section class="fx-card"><h2>Movements & cinemas</h2><p class="fx-muted">Select one to see its films and where they fall in the plan.</p>${gkinds(m).map(([title, ids]) => {
+        const gs = m.groups.filter(g => ids.includes(g.gi) || (!m.D.gen && title === 'Other' && g.gi >= GROUPS.length));
         return gs.length ? `<h3 class="pm-gk">${esc(title)}</h3><ul class="pm-groups">${gs.map(row).join('')}</ul>` : '';
       }).join('')}</section>`;
     }
     // directors across the five years
     if (m.dirs.length) {
       const list = allDirs ? m.dirs : m.dirs.slice(0, 24), nw2 = m.weeks.length;
-      h += `<section class="fx-card"><h2>Directors over five years</h2><p class="fx-muted">Each dot marks one film in the week it is scheduled. Filmographies unfold gradually, mostly in chronological order.</p>
+      h += `<section class="fx-card"><h2>Directors ${m.D.W.length >= 260 ? 'over five years' : 'across the plan'}</h2><p class="fx-muted">Each dot marks one film in the week it is scheduled. Filmographies unfold gradually, mostly in chronological order.</p>
         <ul class="pm-dirs">${list.map(d => {
           const open = openD === d.id;
           const dots = d.fs.filter(x => x.w).map(x => `<i class="${x.s === 'w' ? 'w' : x.s === 's' ? 's' : ''}" style="left:${((x.w - 0.5) / nw2 * 100).toFixed(2)}%"></i>`).join('');

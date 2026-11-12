@@ -75,7 +75,8 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.screenshot({path: path.join(OUT, 'dx-home.png'), fullPage: false});
 
   // a movement
-  await p.click('[data-dx-go="group:0"]'); await p.waitForSelector('.dx-grid');
+  await p.click('.dx-list a[href="/discover/movement/french-new-wave"]'); await p.waitForSelector('.dx-grid');
+  ok(p.url().endsWith('/discover/movement/french-new-wave'), 'the movement has its own address', p.url());
   ok(await p.$eval('.dx-h1', e => e.textContent) === 'French New Wave', 'the movement’s page');
   ok(/Movement · 1958–1968/.test(await p.$eval('.dx-head .fx-eye', e => e.textContent)), 'its years');
   let titles = await p.$$eval('.dx-grid .dx-ct', es => es.map(e => e.textContent));
@@ -83,6 +84,7 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.selectOption('[data-dx-sort]', 'old');
   titles = await p.$$eval('.dx-grid .dx-ct', es => es.map(e => e.textContent));
   ok(titles[0] === 'The 400 Blows', 'sorted oldest first', titles);
+  ok(p.url().endsWith('/discover/movement/french-new-wave?sort=old'), 'the sort goes in the address', p.url());
   // filters stack
   await p.click('[data-dx-filters]'); await p.waitForSelector('.dx-panel');
   const gopts = await p.$$eval('[data-dx-f="genre"] option', os => os.map(o => o.textContent));
@@ -90,6 +92,11 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.selectOption('[data-dx-f="genre"]', '80');
   titles = await p.$$eval('.dx-grid .dx-ct', es => es.map(e => e.textContent));
   ok(titles.join() === 'Breathless', 'French New Wave + Crime', titles);
+  ok(p.url().endsWith('?genre=crime&sort=old'), 'so do the filters', p.url());
+  await p.reload(); await p.waitForSelector('.dx-grid');
+  titles = await p.$$eval('.dx-grid .dx-ct', es => es.map(e => e.textContent));
+  ok(titles.join() === 'Breathless' && await p.$eval('[data-dx-sort]', e => e.value) === 'old', 'a reload shows the same list', titles);
+  await p.click('[data-dx-filters]'); await p.waitForSelector('.dx-panel');
   ok(/1 film\b/.test(await p.$eval('.dx-count', e => e.textContent)), 'the count follows');
   ok((await p.$$('.dx-active .fx-chip')).length === 2, 'each filter has a chip');
   await p.click('[data-dx-rm="group"]');
@@ -98,18 +105,18 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.screenshot({path: path.join(OUT, 'dx-filters.png'), fullPage: false});
 
   // everything: hide what she's seen, then what's already on her watchlist
-  await p.click('[data-dx-home]'); await p.click('[data-dx-go="all"]'); await p.waitForSelector('.dx-grid');
-  ok(await p.$('[data-dx-film="2"] .dx-mseen') !== null && await p.$('[data-dx-film="3"] .dx-mwl') !== null, 'marks: watched and on your watchlist');
+  await p.click('.dx-head a[href="/discover"]'); await p.click('a[href="/discover/all"]'); await p.waitForSelector('.dx-grid');
+  ok(await p.$('a.dx-cell[href="/film/mirror"] .dx-mseen') !== null && await p.$('a.dx-cell[href="/film/stalker"] .dx-mwl') !== null, 'marks: watched and on your watchlist');
   ok(/147 films/.test(await p.$eval('.dx-count', e => e.textContent)), 'all of them');
   ok((await p.$$('.dx-grid li')).length === 60, 'sixty at a time');
   await p.click('[data-dx-more]');
   ok((await p.$$('.dx-grid li')).length === 147, 'Show more shows the rest');
   await p.click('[data-dx-hide="s"]');
   let cnt = await p.$eval('.dx-count', e => e.textContent.replace(/\s+/g, ' '));
-  ok(/146 films/.test(cnt) && /1 watched hidden/.test(cnt) && !(await p.$('[data-dx-film="2"]')), 'Hide watched', cnt);
+  ok(/146 films/.test(cnt) && /1 watched hidden/.test(cnt) && !(await p.$('a.dx-cell[href="/film/mirror"]')), 'Hide watched', cnt);
   await p.click('[data-dx-hide="w"]');
   cnt = await p.$eval('.dx-count', e => e.textContent.replace(/\s+/g, ' '));
-  ok(/145 films/.test(cnt) && /1 watched and 1 on your watchlist hidden/.test(cnt) && !(await p.$('[data-dx-film="3"]')), 'Hide watchlist too', cnt);
+  ok(/145 films/.test(cnt) && /1 watched and 1 on your watchlist hidden/.test(cnt) && !(await p.$('a.dx-cell[href="/film/stalker"]')), 'Hide watchlist too', cnt);
   ok(await p.evaluate(() => Store.data['cfg:dxh']) === 'sw', 'kept as a setting (so it syncs)');
   // search: narrows as you type, and the box keeps focus
   await p.click('[data-dx-q]'); await p.keyboard.type('tarkov'); await p.waitForTimeout(400);
@@ -124,7 +131,8 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   ok(titles.join() === 'Breathless', 'searching by original title', titles);
 
   // a film's page
-  await p.click('[data-dx-film="0"]'); await p.waitForSelector('.dx-ft');
+  await p.click('a.dx-cell[href="/film/breathless"]'); await p.waitForSelector('.dx-ft');
+  ok(p.url().endsWith('/film/breathless'), 'the film has its own address', p.url());
   await p.waitForSelector('.dx-ov', {timeout: 5000});
   const fp = await p.$eval('.fx-app', e => e.innerText.replace(/\s+/g, ' '));
   ok(/Breathless/.test(fp) && /À bout de souffle/.test(fp) && /Directed by Jean-Luc Godard/.test(fp), 'title, original title, director', fp.slice(0, 200));
@@ -135,29 +143,34 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   ok(await p.$('.dx-bd img') !== null, 'a backdrop');
   ok(await p.$eval('.dx-acts a', a => a.href) === 'https://letterboxd.com/film/breathless/', 'Letterboxd link');
   await p.screenshot({path: path.join(OUT, 'dx-film.png'), fullPage: false});
-  await p.click('[data-dx-wl="0"]'); await p.waitForTimeout(300);
+  await p.click('[data-fp-wl]'); await p.waitForTimeout(300);
   ok(!!(await p.evaluate(() => Store.data['wl:tm101'])), 'Add to watchlist: on her watchlist');
-  ok(/On your watchlist/.test(await p.$eval('[data-dx-wl="0"]', e => e.textContent)), 'the button says so');
+  ok(/On your watchlist/.test(await p.$eval('[data-fp-wl]', e => e.textContent)), 'the button says so');
   ok(!Object.keys(await p.evaluate(() => Store.data)).some(k => /^(log|add|free):/.test(k) && k !== 'log:m1'), 'nothing goes into her plan or diary');
-  await p.click('[data-dx-back]'); await p.waitForSelector('.dx-grid');
-  ok(await p.$eval('[data-dx-q]', e => e.value) === 'bout de', 'Back returns to the same list');
+  await p.goBack(); await p.waitForSelector('.dx-grid');
+  ok(await p.$eval('[data-dx-q]', e => e.value) === 'bout de' && /\/discover\/all\?q=bout/.test(p.url()), 'the phone’s Back returns to the same list', p.url());
   // the director
   await p.fill('[data-dx-q]', 'tarkovsky'); await p.waitForTimeout(400);
-  await p.click('[data-dx-film="2"]'); await p.waitForSelector('.dx-ft');
-  ok(/You watched this on March 4, 2026/.test(await p.$eval('.dx-seen', e => e.textContent)), 'a film she’s seen says when');
-  ok(/More by Andrei Tarkovsky/i.test(await p.$eval('.fx-app', e => e.innerText)) && await p.$('.dx-row [data-dx-film="3"]') !== null, 'more by the same director');
-  await p.click('.dx-by [data-dx-dir="2"]'); await p.waitForSelector('.dx-grid');
+  await p.click('a.dx-cell[href="/film/mirror"]'); await p.waitForSelector('.dx-ft');
+  ok(/March 4, 2026/.test(await p.$eval('.fp-you', e => e.textContent)), 'a film she’s seen shows her diary entry');
+  await p.click('.fp-ent'); await p.waitForSelector('.fx-sheet', {timeout: 5000});
+  ok(true, 'the entry opens from the film’s page');
+  await p.goBack(); await p.waitForTimeout(400);
+  ok(!(await p.$('.fx-sheet:not([hidden])')) && /\/film\/mirror$/.test(p.url()), 'Back closes the entry and stays on the film', p.url());
+  ok(/More by Andrei Tarkovsky/i.test(await p.$eval('.fx-app', e => e.innerText)) && await p.$('.dx-row a[href="/film/stalker"]') !== null, 'more by the same director');
+  await p.click('.dx-by a[href="/director/andrei-tarkovsky"]'); await p.waitForSelector('.dx-grid');
+  ok(p.url().endsWith('/director/andrei-tarkovsky'), 'the director has an address too');
   ok(await p.$eval('.dx-h1', e => e.textContent) === 'Andrei Tarkovsky', 'a director’s page');
   // Log opens the log sheet with the film
-  await p.click('[data-dx-film="3"]'); await p.waitForSelector('[data-dx-log]');
-  await p.click('[data-dx-log]'); await p.waitForSelector('.fx-sheet', {timeout: 5000});
+  await p.click('.dx-grid a.dx-cell[href="/film/stalker"]'); await p.waitForSelector('[data-fp-log]');
+  await p.click('[data-fp-log]'); await p.waitForSelector('.fx-sheet', {timeout: 5000});
   ok(/Stalker/.test(await p.$eval('.fx-sheet', e => e.innerText)), 'Log opens the log sheet for this film');
 
   // wide screen
   await p.setViewportSize({width: 1280, height: 900}); await p.reload(); await p.waitForSelector('.fx-tabbar');
   await p.click('[data-nav="discover"]'); await p.waitForSelector('.dx-doors');
   await p.screenshot({path: path.join(OUT, 'dx-desk.png'), fullPage: false});
-  await p.click('[data-dx-go="all"]'); await p.waitForSelector('.dx-grid'); await p.click('[data-dx-filters]');
+  await p.click('a[href="/discover/all"]'); await p.waitForSelector('.dx-grid'); await p.click('[data-dx-filters]');
   await p.screenshot({path: path.join(OUT, 'dx-desk-all.png'), fullPage: false});
   const over = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   ok(!over, 'no sideways scrolling');

@@ -77,6 +77,7 @@ function fxFriendsTab(CS) {
     return ix;
   }
   const allRe = () => re.concat(inbox ? inbox.re.concat(inbox.thr) : []);
+  const fwait = [];
   async function load() {
     if (loading) return;
     loading = true; err = false;
@@ -85,6 +86,7 @@ function fxFriendsTab(CS) {
     if (!f.ok || !p.ok) err = true;
     else { feed = f.j.feed || []; re = Array.isArray(f.j.re) ? f.j.re : []; me = f.j.me || (CS.me() || {}).username || ''; people = p.j.people || []; }
     if (ib.ok) setInbox(ib.j);
+    fwait.splice(0).forEach(fn => { try { fn(); } catch (e) {} });
     if (redraw) redraw();
   }
   const setInbox = j => { inbox = {re: Array.isArray(j.re) ? j.re : [], thr: Array.isArray(j.thr) ? j.thr : [], fol: Array.isArray(j.fol) ? j.fol : []}; };
@@ -119,8 +121,11 @@ function fxFriendsTab(CS) {
     if (thread || openC.has(k)) h += `<form class="fx-cform" data-rcf="${owner}/${esc(eid)}"><input type="text" name="c" maxlength="500" dir="auto" autocomplete="off" placeholder="${esc(T.cPh)}" aria-label="${esc(T.comment)}"><button type="submit" class="fx-btn primary">${T.send}</button></form>`;
     return h;
   }
-  function posterBox(e, href) {
-    return `<a class="fx-apos${okPoster(e.p) ? '' : ' none'}" href="${href}" aria-hidden="true" tabindex="-1">${okPoster(e.p) ? `<img alt="" loading="lazy" src="${e.p}">` : ''}<span class="fx-pt" dir="ltr">${esc(bare(e.t))}</span></a>`;
+  // a film's own page on the site (filmpage.js), from whatever the entry knows about it
+  const filmHref = e => typeof fxNav !== 'undefined' ? fxNav.film({slug: /^[a-z0-9-]{1,120}$/.test(e.l || '') ? e.l : '', tm: +e.tm || 0, t: bare(e.t), y: +e.y || 0}) : '#';
+  const filmLink = (e, cls) => `<a class="${cls}" href="${esc(filmHref(e))}" data-app><bdi>${esc(bare(e.t))}</bdi> <span class="fx-y">${+e.y || ''}</span></a>`;
+  function posterBox(e) {
+    return `<a class="fx-apos${okPoster(e.p) ? '' : ' none'}" href="${esc(filmHref(e))}" data-app aria-hidden="true" tabindex="-1">${okPoster(e.p) ? `<img alt="" loading="lazy" src="${e.p}">` : ''}<span class="fx-pt" dir="ltr">${esc(bare(e.t))}</span></a>`;
   }
   const feedRows = () => {
     const rows = [];
@@ -133,9 +138,9 @@ function fxFriendsTab(CS) {
     if (!rows.length) return `<p class="fx-muted">${T.none} <button type="button" class="fx-link" data-seg="p">${T.findPeople}</button></p>`;
     return `<ul class="fx-afeed">${rows.slice(0, shown).map(e => {
       const href = '/u/' + e.u + (okId(e.id) ? '#' + e.id : '');
-      return `<li class="fx-actv">${posterBox(e, href)}<div class="fx-ab">
-        <div class="fx-aw"><a href="/u/${e.u}"><b dir="auto">${esc(e.n || '@' + e.u)}</b></a> · <span>${esc(when(e.w))}</span></div>
-        <a class="fx-at" href="${href}"><bdi>${esc(bare(e.t))}</bdi> <span class="fx-y">${+e.y || ''}</span></a>
+      return `<li class="fx-actv">${posterBox(e)}<div class="fx-ab">
+        <div class="fx-aw"><a href="/u/${e.u}"><b dir="auto">${esc(e.n || '@' + e.u)}</b></a> · <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
+        ${filmLink(e, 'fx-at')}
         <div class="fx-fm"><span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}</div>
         ${e.rx ? `<p class="fx-arx" dir="auto">${esc(e.rx)}${String(e.rx).length >= 280 ? '…' : ''}</p>` : e.rv && e.sp ? `<p class="fx-arx fx-muted">${T.spoil}</p>` : ''}
         ${okId(e.id) ? reactBar(e.u, e.id, e, ix, e.u === me) : ''}</div></li>`;
@@ -163,7 +168,7 @@ function fxFriendsTab(CS) {
     const list = wlList();
     let h = `<details class="fx-more fx-wl"${wlOpen ? ' open' : ''}><summary>${T.wlH} · ${T.wlCount(list.length)}</summary>`;
     if (!list.length) return h + `<p class="fx-muted">${T.wlNone}</p></details>`;
-    h += `<ul class="fx-wll">${list.map(x => `<li>${posterBox(x, '#')}<div class="fx-ab"><span class="fx-at"><bdi>${esc(x.t)}</bdi> <span class="fx-y">${x.y || ''}</span></span>${x.u ? `<span class="fx-muted fx-small">${esc(T.wlFrom(x.u))}</span>` : ''}</div><div class="fx-wla">${logger ? `<button type="button" class="fx-btn" data-wl-log="${esc(x.k)}">${T.logIt}</button>` : ''}<button type="button" class="fx-link" data-wl-rm="${esc(x.k)}" aria-label="${esc(T.remove)}">${T.remove}</button></div></li>`).join('')}</ul>`;
+    h += `<ul class="fx-wll">${list.map(x => `<li>${posterBox(x)}<div class="fx-ab">${filmLink(x, 'fx-at')}${x.u ? `<span class="fx-muted fx-small">${esc(T.wlFrom(x.u))}</span>` : ''}</div><div class="fx-wla">${logger ? `<button type="button" class="fx-btn" data-wl-log="${esc(x.k)}">${T.logIt}</button>` : ''}<button type="button" class="fx-link" data-wl-rm="${esc(x.k)}" aria-label="${esc(T.remove)}">${T.remove}</button></div></li>`).join('')}</ul>`;
     return h + '</details>';
   }
   function peopleHtml() {
@@ -241,11 +246,11 @@ function fxFriendsTab(CS) {
     if (!list.length) return h + `<section class="fx-card"><p class="fx-muted">${T.tNone}</p></section>`;
     const c = list[tg.i % list.length], rest = list.filter(x => x !== c).slice(0, 5);
     const wl = wlHas(c) || c.loved.some(x => x[0] === me);  // nothing to add for a film you've seen
-    h += `<section class="fx-card fx-tgpick"><div class="fx-tgbig">${c.p ? `<img alt="" src="${c.p}">` : `<span class="fx-pt" dir="ltr">${esc(c.t)}</span>`}</div>
-      <div class="fx-tgb"><div class="fx-at"><bdi>${esc(c.t)}</bdi> <span class="fx-y">${c.y || ''}</span></div>${c.d || c.m ? `<div class="fx-muted">${esc(c.d.split(',')[0] || '')}${c.d && c.m ? ' · ' : ''}${c.m ? Math.floor(c.m / 60) + 'h ' + (c.m % 60) + 'm' : ''}</div>` : ''}
+    h += `<section class="fx-card fx-tgpick"><a class="fx-tgbig" href="${esc(filmHref(c))}" data-app>${c.p ? `<img alt="" src="${c.p}">` : `<span class="fx-pt" dir="ltr">${esc(c.t)}</span>`}</a>
+      <div class="fx-tgb">${filmLink(c, 'fx-at')}${c.d || c.m ? `<div class="fx-muted">${esc(c.d.split(',')[0] || '')}${c.d && c.m ? ' · ' : ''}${c.m ? Math.floor(c.m / 60) + 'h ' + (c.m % 60) + 'm' : ''}</div>` : ''}
       <ul class="fx-why">${why(c).map(w => `<li>${esc(w)}</li>`).join('')}</ul>
       <div class="fx-row"><button type="button" class="fx-btn primary" data-tgnext>${T.tAgain}</button>${wl ? '' : `<button type="button" class="fx-btn" data-tgwl>${T.tWant}</button>`}${logger && !c.loved.some(x => x[0] === me) ? `<button type="button" class="fx-btn" data-tglog>${T.logIt}</button>` : ''}</div></div></section>`;
-    if (rest.length) h += `<section class="fx-card"><h2>${T.tAlso}</h2><ul class="fx-wll">${rest.map(x => `<li>${posterBox(x, '#')}<div class="fx-ab"><span class="fx-at"><bdi>${esc(x.t)}</bdi> <span class="fx-y">${x.y || ''}</span></span><span class="fx-muted fx-small">${esc(why(x)[0] || '')}</span></div><span></span></li>`).join('')}</ul></section>`;
+    if (rest.length) h += `<section class="fx-card"><h2>${T.tAlso}</h2><ul class="fx-wll">${rest.map(x => `<li>${posterBox(x)}<div class="fx-ab">${filmLink(x, 'fx-at')}<span class="fx-muted fx-small">${esc(why(x)[0] || '')}</span></div><span></span></li>`).join('')}</ul></section>`;
     return h;
   }
   // a pick without a poster (a Letterboxd watchlist film, say): look it up once
@@ -261,8 +266,18 @@ function fxFriendsTab(CS) {
     if (owner === me) { const m = myEntries()[eid]; if (m) return m.t + (m.y ? ' (' + m.y + ')' : ''); }
     const r = allRe().find(x => x[1] === owner && x[2] === eid && x[8]); return r ? r[8] : '';
   };
+  const SEGP = {f: '/activity', n: '/activity/notifications', t: '/activity/tonight', p: '/activity/people'};
+  // what people you follow made of a film (from the feed), for the film's page
+  const sameFilm = (a, b) => (+a.tm > 0 && +b.tm > 0) ? +a.tm === +b.tm : norm(bare(a.t)) + '|' + (+a.y || 0) === norm(bare(b.t)) + '|' + (+b.y || 0);
+  function friendsOn(f, cb) {
+    const give = () => cb(feedRows().filter(e => e.u !== me && sameFilm(e, f)).sort((a, b) => String(b.w || '').localeCompare(String(a.w || ''))));
+    if (feed) give(); else { fwait.push(give); load(); }
+  }
   return {
     id: 'friends', label: {en: T.h, fa: T.h},
+    path: () => SEGP[seg] || '/activity',
+    fromPath(p) { const k = Object.keys(SEGP).find(x => SEGP[x] === p); if (k && k !== seg) { if (seg === 'n') seenBefore = null; seg = k; } },
+    friendsOn,
     dot: () => !!inbox && unread() > 0,
     view() {
       if (!feed && !err) load();
@@ -291,7 +306,7 @@ function fxFriendsTab(CS) {
       if (b.hasAttribute('data-tgnext')) { tg.i++; render(); const l = tgList(); fillPoster(l[tg.i % Math.max(1, l.length)]); return true; }
       if (b.hasAttribute('data-tgwl')) { const l = tgList(), c = l[tg.i % l.length]; if (c) { wlSet(c, true, ''); render(); } return true; }
       if (b.hasAttribute('data-tglog')) { const l = tgList(), c = l[tg.i % l.length]; if (c && logger) logger(c.t, c.y, {tm: c.tm || 0, t: c.t, y: c.y || 0, p: String(c.p || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '')}); return true; }
-      if (b.dataset.seg) { if (seg === 'n' && b.dataset.seg !== 'n') seenBefore = null; seg = b.dataset.seg; render(); window.scrollTo(0, 0); return true; }
+      if (b.dataset.seg) { if (seg === 'n' && b.dataset.seg !== 'n') seenBefore = null; seg = b.dataset.seg; render(); window.scrollTo(0, 0); if (typeof fxNav !== 'undefined') fxNav.note(SEGP[seg]); return true; }
       if (b.hasAttribute('data-fr-retry')) { err = false; feed = null; render(); return true; }
       if (b.hasAttribute('data-fr-more')) { shown += 30; render(); return true; }
       if (b.hasAttribute('data-n-more')) { nShown += 30; render(); return true; }

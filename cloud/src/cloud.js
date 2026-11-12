@@ -23,9 +23,10 @@
       signin: 'Sign in', signup: 'Create an account', user: 'Username', userPh: 'Letters, numbers and underscores', pass: 'Password', passNew: 'Password (at least 8 characters)', name: 'Your name', namePh: 'Shown on your profile', code: 'Invite code',
       pub: 'Make my profile public (people can see your diary and follow you)', go: 'Sign in', make: 'Create account', working: 'One moment…', short: 'Your password needs at least 8 characters.',
       privacy: 'Your password is scrambled on your device before it’s sent, so the site never sees it. No email or phone number required.',
+      h0: 'Build your plan', p0: 'Choose how long and how many films a week, and get a schedule made for you from the Discover catalog: film history, great directors, recent films and popular favorites, mixed week by week. It leaves out what you’ve already logged.', b0: 'Build your plan',
       h1: 'Make your own list', p1: 'Search for films and add them. Your list is split into weeks, so you only ever see this week’s films.', b1: 'Start a list',
       h2: 'Start from your Letterboxd watchlist', p2: 'Export your data on letterboxd.com (Settings → Data → Export your data), then upload watchlist.csv or any list. You can bring in your full history (the .zip) from Settings later.', b2: 'Upload a .csv',
-      h3: 'Try the sample plan', p3: n => '“Five Years of Cinema”: ' + n + ' films over 260 weeks, from the silent era to today.', b3: 'Use the sample plan',
+      h3: 'Follow “Five Years of Cinema”', p3: n => 'The plan this site started with: ' + n + ' films over 260 weeks, from the silent era to today, made by hand for one viewer.', b3: 'Use this plan',
       h4: 'Coming from the old site?', p4: 'On the old site, go to Settings → Backup → “Download everything,” then choose that file here. Your diary, plan and settings all come with you.', b4: 'Choose file',
       per: 'Films per week', importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, bad: 'That doesn’t look like a Letterboxd export.', nodates: 'This file has no watch dates. To bring in your history, use the .zip in Settings.',
       moving: n => 'Moving ' + n + ' entries…', moved: 'Everything’s here.', badMove: 'That file isn’t from the old site.', signOut: 'Sign out', hi: u => 'Signed in as @' + u,
@@ -108,7 +109,10 @@
     if (k === 'own') {
       const cached = CloudSync.cachedPlan();
       const latest = CloudSync.loadPlan().then(D => { if (D && cached && FX && JSON.stringify(D) !== JSON.stringify(cached)) { window.D = D; FX.setPlan(D); } return D; });
-      return cached || await latest || Promise.reject(new Error('noplan'));
+      const D = cached || await latest;
+      if (!D) throw new Error('noplan');
+      (D.posters || []).forEach(([kk, p]) => { if (p && !Posters.src(kk)) Posters.put(kk, p); });
+      return D;
     }
     const D = FXL.plan(Store.data);
     D.posters.forEach(([kk, p]) => { if (p) Posters.put(kk, p); });
@@ -235,7 +239,79 @@
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
 
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
-  let DX = null, dxOn = false;
+  let DX = null, FP = null;
+  const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
+  // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
+  const VIEWS = {'/plan/new': 'build', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
+  const pathOf = v => v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
+  function route(url, how) {
+    if (!FX) return;
+    const u = new URL(url, location.origin), p = u.pathname.replace(/\/+$/, '') || '/';
+    let v;
+    if (p === '/') v = startView();
+    else if (p === '/activity' || p.startsWith('/activity/')) { if (FR) FR.fromPath(p); v = 'friends'; }
+    else if ((p === '/discover' || p.startsWith('/discover/')) && DX) { DX.fromUrl(p, u.searchParams); v = 'discover'; }
+    else if (p.startsWith('/film/') && FP) { FP.openFilm(fxNav.parseFilm(p)); v = 'film'; }
+    else if (p.startsWith('/director/') && FP) { FP.openDirector(p.slice(10).replace(/[^a-z0-9-]/g, '').slice(0, 120)); v = 'director'; }
+    else v = VIEWS[p] || startView();
+    FX.go(v);
+    if (v !== 'film' && v !== 'director') document.title = C.siteName || 'TVC15';
+    window.scrollTo(0, how === 'pop' ? fxNav.savedY() : 0);
+  }
+  fxNav.setHandler(route);
+  // links to the app's own screens stay inside the app (a new tab, with ⌘ or Ctrl, still works)
+  document.addEventListener('click', e => {
+    if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
+    const href = a.getAttribute('href');
+    if (!/^\/(film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|$)/.test(href)) return;
+    e.preventDefault(); FX.closeSheet(); fxNav.open(href);
+  });
+  // where a plan film sits in your plan, for its page
+  function planWeek(key) {
+    const D = window.D; if (!D || !Array.isArray(D.W) || !key || kind === 'list') return null;
+    const WK = fxCompact(D), cur = fxCur(WK, Store.data);
+    for (let w = 1; w <= WK.length; w++) if (WK[w - 1][0].includes(key)) return {w, now: w === cur, done: !!Store.data[key]};
+    return null;
+  }
+  // Stats: the profile's Letterboxd-style stats, built from your own diary on this device (even with the diary hidden from your profile)
+  const statsKeep = {};
+  const diaryNav = on => `<nav class="fx-years fx-seg fx-dseg" aria-label="Diary">${[['diary', 'Diary'], ['stats', 'Stats']].map(([v, l]) => `<button type="button" data-nav="${v}" aria-pressed="${on === v}">${l}</button>`).join('')}</nav>`;
+  const STATS = {
+    id: 'stats', hidden: true, label: {en: 'Stats', fa: 'Stats'},
+    view: () => `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">Stats</h1></div>${diaryNav('stats')}</header><div class="fx-statsroot"></div>`,
+    after(el) {
+      const box = el.querySelector('.fx-statsroot'); if (!box || typeof fxProfile !== 'function' || !FX) return;
+      let data; try { data = JSON.parse(fxShare(FX.plan(), Object.assign({}, Store.data, {'cfg:pubdiary': null}), k => Posters.src(k))); } catch (e) { return; }
+      if (!(data.diary || []).length && !(data.seen || []).length) { box.innerHTML = '<p class="fx-muted">Log a few films and your stats will show up here.</p>'; return; }
+      fxProfile(box, 'me', '', {data, only: 'stats', keep: statsKeep, lang: () => 'en', dirHref: fxNav.director});
+    },
+    click: b => !!b.closest('.fx-statsroot'),
+  };
+  // what your current plan is, in a few words (the builder says it will replace it)
+  function planName() {
+    const k = Store.data['cfg:plan'];
+    if (k === 'sample') return '“Five Years of Cinema”';
+    if (k === 'list') return 'your list';
+    if (k === 'own') return window.D && window.D.gen ? 'the plan you built on ' + fxCat.longDay(window.D.gen.made) : 'your own plan';
+    return '';
+  }
+  let PB = null;
+  function planner(inApp) {
+    if (!PB && typeof fxPlanner === 'function') PB = fxPlanner({wl: FR ? FR.wl : null, plan: planName, save: savePlanAndStart, leave: () => onboard()});
+    if (PB) PB.inApp = inApp;
+    return PB;
+  }
+  async function savePlanAndStart(D) {
+    const ok = await CloudSync.savePlan(D);
+    if (!ok) return false;
+    (D.posters || []).forEach(([k, p]) => { if (p) Posters.put(k, p); });
+    Store.set('cfg:since', today());
+    history.replaceState(Object.assign({}, history.state), '', '/week');
+    if (Store.data['cfg:plan'] === 'own') start(); else Store.set('cfg:plan', 'own');
+    window.scrollTo(0, 0);
+    return true;
+  }
   async function start() {
     fresh();
     if (Store.data['cfg:lang'] && Store.data['cfg:lang'] !== 'en') Store.set('cfg:lang', 'en');
@@ -248,13 +324,17 @@
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
+    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice,
-      fullView: PM ? 'plan' : ''});
-    if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger((t, y, md) => FX && FX.logFilm(t, y, md)); }
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true)].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+    const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
+    if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
-    if (DX && !dxOn) { dxOn = true; DX.attach(root, () => FX && FX.render()); }
-    if (DX) DX.setLogger((t, y, md) => FX && FX.logFilm(t, y, md));
+    if (DX) DX.attach(root, () => FX && FX.render());
+    if (FP) { FP.attach(root, () => FX && FX.render()); FP.setLogger(logTo); }
+    if (PB) PB.attach(root, () => FX && FX.render());
+    route(location.pathname + location.search, 'init');
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {
@@ -269,16 +349,10 @@
     });
     enrichSoon(); setTimeout(lbPull, 2500);
   }
-  // your year in film: built from your own diary on this device (even with the diary hidden from your profile)
-  function openWrapped(year) {
-    if (typeof fxWrappedOpen !== 'function' || !FX) return;
-    const data = JSON.parse(fxShare(FX.plan(), Object.assign({}, Store.data, {'cfg:pubdiary': null}), k => Posters.src(k)));
-    const me = CloudSync.me();
-    fxWrappedOpen(data, year, {who: Store.data['cfg:name'] || (me && me.name) || '', url: me ? location.origin + '/u/' + me.username : location.origin, site: C.siteName || 'Film Diary'});
-  }
   function homeChoice(L) {
     const week = Store.data['cfg:home'] === 'week';
-    return `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This Week</button></div></section>`;
+    const gen = typeof fxPlanner === 'function' ? `<section class="fx-card"><h2>Build a new plan</h2><p class="fx-muted">A schedule made from the Discover catalog, with your choice of length, pace and balance. It leaves out everything you’ve logged, so it’s worth rebuilding after you bring in your Letterboxd history.</p><div class="fx-row"><a class="fx-btn" href="/plan/new" data-app>Build a new plan</a></div></section>` : '';
+    return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This Week</button></div></section>`;
   }
   function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
   let rt = null;
@@ -299,10 +373,11 @@
     fresh();
     const t = T(), pw = FXL.perWeek(Store.data), me = CloudSync.me();
     shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
-      <section class="fx-card fx-opt"><h2>${t.h4}</h2><p>${t.p4}</p><div class="fx-row"><label class="fx-btn primary fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></section>
-      <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-ostart="list">${t.b1}</button></div></section>
+      ${t.h0 && typeof fxPlanner === 'function' ? `<section class="fx-card fx-opt"><h2>${t.h0}</h2><p>${t.p0}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-obuild>${t.b0}</button></div></section>` : ''}
+      <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="list">${t.b1}</button></div></section>
       <section class="fx-card fx-opt"><h2>${t.h2}</h2><p>${t.p2}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b2}<input type="file" accept=".csv,text/csv" data-oimport multiple></label></div><p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p></section>
       <section class="fx-card fx-opt"><h2>${t.h3}</h2><p>${t.p3(num(1813))}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="sample">${t.b3}</button></div></section>
+      <section class="fx-card fx-opt"><h2>${t.h4}</h2><p>${t.p4}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></section>
       <div class="fx-step" role="group" aria-label="${esc(t.per)}"><span>${t.per}</span><button type="button" data-opw="-1"${pw <= 1 ? ' disabled' : ''}>−</button><b>${num(pw)}</b><button type="button" data-opw="1"${pw >= 14 ? ' disabled' : ''}>+</button></div>
       ${note ? `<p class="fx-note ${cls || 'bad'}">${esc(note)}</p>` : ''}
       <div class="fx-row"><button type="button" class="fx-link" data-osignout>${t.signOut}</button></div>`);
@@ -311,6 +386,7 @@
       if (b.hasAttribute('data-osignout')) { await CloudSync.disconnect(); return; }
       if (b.dataset.opw) { S.set('cfg:perweek', Math.max(1, Math.min(14, FXL.perWeek(Store.data) + +b.dataset.opw))); onboard(); return; }
       if (b.dataset.ostart) choose(b.dataset.ostart);
+      if (b.hasAttribute('data-obuild')) { fresh(); planner(false).host(root); window.scrollTo(0, 0); }
     });
     root.addEventListener('change', async e => {
       if (e.target.matches('[data-omove]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) moveIn(f); return; }
@@ -369,6 +445,8 @@
     };
     PF = fxProfile(root, name, eid, {
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary',
+      // a member's films open on the site's own film pages; a visitor's go to Letterboxd
+      filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
       // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
       lang: () => 'en',
       headerExtra: metaHtml,

@@ -68,7 +68,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const r3 = await z.evaluate(async () => (await fetch('/api/react', {method: 'POST', headers: {'content-type': 'text/plain'}, body: JSON.stringify({owner: 'ana', eid: 'x', kind: 'h'})})).status);
   ok(r3 === 403, 'a plain form post from elsewhere is refused', r3);
   // home choice
-  await z.click('[data-nav="settings"]'); await z.click('[data-home="week"]'); await z.waitForTimeout(1500); await z.reload(); await z.waitForSelector('.fx-tabbar');
+  await z.click('[data-nav="settings"]'); await z.click('[data-home="week"]'); await z.waitForTimeout(1500); await z.goto(B + '/'); await z.waitForSelector('.fx-tabbar');
   ok(await z.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'week', 'Settings: start on This week');
   ok(!errs.length, 'no page errors', errs);
   await b.close();

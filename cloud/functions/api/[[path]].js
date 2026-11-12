@@ -310,7 +310,7 @@ on('GET', '/api/lb/([A-Za-z0-9_]{1,40})', async (req, env, u, m) => {
 }, {optionalAuth: true});
 
 // TMDB, for members only, through the site's own key; only the few lookups the app makes, answers kept for a day
-const TMDB_OK = /^\/(search\/(movie|tv)|movie\/\d+(\/images)?|tv\/\d+|configuration)$/;
+const TMDB_OK = /^\/(search\/(movie|tv|person)|movie\/\d+(\/images)?|tv\/\d+|person\/\d+|configuration)$/;
 on('GET', '/api/tmdb(/.*)', async (req, env, u, m) => {
   if (!env.TMDB_TOKEN) return fail('notmdb', 503);
   if (!TMDB_OK.test(m[1])) return fail('path', 400);
