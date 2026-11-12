@@ -17,6 +17,7 @@ const here = p => p.url().replace(B, '');
   await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-obuild]', {timeout: 15000});
   const opts = await p.$$eval('.fx-opt h2', hs => hs.map(h => h.textContent));
   ok(/Build your plan/.test(opts[0]), 'building a plan is the first way to start', opts);
+  ok(!opts.some(h => /Five Years of Cinema/.test(h)) && !(await p.$('[data-ostart="sample"]')), 'and nobody is offered someone else’s plan: each person makes their own', opts);
   // he has seen Citizen Kane: the plan must leave it out
   const kane = await p.evaluate(async () => { const j = await (await fetch('/catalog/catalog.json')).json(); const f = j.films.find(r => r[1] === 'citizen-kane'); return f ? f[0] : 0; });
   await p.evaluate(tm => { Store.set('log:k1', 't:Citizen Kane (1941)'); Store.set('v:log:k1', '2026-01-05'); Store.set('md:log:k1', JSON.stringify({tm, t: 'Citizen Kane', y: 1941})); }, kane);

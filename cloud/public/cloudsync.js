@@ -175,6 +175,8 @@ const CloudSync = (() => {
     follows: (u, which) => api('GET', '/u/' + u + '/' + (which === 'following' ? 'following' : 'followers')),
     lists: {mine: () => api('GET', '/lists'), create: o => api('POST', '/lists', o), update: (id, o) => api('PUT', '/lists/' + id, o), remove: id => api('DELETE', '/lists/' + id),
       of: u => api('GET', '/u/' + u + '/lists'), one: (u, slug) => api('GET', '/u/' + u + '/list/' + slug)},
+    // the films the most members watched lately: who 'friends' or 'everyone'; span week, month, year, all or auto
+    popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

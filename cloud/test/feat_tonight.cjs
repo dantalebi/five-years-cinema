@@ -10,8 +10,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
     p.on('pageerror', e => errs.push(u + ' ' + e.message));
     await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u[0].toUpperCase() + u.slice(1)); await p.fill('input[name=p]', 'pass for ' + u);
-    await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
-    await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
+    await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
+    await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
     await p.evaluate(([logs, wl]) => {
       logs.forEach(([t, y, r], i) => { const k = 'log:t' + i; Store.set(k, 't:' + t + ' (' + y + ')'); Store.set('v:' + k, '2026-10-1' + i); Store.set('r:' + k, r); });
       wl.forEach(([t, y]) => Store.set('wl:' + t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + '|' + y, JSON.stringify({t, y, tm: 0, p: '', u: '', at: Date.now()})));

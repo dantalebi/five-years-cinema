@@ -51,7 +51,7 @@ async function signup(p, u, n, lang) {
   for (const [u, list] of Object.entries(logs)) {
     const F = await person(b, u, async p => {
       await signup(p, u, u === 'sara_k' ? 'Sara' : 'Negin', u === 'sara_k' ? 'en' : 'fa');
-      await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar', {timeout: 20000});
+      await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar', {timeout: 20000});
       await p.evaluate(list => list.forEach(([t, y, d, r], i) => { const k = 'log:d' + i; Store.set(k, 't:' + t + ' (' + y + ')'); Store.set('v:' + k, d); Store.set('r:' + k, r); }), list);
       await p.waitForTimeout(2500);
       for (const who of ['talebi', u === 'sara_k' ? 'negin' : 'sara_k']) await p.evaluate(w => CloudSync.follow(w, true), who);

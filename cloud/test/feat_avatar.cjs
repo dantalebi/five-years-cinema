@@ -30,7 +30,7 @@ function png(w, h) {
     await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u[0].toUpperCase() + u.slice(1)); await p.fill('input[name=p]', 'pass for ' + u);
     await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]');
-    await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000}); await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
+    await p.waitForSelector('[data-ostart="list"]', {timeout: 15000}); await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
   };
   const p = await ctx(); await signup(p, 'vera');
 
@@ -39,7 +39,7 @@ function png(w, h) {
   ok(!(await p.$('.fx-gear')), 'the picture takes the gear’s place');
   await p.click('[data-ac-menu]'); await p.waitForSelector('.av-menu');
   const items = await p.$$eval('.av-menu [role=menuitem]', es => es.map(e => e.textContent));
-  ok(items.join('|') === 'Your profile|Settings|About|Sign out', 'the menu: profile, Settings, About, Sign out', items);
+  ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Settings|About|Sign out', 'the menu: everything of hers, then Settings, About, Sign out', items);
   await p.screenshot({path: path.join(OUT, 'av-menu.png')});
   await p.keyboard.press('Escape'); await p.waitForTimeout(150);
   ok(!(await p.$('.av-menu')), 'Escape closes it');

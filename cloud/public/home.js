@@ -1,7 +1,8 @@
 // Home: the screen the app opens on. This week's programme comes first (the plan's own screen, drawn by focus.js);
-// under it, the rest of your film life at a glance: what the people you follow watched lately, your watchlist, films you
-// watched on this day in other years, your year so far, and a channel from the catalog that changes every day.
-// fxHome({FR, nav}) → {html(), click(button)}: html() is added under This week; click() handles its own buttons.
+// under it, the rest of your film life at a glance: what the people you follow watched lately and what's popular with
+// them, your watchlist, films you watched on this day in other years, your year so far, and a channel from the catalog
+// that changes every day.
+// fxHome({FR, pop, redraw}) → {html(), click(button)}: html() is added under This week; click() handles its own buttons.
 function fxHome(o) {
   const U = fxCat, esc = U.esc, num = U.num;
   const FR = o.FR || null;
@@ -104,7 +105,7 @@ function fxHome(o) {
   return {
     html() {
       let h = '';
-      try { h = friends() + watchlist() + onThisDay() + year() + channel(); } catch (e) { h = ''; }
+      try { h = friends() + (o.pop ? o.pop.teaser('friends') : '') + watchlist() + onThisDay() + year() + channel(); } catch (e) { h = ''; }
       return h ? `<div class="hm">${h}</div>` : '';
     },
     click(b) {

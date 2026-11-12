@@ -30,12 +30,14 @@ const SCHEMA = [
   // a profile picture: a small square JPEG (the app crops and shrinks it to 256 pixels), as base64
   `CREATE TABLE IF NOT EXISTS avatars (uid INTEGER PRIMARY KEY, img TEXT NOT NULL, updated INTEGER NOT NULL)`,
   // lists of films: public ones are on the owner's profile and anyone with the link can read them; films is JSON
+  // results worked out now and then rather than on every request (Popular), with when they were
+  `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', pub INTEGER NOT NULL DEFAULT 1, ranked INTEGER NOT NULL DEFAULT 0, films TEXT NOT NULL DEFAULT '[]', n INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE (uid, slug))`,
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
 // users.av: when the profile picture last changed (0: none), so its address changes with it and can be cached for good
 const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`,
-  `ALTER TABLE profiles ADD COLUMN films TEXT`];
+  `ALTER TABLE profiles ADD COLUMN films TEXT`, `ALTER TABLE profiles ADD COLUMN fmeta TEXT`];
 let ready = null;
 const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
@@ -269,6 +271,30 @@ function filmLines(films, keys) {
   keys.forEach(k => { const at = '\n' + k + '\t'; let i = films.indexOf(at); while (i >= 0) { const j = films.indexOf('\n', i + 1); out.push(films.slice(i + at.length, j < 0 ? undefined : j).split('\t')); i = films.indexOf(at, i + 1); } });
   return out;
 }
+// and each profile's films as they're shown (one line a film, under the key its index lines start with):
+// "<film key>\t<title>\t<year>\t<poster path>", so Popular can name films without unpacking whole profiles
+const ppath = p => { const m = String(p || '').match(/^(?:https:\/\/image\.tmdb\.org\/t\/p\/(?:w\d+|original))?(\/[A-Za-z0-9._-]{1,100})$/); return m ? m[1] : ''; };
+function filmMeta(p) {
+  const seen = new Set(), out = [];
+  const add = e => {
+    if (!e || typeof e.t !== 'string') return;
+    const k = fkeys(e.t, e.y, e.tm)[0]; if (!k || seen.has(k)) return; seen.add(k);
+    out.push(k + '\t' + clean1(String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), 200) + '\t' + (Math.max(0, Math.min(2100, +e.y || 0)) || '') + '\t' + ppath(e.p));
+  };
+  ['diary', 'seen', 'wl'].forEach(n => (Array.isArray(p[n]) ? p[n] : []).forEach(add));
+  return '\n' + out.join('\n') + '\n';
+}
+function metaLine(fm, k) {
+  const at = '\n' + k + '\t', i = fm.indexOf(at); if (i < 0) return null;
+  const j = fm.indexOf('\n', i + 1), l = fm.slice(i + at.length, j < 0 ? undefined : j).split('\t');
+  return l[0] ? {t: l[0], y: +l[1] || 0, p: l[2] || ''} : null;
+}
+// a profile published before these indexes existed: build them once, from the profile itself
+async function indexes(env, uid) {
+  const pr = await env.DB.prepare('SELECT payload FROM profiles WHERE uid = ?').bind(uid).first();
+  try { const p = JSON.parse(pr.payload), films = filmIndex(p), fmeta = filmMeta(p); await env.DB.prepare('UPDATE profiles SET films = ?, fmeta = ? WHERE uid = ?').bind(films, fmeta, uid).run(); return {films, fmeta}; }
+  catch (e) { return {films: '', fmeta: ''}; }
+}
 // the public profile: the app builds it (fxShare) and sends it whole; the latest diary entries are kept apart for the feed
 on('PUT', '/api/profile', async (req, env, u) => {
   const b = await body(req, 1.9e6), p = b.payload;
@@ -281,8 +307,8 @@ on('PUT', '/api/profile', async (req, env, u) => {
   });
   const name = String(p.name || '').trim().slice(0, 60), now = Date.now(), pub = b.public === false ? 0 : 1;
   await env.DB.batch([
-    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
-      public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = excluded.films, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), filmIndex(p), now),
+    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, fmeta, updated) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
+      public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = excluded.films, fmeta = excluded.fmeta, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), filmIndex(p), filmMeta(p), now),
     env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, u.id),
   ]);
   return json({updated: now});
@@ -298,7 +324,7 @@ on('GET', '/api/u/([a-z0-9_]{3,24})/meta', async (req, env, u, m) => {
   const x = await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.public,
       (SELECT COUNT(*) FROM follows WHERE b = x.id) AS followers, (SELECT COUNT(*) FROM follows WHERE a = x.id) AS following
       FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?`).bind(m[1]).first();
-  if (!x || !x.public) return fail('none', 404);
+  if (!x || (!x.public && !(u && u.id === x.id))) return fail('none', 404);  // your own counts, even while your profile is private
   if (u && u.id !== x.id && await env.DB.prepare('SELECT 1 FROM blocks WHERE a = ? AND b = ?').bind(x.id, u.id).first()) return fail('none', 404);
   const out = {username: x.username, name: x.name, av: x.av || 0, followers: x.followers, following: x.following};
   if (u) {
@@ -322,8 +348,8 @@ on('POST', '/api/follow', async (req, env, u) => {
 }, {auth: true});
 // who follows someone, and whom they follow: [{username, name, av, following (you follow them), you (it's you)}]
 on('GET', '/api/u/([a-z0-9_]{3,24})/(followers|following)', async (req, env, u, m) => {
-  const x = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
-  if (!x || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
+  const x = await env.DB.prepare('SELECT x.id, p.public FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?').bind(m[1]).first();
+  if (!x || (!x.public && !(u && u.id === x.id)) || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
   const me = u ? u.id : 0, col = m[2] === 'followers' ? ['a', 'b'] : ['b', 'a'];
   const rows = (await env.DB.prepare(`SELECT y.username, y.name, y.av, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = y.id) AS fol
       FROM follows f JOIN users y ON y.id = f.${col[0]} WHERE f.${col[1]} = ?
@@ -472,10 +498,7 @@ on('GET', '/api/film', async (req, env, u) => {
   const friends = [], hist = Array(11).fill(0); let n = 0, likes = 0, want = 0;
   for (const r of rows) {
     let films = r.films;
-    if (films == null && r.hasp) {  // published before the index existed: build it once now
-      const pr = await env.DB.prepare('SELECT payload FROM profiles WHERE uid = ?').bind(r.id).first();
-      try { films = filmIndex(JSON.parse(pr.payload)); await env.DB.prepare('UPDATE profiles SET films = ? WHERE uid = ?').bind(films, r.id).run(); } catch (e) { films = ''; }
-    }
+    if (films == null && r.hasp) films = (await indexes(env, r.id)).films;  // published before the index existed
     const seen = new Set(), es = [];
     let wl = false;
     for (const l of filmLines(films || '', keys)) {
@@ -495,6 +518,102 @@ on('GET', '/api/film', async (req, env, u) => {
   }
   friends.sort((a, b) => (b.e.length > 0) - (a.e.length > 0) || String((b.e[0] || {}).w || '').localeCompare(String((a.e[0] || {}).w || '')));
   return json({friends, all: {n, likes, want, hist}}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+// ---- Popular: the films the most members watched lately (this week, this month, this year, ever) ----
+// From the film indexes of public profiles (a private diary isn't in them, so it never counts): each member counts once
+// a film, however often they watched it; its likes are the members who liked it; its average is of each member's latest
+// rating. Everyone on the site (counted, never named) or the people you follow (named). Worked out at most every few
+// minutes and kept in the cache table.
+const SPANS = [['week', 7], ['month', 30], ['year', 365], ['all', 0]];
+function popularOf(rows) {
+  const today = new Date().toISOString().slice(0, 10), since = {};
+  SPANS.forEach(([s, d]) => { since[s] = d ? new Date(Date.parse(today) - (d - 1) * DAY).toISOString().slice(0, 10) : ''; });
+  const alias = new Map(), ents = [];
+  for (const r of rows) {
+    let pk = '', prow = '';
+    for (const line of String(r.films || '').split('\n')) {
+      const tab = line.indexOf('\t'); if (tab < 1) continue;
+      const k = line.slice(0, tab), row = line.slice(tab + 1);
+      // an entry with a TMDB id is listed twice in a row, under its id and then its title: one entry, and the title
+      // tells which film an entry without an id (someone else's) is
+      if (k[0] === 'n' && row === prow && (pk[0] === 'm' || pk[0] === 't')) { alias.set(k, pk); pk = ''; continue; }
+      pk = k; prow = row;
+      const f = row.split('\t');
+      if (f[5] === 'W') continue;
+      ents.push([r, k, /^\d{4}-\d\d-\d\d$/.test(f[2]) ? f[2] : '', +f[0] || 0, f[1] === '1']);
+    }
+  }
+  const agg = {}; SPANS.forEach(([s]) => { agg[s] = new Map(); });
+  for (const [r, raw, w, rt, h] of ents) {
+    const k = raw[0] === 'n' ? alias.get(raw) || raw : raw;
+    for (const [s] of SPANS) {
+      if (s !== 'all' && (!w || w < since[s])) continue;
+      let fm = agg[s].get(k); if (!fm) agg[s].set(k, fm = new Map());
+      let o = fm.get(r); if (!o) fm.set(r, o = {w: '', r: 0, h: false, raw});
+      if (h) o.h = true;
+      if (w >= o.w) { o.w = w; if (rt) o.r = rt; } else if (!o.r) o.r = rt;
+    }
+  }
+  const out = {};
+  for (const [s] of SPANS) {
+    const list = [], people = new Set();
+    for (const [k, fm] of agg[s]) {
+      let n = 0, l = 0, rs = 0, rn = 0, w = '';
+      for (const [r, o] of fm) { n++; people.add(r.id); if (o.h) l++; if (o.r) { rs += o.r; rn++; } if (o.w > w) w = o.w; }
+      list.push({k, n, l, r: rn ? Math.round(rs / rn * 10) / 10 : 0, w, by: [...fm.entries()].sort((a, b) => (b[1].w > a[1].w ? 1 : b[1].w < a[1].w ? -1 : 0))});
+    }
+    list.sort((a, b) => b.n - a.n || b.l - a.l || b.r - a.r || (b.w > a.w ? 1 : b.w < a.w ? -1 : 0));
+    out[s] = {total: list.length, people: people.size, films: list.slice(0, 60)};
+  }
+  return out;
+}
+async function popular(env, u, who) {
+  const cols = 'x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp';
+  const rows = (await (who === 'friends'
+    ? env.DB.prepare(`SELECT ${cols} FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
+        WHERE f.a = ? AND p.public = 1 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id)
+    : env.DB.prepare(`SELECT ${cols} FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 LIMIT 5000`)).all()).results || [];
+  let builds = 0;
+  for (const r of rows) if (r.films == null && r.hasp && builds++ < 3) r.films = (await indexes(env, r.id)).films;
+  const P = popularOf(rows);
+  // each film's title, year and poster, from the profile of someone who watched it
+  const films = new Map();
+  SPANS.forEach(([s]) => P[s].films.forEach(f => { if (!films.has(f.k)) films.set(f.k, f.by.slice(0, 3).map(([r, o]) => [r.id, o.raw])); }));
+  const uids = [...new Set([...films.values()].flatMap(c => c.map(x => x[0])))], fm = new Map();
+  for (let i = 0; i < uids.length; i += 90) {
+    const part = uids.slice(i, i + 90);
+    const rs = (await env.DB.prepare(`SELECT uid, fmeta, payload IS NOT NULL AS hasp FROM profiles WHERE uid IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results || [];
+    for (const r of rs) fm.set(r.uid, r.fmeta == null && r.hasp && builds++ < 3 ? (await indexes(env, r.uid)).fmeta : r.fmeta || '');
+  }
+  const meta = new Map();
+  for (const [k, cands] of films) for (const [uid, raw] of cands) { const m = metaLine(fm.get(uid) || '', k) || metaLine(fm.get(uid) || '', raw); if (m) { meta.set(k, m); break; } }
+  const R = {};
+  SPANS.forEach(([s]) => {
+    R[s] = {total: P[s].total, people: P[s].people, films: P[s].films.filter(f => meta.has(f.k)).map(f => {
+      const m = meta.get(f.k), o = {k: f.k, tm: f.k[0] === 'm' ? +f.k.slice(1) : f.k[0] === 't' ? -f.k.slice(1) : 0, t: m.t, y: m.y, p: m.p, n: f.n, l: f.l, r: f.r, w: f.w};
+      if (who === 'friends') o.who = f.by.slice(0, 4).map(([r]) => ({u: r.username, n: r.name || '', a: +r.av || 0}));
+      return o;
+    })};
+  });
+  return R;
+}
+on('GET', '/api/popular', async (req, env, u) => {
+  const q = new URL(req.url).searchParams, who = q.get('who') === 'friends' ? 'friends' : 'everyone';
+  const ck = who === 'friends' ? 'pop:f:' + u.id : 'pop:e';
+  const ttl = env.POP_TTL !== undefined && env.POP_TTL !== '' ? +env.POP_TTL : (who === 'friends' ? 3 : 10) * 60e3;
+  let R = null;
+  const c = await env.DB.prepare('SELECT v, at FROM cache WHERE k = ?').bind(ck).first();
+  if (c && Date.now() - c.at < ttl) { try { R = JSON.parse(c.v); } catch (e) { R = null; } }
+  if (!R) {
+    R = await popular(env, u, who);
+    await env.DB.prepare('INSERT INTO cache (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(ck, JSON.stringify(R), Date.now()).run();
+  }
+  const names = SPANS.map(x => x[0]), min = Math.max(1, Math.min(30, +q.get('min') || 1));
+  let span = q.get('span');
+  // auto: the shortest stretch of time with enough films in it
+  if (span === 'auto') span = names.find(s => R[s].films.length >= min) || 'all';
+  else if (!names.includes(span)) span = 'week';
+  return json({who, span, sizes: Object.fromEntries(names.map(s => [s, R[s].total])), people: R[span].people, films: R[span].films}, 200, {'cache-control': 'private, no-store'});
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
 // with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]

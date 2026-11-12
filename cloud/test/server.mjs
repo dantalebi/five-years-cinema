@@ -27,7 +27,7 @@ const DB = {
     catch (e) { sql.exec('ROLLBACK'); throw e; }
   },
 };
-const env = {DB, TMDB_TOKEN: 'test-token', SIGNUP_CODE: process.env.SIGNUP_CODE || ''};
+const env = {DB, TMDB_TOKEN: 'test-token', SIGNUP_CODE: process.env.SIGNUP_CODE || '', POP_TTL: process.env.POP_TTL || '0'};
 
 // outside services, from fixtures
 const realFetch = globalThis.fetch, PEOPLE = new Map();

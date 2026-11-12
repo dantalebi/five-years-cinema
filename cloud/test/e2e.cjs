@@ -76,8 +76,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await s.fill('input[name=u]', 'sara_k'); await s.fill('input[name=n]', 'Sara'); await s.fill('input[name=p]', 'another pass 2');
   await s.screenshot({path: path.join(OUT, 'cl-auth.png'), fullPage: true});
   await s.click('form[data-auth] button[type=submit]');
-  await s.waitForSelector('[data-knext]', {timeout: 15000}); await s.check('[data-kok]'); await s.click('[data-knext]'); await s.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
-  await s.click('[data-ostart="sample"]'); await s.waitForSelector('.fx-tabbar', {timeout: 15000});
+  await s.waitForSelector('[data-knext]', {timeout: 15000}); await s.check('[data-kok]'); await s.click('[data-knext]'); await s.waitForSelector('[data-ostart="list"]', {timeout: 15000});
+  await s.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await s.waitForSelector('.fx-tabbar', {timeout: 15000});
   await s.evaluate(([k0]) => { Store.set(k0, '2026-11-04'); Store.set('r:' + k0, 8); Store.set('log:s1', 't:Heat (1995)'); Store.set('v:log:s1', '2026-11-05'); Store.set('r:log:s1', 10); Store.set('md:log:s1', JSON.stringify({tm: 949, t: 'Heat', y: 1995})); Store.set('log:s2', 't:Fargo (1996)'); Store.set('v:log:s2', '2026-11-06'); Store.set('r:log:s2', 4); }, [k0]);
   await s.waitForTimeout(2500); await s.evaluate(() => CloudSync.run()); await s.waitForTimeout(800);
   // Activity → People: find Danial, follow, then see his latest under Friends

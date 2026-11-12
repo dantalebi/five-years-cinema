@@ -15,8 +15,8 @@ const here = p => p.url().replace(B, '');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u[0].toUpperCase() + u.slice(1)); await p.fill('input[name=p]', 'pass for ' + u);
     await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('.ac-keybig', {timeout: 15000});
     const key = await p.$eval('.ac-keybig', e => e.textContent);
-    await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
-    if (keep !== false) { await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar'); }
+    await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
+    if (keep !== false) { await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar'); }
     return key;
   };
   const signin = async (p, u, pw) => {

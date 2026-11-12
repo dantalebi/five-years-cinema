@@ -3,7 +3,7 @@
 // stack, so the list keeps narrowing (and can hide what you've seen or already saved); Letterboxd-style sorting.
 // Every list has its own address (/discover/movement/french-new-wave?genre=crime&sort=old), so Back and reloading work;
 // each film opens its own page (filmpage.js).
-// fxDiscover({wl}) → a tab for mountFocus ({end: true}: it sits after Diary); fromUrl(path, params) shows an address,
+// fxDiscover({wl, top}) → a tab for mountFocus (top(): anything to show first on the front page: Popular) ({end: true}: it sits after Diary); fromUrl(path, params) shows an address,
 // url() is the address of what's on screen; attach(root, render) adds the typing and dropdown handling.
 function fxDiscover(o) {
   const U = fxCat, esc = U.esc, num = U.num, norm = U.norm;
@@ -139,7 +139,7 @@ function fxDiscover(o) {
   const gurl = g => '/discover/' + (g.kind === 'period' ? 'era' : 'movement') + '/' + g.id;
   function homeBody() {
     const n = C.n;
-    let h = `<section class="fx-card dx-sec"><h2>Where to start</h2><ul class="dx-doors">` + C.lenses.filter(l => n.lens.get(l.i)).map(l =>
+    let h = (o && o.top ? o.top() : '') + `<section class="fx-card dx-sec"><h2>Where to start</h2><ul class="dx-doors">` + C.lenses.filter(l => n.lens.get(l.i)).map(l =>
       `<li>${link('/discover/collection/' + l.id, `<span class="dx-door">${esc(l.door)}</span><b>${esc(l.name)}</b><span class="dx-dd">${esc(l.desc)}</span><span class="dx-n">${filmsN(n.lens.get(l.i))}</span>`)}</li>`).join('') + '</ul></section>';
     const row = g => `<li>${link(gurl(g), `<b>${esc(g.name)}</b><span class="dx-yrs">${g.from}–${g.to >= new Date().getFullYear() ? 'now' : g.to}</span><span class="dx-n">${num(n.group.get(g.i))}</span>`)}</li>`;
     const movs = C.groups.filter(g => g.kind === 'movement' && n.group.get(g.i)).sort((a, b) => a.from - b.from || a.to - b.to);

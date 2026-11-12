@@ -185,13 +185,17 @@ function fxAccount(CS, o) {
   }
   // a picture from this device: frame it, save it
   async function file(f, render) { const v = await fxAvatarEditor.open(f); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); typeof fxOSD === 'function' && fxOSD('Picture saved'); } }
-  // the corner of every screen: your picture, opening a small menu (your profile, Settings, About, Sign out)
+  // the corner of every screen: your picture, opening the menu Letterboxd has under your name: everywhere that's yours
+  // (Home, your profile and each of its parts, your diary and stats), then Settings, About and Sign out
   function corner(onSettings) {
-    const me = CS.me() || {}, sync = CS.status ? CS.status() : {};
+    const me = CS.me() || {}, sync = CS.status ? CS.status() : {}, u = '/u/' + esc(me.username || '');
+    const here = location.pathname.replace(/\/+$/, '') || '/';
+    const item = ([href, label]) => `<a role="menuitem" href="${href}"${here === href || (href === '/' && here === '/week') ? ' aria-current="page"' : ''}>${label}</a>`;
+    const yours = [['/', 'Home'], [u, 'Profile'], [u + '/films', 'Films'], ['/diary', 'Diary'], [u + '/reviews', 'Reviews'], [u + '/watchlist', 'Watchlist'], [u + '/lists', 'Lists'], ['/stats', 'Stats']];
     return `<div class="av-top"><button type="button" class="av-me${onSettings ? ' on' : ''}" data-ac-menu aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="Your account" title="Your account">${pic(me.username, me.name, me.av, 's')}${sync.state === 'err' ? '<i class="av-err" aria-hidden="true"></i>' : ''}</button>
       ${st.menu ? `<div class="av-menu" role="menu"><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
-        <a role="menuitem" href="/u/${esc(me.username || '')}">Your profile</a><a role="menuitem" href="/settings" data-app>Settings</a><a role="menuitem" href="/about" data-app>About</a>
-        <button type="button" role="menuitem" data-ac-out>Sign out</button></div>` : ''}</div>`;
+        <div class="av-mg">${yours.map(item).join('')}</div>
+        <div class="av-mg av-msys">${[['/settings', 'Settings'], ['/about', 'About']].map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
   }
   const closeMenu = () => { if (!st.menu) return false; st.menu = false; return true; };
   return {ui, click, submit, about, device, corner, closeMenu, file};

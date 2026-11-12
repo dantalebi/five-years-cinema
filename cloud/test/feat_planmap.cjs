@@ -9,8 +9,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   p.on('pageerror', e => errs.push(e.message));
   await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'mapper'); await p.fill('input[name=p]', 'pass for mapper');
-  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
-  await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
+  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
+  await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
   await p.click('[data-nav="week"]');
   ok(await p.$('.fx-planlink') !== null, 'This Week links to the whole plan', await p.$eval('.fx-planlink', e => e.innerText).catch(() => ''));
   // watch three of week 1's films

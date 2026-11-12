@@ -3,7 +3,7 @@
 // fxProfile(root, gistId, entryId, {clean, base}): clean = served at the app's own address, permalinks are base#<entry>
 function fxProfile(root, id, focusId, opts) {
   opts = opts || {};
-  let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
+  let lang = 'en', data = null, updated = '', tab = opts.tab || (focusId ? 'diary' : 'now'), open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
   const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n', fs: 'w', ws: 'a'};  // which way each stats card (and the Films and Watchlist grids) is showing
   const shown = {films: 120, wl: 120};  // how much of a long grid is drawn
   // the games (play.js), when the page has them; ?play=duel|tonight|match opens one straight away
@@ -99,11 +99,14 @@ function fxProfile(root, id, focusId, opts) {
     let h = `${opts.top || ''}<header class="fx-head">${opts.top !== undefined ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
-    // the films tabs when the diary is public; the watchlist when it is; lists and the rest whenever they're there
-    const hasD = d.length || (Array.isArray(data.seen) && data.seen.length);
-    const tabsL = [['now', t.now]].concat(hasD ? [['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]] : [], Array.isArray(data.wl) ? [['wl', t.tWl]] : [], (opts.extraTabs || []).map(x => [x.id, x.label]), hasD ? [['stats', t.tStats]] : [], PL && hasD ? [['play', t.tPlay]] : []);
+    const tabsL = tabList();
     if (tabsL.length > 1) h += `<nav class="fx-tabs" role="tablist">${tabsL.map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
+  }
+  // the films tabs when the diary is public; the watchlist when it is; lists and the rest whenever they're there
+  function tabList() {
+    const t = T(), hasD = (data.diary || []).length || (Array.isArray(data.seen) && data.seen.length);
+    return [['now', t.now]].concat(hasD ? [['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]] : [], Array.isArray(data.wl) ? [['wl', t.tWl]] : [], (opts.extraTabs || []).map(x => [x.id, x.label]), hasD ? [['stats', t.tStats]] : [], PL && hasD ? [['play', t.tPlay]] : []);
   }
   // a signed-in visitor sees at once how close their taste is to this person's
   function tasteChip() {
@@ -303,7 +306,8 @@ function fxProfile(root, id, focusId, opts) {
       root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc(t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }
-    if (tab === 'wl' && !Array.isArray(data.wl)) tab = 'now';
+    // a tab this profile doesn't have (an address for a diary that's private, say): This week instead
+    if (!tabList().some(x => x[0] === tab)) tab = 'now';
     const xtab = (opts.extraTabs || []).find(x => x.id === tab);
     const body = xtab ? xtab.view() : tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
     const yn = xtab || tab === 'now' || tab === 'play' || tab === 'wl' || tab === 'films' ? '' : yearNav();
@@ -342,7 +346,7 @@ function fxProfile(root, id, focusId, opts) {
       if (pushed) { pushed = false; history.back(); return; }
       history.replaceState(null, '', location.href.replace(/#.*$/, '') + hashFor('')); cur = ''; if (tab === 'now') tab = 'diary'; render(); window.scrollTo(0, 0); return;
     }
-    if (b.dataset.tab) { tab = b.dataset.tab; render(); const tb = root.querySelector('.fx-tabs'); if (tb) { const top = tb.getBoundingClientRect().top + window.scrollY - 8; if (window.scrollY > top) window.scrollTo(0, top); } }
+    if (b.dataset.tab) { tab = b.dataset.tab; render(); if (opts.onTab) opts.onTab(tab); const tb = root.querySelector('.fx-tabs'); if (tb) { const top = tb.getBoundingClientRect().top + window.scrollY - 8; if (window.scrollY > top) window.scrollTo(0, top); } }
     else if (b.dataset.year) { year = b.dataset.year; if (opts.keep) opts.keep.year = year; render(); }
     else if (b.dataset.pgmore) { const k = b.dataset.pgmore; if (k in shown) { shown[k] += 240; render(); } }
     else if (b.dataset.st) { const [k, v] = b.dataset.st.split(':'); if (k in stv) { stv[k] = v; if (opts.keep) opts.keep.stv = Object.assign({}, stv); render(); } }
@@ -358,7 +362,7 @@ function fxProfile(root, id, focusId, opts) {
   async function load() {
     if (!id && !opts.data) { shell(TX.en.bad); return; }
     try {
-      if (opts.data) { data = opts.data; updated = new Date().toISOString(); }
+      if (opts.data) { data = opts.data; updated = opts.updated || ''; }
       else if (opts.source) {  // the multi-user site: {updated, data} from its own server
         const r = await fetch(opts.source, {cache: 'no-store'});
         if (r.status === 404) { shell(T().gone); return; }
@@ -392,7 +396,8 @@ function fxProfile(root, id, focusId, opts) {
   }
   load();
   const timer = opts.data ? 0 : setInterval(() => { if (document.visibilityState === 'visible') load(); }, 300000);
-  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data, tab: () => tab};
+  return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data, tab: () => tab,
+    setTab: t => { if (t && t !== tab) { tab = t; if (data && !cur) render(); } }};
 }
 // share.html#<gist id>[/<entry>] — the original address, still valid for links already shared
 if (document.documentElement.dataset.page === 'share') {

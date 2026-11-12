@@ -33,7 +33,6 @@
       h0: 'Build your plan', p0: 'Choose how long and how many films a week, and get a schedule made for you from the Discover catalog: film history, great directors, recent films and popular favorites, mixed week by week. It leaves out what you’ve already logged.', b0: 'Build your plan',
       h1: 'Make your own list', p1: 'Search for films and add them. Your list is split into weeks, so you only ever see this week’s films.', b1: 'Start a list',
       h2: 'Start from your Letterboxd watchlist', p2: 'Export your data on letterboxd.com (Settings → Data → Export your data), then upload watchlist.csv or any list. You can bring in your full history (the .zip) from Settings later.', b2: 'Upload a .csv',
-      h3: 'Follow “Five Years of Cinema”', p3: n => 'The plan this site started with: ' + n + ' films over 260 weeks, from the silent era to today, made by hand for one viewer.', b3: 'Use this plan',
       h4: 'Coming from the old site?', p4: 'On the old site, go to Settings → Backup → “Download everything,” then choose that file here. Your diary, plan and settings all come with you.', b4: 'Choose file',
       per: 'Films per week', importing: (d, n) => 'Matching films with TMDB… ' + d + ' / ' + n, bad: 'That doesn’t look like a Letterboxd export.', nodates: 'This file has no watch dates. To bring in your history, use the .zip in Settings.',
       moving: n => 'Moving ' + n + ' entries…', moved: 'Everything’s here.', badMove: 'That file isn’t from the old site.', signOut: 'Sign out', hi: u => 'Signed in as @' + u,
@@ -46,7 +45,6 @@
       privacy: 'رمزت قبل از فرستادن روی همین دستگاه درهم می‌شه و سایت هیچ‌وقت خودش رو نمی‌بینه. ایمیل و شماره لازم نیست.',
       h1: 'لیست خودت رو بساز', p1: 'هر فیلمی رو جستجو کن و اضافه کن. لیستت هفته‌به‌هفته چیده می‌شه که فقط فیلم‌های همین هفته جلوت باشه.', b1: 'شروع لیست',
       h2: 'واچ‌لیست لترباکست رو بیار', p2: 'از letterboxd.com خروجی بگیر (Settings ← Data ← Export your data) و watchlist.csv یا هر لیستی رو آپلود کن. کل تاریخچه‌ت (فایل zip) رو بعداً از تنظیمات بیار.', b2: 'آپلود فایل csv',
-      h3: 'برنامه‌ی نمونه رو بردار', p3: n => '«پنج سال سینما»: ' + n + ' فیلم توی ۲۶۰ هفته، از سینمای صامت تا امروز.', b3: 'برنامه‌ی نمونه',
       h4: 'از سایت قدیمی میای؟', p4: 'تو سایت قدیمی: تنظیمات ← پشتیبان ← «دانلود همه‌چی». بعد همون فایل رو این‌جا انتخاب کن؛ دفتر، برنامه و تنظیمات همه میان.', b4: 'انتخاب فایل',
       per: 'فیلم در هفته', importing: (d, n) => 'دارم فیلم‌ها رو با TMDB تطبیق می‌دم… ' + d + ' از ' + n, bad: 'این فایل خروجی لترباکس به نظر نمیاد.', nodates: 'این فایل تاریخ دیدن نداره؛ برای تاریخچه فایل zip رو از تنظیمات بیار.',
       moving: n => 'دارم ' + n + ' مورد رو میارم…', moved: 'همه‌چی اومد.', badMove: 'این فایلِ سایت قدیمی نیست.', signOut: 'خروج', hi: u => 'با @' + u + ' وارد شدی',
@@ -310,12 +308,14 @@
   const LISTS = typeof fxLists === 'function' ? fxLists(CloudSync, {redraw: force => redrawAll(force), member: () => !!CloudSync.me(), open: url => { if (FX) fxNav.open(url); else location.href = url; }}) : null;
   // the app opens on Home (This week and the rest), or on Activity if you'd rather
   const startView = () => FR && Store.data['cfg:home'] === 'friends' ? 'friends' : 'week';
-  const HM = typeof fxHome === 'function' ? fxHome({FR, redraw: () => FX && FX.render()}) : null;
+  // Popular: what the people you follow, or everyone, watched most lately (a page of its own, and a row on Home and Discover)
+  const POP = typeof fxPopular === 'function' ? fxPopular(CloudSync, {redraw: () => FX && FX.render(), wl: FR ? FR.wl : null}) : null;
+  const HM = typeof fxHome === 'function' ? fxHome({FR, pop: POP, redraw: () => FX && FX.render()}) : null;
   // the top of each main screen: the wordmark, which takes you home
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
   const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
-  const pathOf = v => v === 'profile' ? PV.url() : v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
+  const pathOf = v => v === 'profile' ? PV.url() : v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'popular' && POP ? POP.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
     const u = new URL(url, location.origin), p = u.pathname.replace(/\/+$/, '') || '/';
@@ -323,8 +323,9 @@
     if (p === '/') v = startView();
     else if (p === '/activity' || p.startsWith('/activity/')) { if (FR) FR.fromPath(p); v = 'friends'; }
     else if ((p === '/discover' || p.startsWith('/discover/')) && DX) { DX.fromUrl(p, u.searchParams); v = 'discover'; }
+    else if ((p === '/popular' || p.startsWith('/popular/')) && POP) { POP.fromUrl(p); v = 'popular'; }
     else if (p.startsWith('/film/') && FP) { FP.openFilm(fxNav.parseFilm(p)); v = 'film'; }
-    else if (p.startsWith('/u/')) { const m = p.match(/^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|list\/[a-z0-9-]{1,80}))?$/); if (m) { PV.open(m[1], m[2] || '', (location.hash.match(/^#([a-z0-9-]{1,120})$/i) || [])[1]); v = 'profile'; } else v = startView(); }
+    else if (p.startsWith('/u/')) { const m = p.match(U_PATH); if (m) { PV.open(m[1], m[2] || '', (location.hash.match(/^#([a-z0-9-]{1,120})$/i) || [])[1]); v = 'profile'; } else v = startView(); }
     else if (p === '/settings' || p.startsWith('/settings/')) { FX.setSection(p.slice(10)); v = 'settings'; }
     else if (p.startsWith('/director/') && FP) { FP.openDirector(p.slice(10).replace(/[^a-z0-9-]/g, '').slice(0, 120)); v = 'director'; }
     else v = VIEWS[p] || startView();
@@ -342,7 +343,7 @@
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
-    if (!/^\/((u|film|director|discover|activity|week|diary|stats|settings|plan|list)(\/|\?|#|$)|$)/.test(href)) return;
+    if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about)(\/|\?|#|$)|$)/.test(href)) return;
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
   });
   // where a plan film sits in your plan, for its page
@@ -401,10 +402,10 @@
     // the site opens on Friends (unless you chose This week), and Friends comes first in the bar; the plan map opens from This Week
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
-    if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
+    if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null, top: () => POP ? POP.teaser('everyone') : ''});
     if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
       topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
       // a section's back link: to the list it was opened from, or to Settings when it was opened some other way
@@ -468,7 +469,6 @@
       ${t.h0 && typeof fxPlanner === 'function' ? `<section class="fx-card fx-opt"><h2>${t.h0}</h2><p>${t.p0}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-obuild>${t.b0}</button></div></section>` : ''}
       <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="list">${t.b1}</button></div></section>
       <section class="fx-card fx-opt"><h2>${t.h2}</h2><p>${t.p2}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b2}<input type="file" accept=".csv,text/csv" data-oimport multiple></label></div><p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p></section>
-      <section class="fx-card fx-opt"><h2>${t.h3}</h2><p>${t.p3(num(1813))}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="sample">${t.b3}</button></div></section>
       <section class="fx-card fx-opt"><h2>${t.h4}</h2><p>${t.p4}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></section>
       <div class="fx-step" role="group" aria-label="${esc(t.per)}"><span>${t.per}</span><button type="button" data-opw="-1"${pw <= 1 ? ' disabled' : ''}>−</button><b>${num(pw)}</b><button type="button" data-opw="1"${pw >= 14 ? ' disabled' : ''}>+</button></div>
       ${note ? `<p class="fx-note ${cls || 'bad'}">${esc(note)}</p>` : ''}
@@ -521,16 +521,39 @@
   }
 
   // ================= /u/<name>: a member's profile =================
-  // For members it's a screen of the app (the tab bar, Back, the corner); for visitors, a page of its own. Its parts:
-  // /u/<name>/followers, /u/<name>/following, /u/<name>/list/<slug> (a list anyone can open when it's public).
+  // For members it's a screen of the app (the tab bar, Back, the corner); for visitors, a page of its own. Each tab has
+  // an address, the way Letterboxd's do (/u/<name>/films, /diary, /reviews, /watchlist, /lists, /stats); and its other
+  // parts: /u/<name>/followers, /u/<name>/following, /u/<name>/list/<slug> (a list anyone can open when it's public).
+  // Your own profile, inside the app, is built from this device, so it shows everything, the private parts too.
   let curPF = null;
-  function makeProfile(name, eid, el, inApp) {
-    const me = CloudSync.me();
+  const U_PATH = /^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|films|diary|reviews|watchlist|lists|stats|list\/[a-z0-9-]{1,80}))?\/?$/;
+  const TAB_OF = {films: 'films', diary: 'diary', reviews: 'reviews', watchlist: 'wl', lists: 'lists', stats: 'stats'};
+  const SLUG_OF = Object.fromEntries(Object.entries(TAB_OF).map(([s, t]) => [t, s]));
+  const tabPath = (name, t) => '/u/' + name + (SLUG_OF[t] ? '/' + SLUG_OF[t] : '');
+  // what's private on your own profile, in a sentence (nothing when it's all public)
+  function privNote() {
+    const S = Store.data;
+    if (!S['cfg:share']) return 'Your profile is private. Only you can see it.';
+    if (S['cfg:pubdiary'] === '0') return 'Only you can see your films, diary, reviews, stats and watchlist.';
+    if (S['cfg:pubwl'] === '0') return 'Only you can see your watchlist.';
+    return '';
+  }
+  function ownData() {
+    let d;
+    try { d = JSON.parse(fxShare(FX ? FX.plan() : (window.D || {F: [], W: []}), Object.assign({}, Store.data, {'cfg:pubdiary': null}), k => Posters.src(k))); } catch (e) { d = {diary: []}; }
+    if (FR && FR.wl) d.wl = FR.wl.list().slice(0, 3000).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
+    d.av = +((CloudSync.me() || {}).av) || 0;
+    return d;
+  }
+  let ownStamp = 0;
+  function makeProfile(name, eid, el, inApp, tab) {
+    const me = CloudSync.me(), own = !!inApp && !!me && me.username === name;
     let meta = null, mine = null, pmore = false, pblock = false, pnote = '', PF = null;
     const rer = () => PF && PF.render();
     const metaHtml = L => {
       const t = GT[L === 'fa' ? 'fa' : 'en'], fa = n => L === 'fa' ? Number(n).toLocaleString('fa-IR') : String(n);
-      if (!meta) return '';
+      const note = own && privNote() ? `<p class="pf-priv"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.6"/><path d="M5.2 7V5.2a2.8 2.8 0 0 1 5.6 0V7" fill="none"/></svg><span>${esc(privNote())} <a href="/settings/privacy">Privacy settings</a></span></p>` : '';
+      if (!meta) return own ? `<div class="fx-pmeta"><a class="fx-btn" href="/settings/profile">Edit profile</a></div>${note}` : '';
       let btn = '';
       if (!me) btn = `<a class="fx-btn" href="/">${t.join}</a>`;
       else if (meta.self) btn = `<a class="fx-btn" href="/settings/profile">Edit profile</a>`;
@@ -543,10 +566,14 @@
             : `<button type="button" class="fx-btn" data-pblock>Block @${esc(name)}</button>`) + (pnote ? `<p class="fx-note ok">${esc(pnote)}</p>` : '') + '</div>';
       }
       const cnt = (n, which, label) => `<a class="pf-cnt" href="/u/${esc(name)}/${which}"><b>${esc(fa(n))}</b> ${label}</a>`;
-      return `<div class="fx-pmeta"><span class="pf-cnts">${cnt(meta.followers, 'followers', meta.followers === 1 ? 'follower' : 'followers')}${cnt(meta.following, 'following', 'following')}${meta.followsYou && !meta.self ? '<span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
+      return `<div class="fx-pmeta"><span class="pf-cnts">${cnt(meta.followers, 'followers', meta.followers === 1 ? 'follower' : 'followers')}${cnt(meta.following, 'following', 'following')}${meta.followsYou && !meta.self ? '<span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}${note}`;
     };
     PF = fxProfile(el, name, eid, {
-      clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: inApp ? '' : brandBar(),
+      clean: true, base: location.origin + '/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: inApp ? '' : brandBar(),
+      // someone's profile as they published it; yours, as it is on this device
+      source: own ? null : '/api/u/' + name, data: own ? ownData() : null,
+      // the tab's address follows the tab (Back still leaves the profile in one step)
+      tab: tab || '', onTab: t => { const u = tabPath(name, t); if (inApp) fxNav.replace(u); else if (u !== location.pathname) history.replaceState(history.state, '', u); },
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
       // on someone else's grids, the films you've seen too
@@ -600,18 +627,21 @@
   }
   // inside the app: a screen that isn't in the bar
   const PV = (() => {
-    let name = '', sub = '', el = null, PFi = null;
+    let name = '', sub = '', el = null, PFi = null, built = -1;
     return {
       id: 'profile', hidden: true, label: {en: 'Profile', fa: 'Profile'},
       open(n, s, eid) {
-        sub = s || '';
-        if (n !== name || !PFi) {
+        const tab = TAB_OF[s || ''] || '';
+        sub = tab ? '' : s || '';
+        const me = CloudSync.me(), own = !!me && me.username === n;
+        // your own profile is built again when something changed since (a film logged, a watchlist film added)
+        if (n !== name || !PFi || (own && built !== ownStamp)) {
           if (PFi) PFi.stop();
-          name = n; el = document.createElement('div'); el.className = 'pf-in';
+          name = n; el = document.createElement('div'); el.className = 'pf-in'; built = ownStamp;
           // the profile's own buttons are its own: the app around it doesn't act on them too
           el.addEventListener('click', e => { if (e.target.closest('button')) e.stopPropagation(); });
-          PFi = makeProfile(n, eid || '', el, true);
-        } else curPF = PFi;
+          PFi = makeProfile(n, eid || '', el, true, tab);
+        } else { curPF = PFi; if (!sub) PFi.setTab(tab || 'now'); }
       },
       view() {
         if (sub === 'followers' || sub === 'following') return peopleView(name, sub, true);
@@ -619,7 +649,7 @@
         return '<div class="pf-host"></div>';
       },
       after(root) { if (!sub) { const h = root.querySelector('.pf-host'); if (h && el && el.parentNode !== h) h.appendChild(el); } },
-      url: () => '/u/' + name + (sub ? '/' + sub : '') + (!sub && /^#[a-z0-9-]{1,120}$/i.test(location.hash) ? location.hash : ''),
+      url: () => (sub ? '/u/' + name + '/' + sub : tabPath(name, PFi ? PFi.tab() : '')) + (!sub && /^#[a-z0-9-]{1,120}$/i.test(location.hash) ? location.hash : ''),
       left() { if (LISTS) LISTS.reset(); },
     };
   })();
@@ -632,7 +662,7 @@
     if (sub && sub.startsWith('list/')) { standalone = () => shell(brandBar() + (LISTS ? LISTS.page(name, sub.slice(5), false) : ''), 'fx-share'); standalone(); return; }
     const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m ? m[1] : '';
     if (!eid) fxNav.restore(fxNav.savedY());  // back from a film opened here: the same place on the profile
-    PF = makeProfile(name, eid, root, false);
+    PF = makeProfile(name, eid, root, false, TAB_OF[sub] || '');
   }
   async function myFilms(username) {
     const out = new Map();
@@ -653,7 +683,7 @@
 
   // ================= which face =================
   async function home() {
-    const um = location.pathname.match(/^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|list\/[a-z0-9-]{1,80}))?\/?$/);
+    const um = location.pathname.match(U_PATH);
     await Store.load();
     // a visitor sees a profile (or a list) on its own; a member, inside the app
     if (um && !CloudSync.me()) { profilePage(um[1], um[2] || ''); return; }
@@ -667,7 +697,8 @@
   }
   CloudSync.onSignOut(() => { location.href = '/'; });
   CloudSync.onStatus(() => FX && FX.render());
-  Store.onChange(() => { planChanged(); enrichSoon(); });
+  Store.onChange(() => { planChanged(); enrichSoon(); ownStamp++; });
+  Store.onLocalChange(() => { ownStamp++; });  // your own profile is built again when you next open it
   Store.onLocalChange(k => {  // logging a film (or ticking it in the plan) takes it off the watchlist
     if (!FR || !/^\d{4}-\d\d-\d\d$/.test(Store.data[k] || '')) return;
     if (/^v:/.test(k)) setTimeout(() => FR.wlSeen(k.slice(2)), 0);

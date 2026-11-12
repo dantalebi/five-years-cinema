@@ -1307,6 +1307,13 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 .av-menu{border-radius:14px; box-shadow:0 0 0 1px var(--line), var(--shadow); animation:fx-pop .16s ease-out; transform-origin:top right}
 .av-me .av{transition:box-shadow .15s}
 .av-me:hover .av, .av-me.on .av, .av-me[aria-expanded="true"] .av{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--osd)}
+/* the menu: everything of yours, then Settings, About and Sign out; the screen you're on is marked on the left edge */
+.av-menu{min-width:224px; max-height:calc(100dvh - 96px); overflow-y:auto; overscroll-behavior:contain}
+.av-mg{display:grid}
+.av-msys{margin-top:5px; padding-top:5px; border-top:1px solid var(--line)}
+.av-menu a, .av-menu button{position:relative; padding:8px 12px; font-size:14.5px; line-height:1.35}
+.av-menu a[aria-current="page"]{font-weight:650; background:color-mix(in srgb, var(--osd) 10%, transparent)}
+.av-menu a[aria-current="page"]::before{content:""; position:absolute; inset-inline-start:0; top:8px; bottom:8px; width:3px; border-radius:0 3px 3px 0; background:var(--osd)}
 
 /* changing channel: the picture folds into a line of light and opens on the next screen */
 .fx-tv{position:fixed; inset:0; z-index:45; pointer-events:none; display:none}
@@ -1528,6 +1535,11 @@ a.fx-pg:active{transform:scale(.97)}
 .pf-who span{display:grid; min-width:0}
 .pf-who b{font-weight:650; font-stretch:104%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pf-who small{font-size:12.5px; color:var(--muted)}
+/* your own profile: what only you can see, in one line */
+.pf-priv{display:flex; align-items:flex-start; gap:8px; margin:12px 0 0; font-size:13px; line-height:1.45; color:var(--muted)}
+.pf-priv svg{flex:none; width:14px; height:14px; margin-top:2px; fill:currentColor; stroke:currentColor; stroke-width:1.6}
+.pf-priv svg path{fill:none}
+.fx .pf-priv a{color:var(--ink); text-decoration:underline; text-decoration-color:var(--osd); text-underline-offset:2px; white-space:nowrap}
 .pf-people .fx-btn{flex:none; padding:6px 14px; font-size:13px}
 
 /* lists */
@@ -1592,3 +1604,22 @@ a.fx-pg:active{transform:scale(.97)}
 .ls-pick button[aria-pressed="true"] i::after{content:""; position:absolute; left:8px; top:4px; width:6px; height:11px; border:solid var(--on-osd); border-width:0 2.2px 2.2px 0; transform:rotate(45deg)}
 .ls-wrap .fx-shh{display:flex; justify-content:space-between; align-items:center; padding:12px 0}
 .ls-wrap .fx-shh .fx-h2{margin:0; font-size:18px}
+
+/* Popular: the crowd under each poster (faces of the people you follow, or a count of members), the average, the likes */
+.pp-head .dx-lede{margin:6px 0 0}
+.pp-tools{display:grid; gap:12px}
+.pp-span{gap:6px}
+.pp-who{gap:8px}
+.pp-note{margin:4px 0 0; font-size:12.5px}
+.pp-who .fx-btn{padding:6px 14px; font-size:13px}
+.pp-count{margin-top:4px}
+.pp-m{display:flex; flex-wrap:wrap; align-items:center; gap:3px 8px; min-height:18px; font-size:11.5px; line-height:1.2; color:var(--muted); font-variant-numeric:tabular-nums}
+.pp-av{display:inline-flex; align-items:center}
+.pp-av .av{width:18px; height:18px; font-size:9.5px; box-shadow:0 0 0 1.5px var(--bg)}
+.pp-av .av + .av{margin-inline-start:-5px}
+.pp-r{color:var(--osd); font-weight:650}
+.pp-l{display:inline-flex; align-items:center; gap:3px}
+.pp-l .fx-ico{width:11px; height:11px; vertical-align:0}
+.pp-when{margin-inline-start:6px; font-size:.78em; font-weight:500; color:var(--muted)}
+.pp-row .dx-ct{font-size:12px}
+.pp-tease .dx-row{margin-top:10px}

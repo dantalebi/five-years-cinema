@@ -4,6 +4,8 @@
 /director/*  /index.html  200
 /discover  /  200
 /discover/*  /index.html  200
+/popular  /  200
+/popular/*  /index.html  200
 /activity  /  200
 /activity/*  /index.html  200
 /week  /  200
