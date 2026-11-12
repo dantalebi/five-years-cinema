@@ -44,6 +44,8 @@ function fxFriendsTab(CS) {
     return m < 1 ? 'now' : m < 60 ? Math.round(m) + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : m < 10080 ? Math.round(m / 1440) + 'd' : new Intl.DateTimeFormat('en-US', {day: 'numeric', month: 'short'}).format(new Date(ms));
   };
   const S = () => (typeof Store !== 'undefined' ? Store.data : {});
+  // a person's picture (avatar.js), or nothing on a site without them
+  const av = (u, n, a, size) => typeof fxAvatar === 'function' ? fxAvatar(u, n, a, size || 's') : '';
   const myName = () => (CS.me() || {}).name || '';
   // your own entries, by the id the profile gives them, so notifications can name the film
   function myEntries() {
@@ -67,10 +69,10 @@ function fxFriendsTab(CS) {
   // ---- reactions, indexed by owner/entry: [id, owner, eid, kind, text, at, who, name, film] ----
   function index(list) {
     const ix = {}, ids = new Set();
-    list.forEach(([id, ou, eid, kind, text, at, xu, xn]) => {
+    list.forEach(([id, ou, eid, kind, text, at, xu, xn, , xa]) => {
       if (id && ids.has(id)) return; if (id) ids.add(id);
       const k = ou + '/' + eid, o = ix[k] || (ix[k] = {h: [], s: [], w: [], c: [], last: 0});
-      if (kind === 'c') o.c.push({id, u: xu, n: xn, text, at}); else if (o[kind]) o[kind].push({u: xu, n: xn, at});
+      if (kind === 'c') o.c.push({id, u: xu, n: xn, a: xa, text, at}); else if (o[kind]) o[kind].push({u: xu, n: xn, a: xa, at});
       o.last = Math.max(o.last, at);
     });
     Object.values(ix).forEach(o => o.c.sort((a, b) => a.at - b.at));
@@ -96,9 +98,9 @@ function fxFriendsTab(CS) {
   function notes() {
     if (!inbox) return [];
     const mine = myEntries(), out = [];
-    inbox.re.forEach(r => { if (r[6] !== me) out.push({kind: r[3], id: r[0], owner: me, eid: r[2], text: r[4], at: r[5], u: r[6], n: r[7], film: (mine[r[2]] || {}).t || bare(r[8])}); });
-    inbox.thr.forEach(r => out.push({kind: 'r', id: r[0], owner: r[1], eid: r[2], text: r[4], at: r[5], u: r[6], n: r[7], film: bare(r[8])}));
-    inbox.fol.forEach(([u, n, at, back]) => out.push({kind: 'f', u, n, at, back}));
+    inbox.re.forEach(r => { if (r[6] !== me) out.push({kind: r[3], id: r[0], owner: me, eid: r[2], text: r[4], at: r[5], u: r[6], n: r[7], a: r[9], film: (mine[r[2]] || {}).t || bare(r[8])}); });
+    inbox.thr.forEach(r => out.push({kind: 'r', id: r[0], owner: r[1], eid: r[2], text: r[4], at: r[5], u: r[6], n: r[7], a: r[9], film: bare(r[8])}));
+    inbox.fol.forEach(([u, n, at, back, a]) => out.push({kind: 'f', u, n, at, back, a}));
     return out.sort((a, b) => b.at - a.at);
   }
   const seenAt = () => +S()['cfg:inboxAt'] || 0;
@@ -117,7 +119,7 @@ function fxFriendsTab(CS) {
     if (!thread) h += `<button type="button" class="fx-rxb rx-c" data-rc="${owner}/${esc(eid)}" aria-expanded="${openC.has(k)}" aria-label="${esc(T.comment)}" title="${esc(T.comment)}"><i aria-hidden="true"></i><span>${T.comment}</span>${o.c.length ? `<b>${o.c.length}</b>` : ''}</button></div>`;
     const who = ['h', 's', 'w'].filter(kd => o[kd].length).map(kd => `<span class="rx-${kd}"><i aria-hidden="true"></i> ${o[kd].map(x => `<bdi>${esc(x.u === me ? T.you : x.n || '@' + x.u)}</bdi>`).join(', ')}</span>`);
     if (who.length) h += `<div class="fx-rwho">${who.join('')}</div>`;
-    if (o.c.length) h += `<ul class="fx-cm">${o.c.map(c => `<li><a href="/u/${c.u}"><b dir="auto">${esc(c.u === me ? T.you : c.n || '@' + c.u)}</b></a> <span dir="auto">${esc(c.text)}</span> <span class="fx-cmt">${esc(ago(c.at))}</span>${c.u === me || owner === me ? ` <button type="button" class="fx-link fx-cmdel" data-rcdel="${c.id}" aria-label="${esc(T.del)}">×</button>` : ''}</li>`).join('')}</ul>`;
+    if (o.c.length) h += `<ul class="fx-cm">${o.c.map(c => `<li><a class="fx-who" href="/u/${c.u}">${av(c.u, c.n, c.a)}<b dir="auto">${esc(c.u === me ? T.you : c.n || '@' + c.u)}</b></a> <span dir="auto">${esc(c.text)}</span> <span class="fx-cmt">${esc(ago(c.at))}</span>${c.u === me || owner === me ? ` <button type="button" class="fx-link fx-cmdel" data-rcdel="${c.id}" aria-label="${esc(T.del)}">×</button>` : ''}</li>`).join('')}</ul>`;
     if (thread || openC.has(k)) h += `<form class="fx-cform" data-rcf="${owner}/${esc(eid)}"><input type="text" name="c" maxlength="500" dir="auto" autocomplete="off" placeholder="${esc(T.cPh)}" aria-label="${esc(T.comment)}"><button type="submit" class="fx-btn primary">${T.send}</button></form>`;
     return h;
   }
@@ -129,7 +131,7 @@ function fxFriendsTab(CS) {
   }
   const feedRows = () => {
     const rows = [];
-    (feed || []).forEach(x => (Array.isArray(x.recent) ? x.recent : []).forEach(e => { if (e && typeof e.t === 'string' && okUser(x.u)) rows.push(Object.assign({u: x.u, n: x.n}, e)); }));
+    (feed || []).forEach(x => (Array.isArray(x.recent) ? x.recent : []).forEach(e => { if (e && typeof e.t === 'string' && okUser(x.u)) rows.push(Object.assign({u: x.u, n: x.n, a: x.a}, e)); }));
     return rows;
   };
   function feedHtml(ix) {
@@ -139,7 +141,7 @@ function fxFriendsTab(CS) {
     return `<ul class="fx-afeed">${rows.slice(0, shown).map(e => {
       const href = '/u/' + e.u + (okId(e.id) ? '#' + e.id : '');
       return `<li class="fx-actv">${posterBox(e)}<div class="fx-ab">
-        <div class="fx-aw"><a href="/u/${e.u}"><b dir="auto">${esc(e.n || '@' + e.u)}</b></a> · <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
+        <div class="fx-aw"><a class="fx-who" href="/u/${e.u}">${av(e.u, e.n, e.a)}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a> · <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
         ${filmLink(e, 'fx-at')}
         <div class="fx-fm"><span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}</div>
         ${e.rx ? `<p class="fx-arx" dir="auto">${esc(e.rx)}${String(e.rx).length >= 280 ? '…' : ''}</p>` : e.rv && e.sp ? `<p class="fx-arx fx-muted">${T.spoil}</p>` : ''}
@@ -151,7 +153,7 @@ function fxFriendsTab(CS) {
     if (!list.length) return `<p class="fx-muted">${T.nNone}</p>`;
     const following = new Set((people || []).filter(p => p.following).map(p => p.username));
     return `<ul class="fx-notes">${list.slice(0, nShown).map(x => {
-      const who = `<a href="/u/${x.u}"><b dir="auto">${esc(x.n || '@' + x.u)}</b></a>`;
+      const who = `<a class="fx-who" href="/u/${x.u}">${av(x.u, x.n, x.a)}<b dir="auto">${esc(x.n || '@' + x.u)}</b></a>`;
       if (x.kind === 'f') {
         const back = x.back || following.has(x.u);
         return `<li class="fx-note-i nf${x.at > before ? ' fresh' : ''}"><i class="fx-nico" aria-hidden="true"></i><div class="fx-nb"><p>${T.did.f(who)} <span class="fx-cmt">${esc(ago(x.at))}</span></p></div>${back ? '' : `<button type="button" class="fx-btn primary" data-fr-follow="${x.u}" aria-pressed="false">${T.followBack}</button>`}</li>`;
@@ -176,7 +178,7 @@ function fxFriendsTab(CS) {
     const list = (people || []).filter(p => okUser(p.username) && (!nq || p.username.includes(nq) || String(p.name || '').toLowerCase().includes(nq)));
     if (!(people || []).length) return `<p class="fx-muted">${T.alone}</p>`;
     return `<input type="search" class="fx-find" data-fr-q placeholder="${esc(T.find)}" aria-label="${esc(T.find)}" value="${esc(q)}" dir="auto">
-      <ul class="fx-people">${list.map(p => `<li><a href="/u/${p.username}" class="fx-pn"><b dir="auto">${esc(p.name || p.username)}</b><span dir="ltr">@${p.username}</span>${p.follower ? `<span class="fx-badge">${T.followsYou}</span>` : ''}</a>
+      <ul class="fx-people">${list.map(p => `<li>${av(p.username, p.name, p.av, 'm')}<a href="/u/${p.username}" class="fx-pn"><b dir="auto">${esc(p.name || p.username)}</b><span dir="ltr">@${p.username}</span>${p.follower ? `<span class="fx-badge">${T.followsYou}</span>` : ''}</a>
         <button type="button" class="fx-btn${p.following ? '' : ' primary'}" data-fr-follow="${p.username}" aria-pressed="${!!p.following}">${p.following ? T.following : T.follow}</button></li>`).join('')}</ul>`;
   }
   // a reaction changes on screen at once, and goes back if the site says no

@@ -296,7 +296,7 @@
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
 
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
-  const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync) : null;
+  const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync, {toSettings: () => { if (FX && FX.view() !== 'settings') fxNav.open('/settings'); }}) : null;
   const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
   const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
@@ -313,11 +313,14 @@
     else if (p.startsWith('/film/') && FP) { FP.openFilm(fxNav.parseFilm(p)); v = 'film'; }
     else if (p.startsWith('/director/') && FP) { FP.openDirector(p.slice(10).replace(/[^a-z0-9-]/g, '').slice(0, 120)); v = 'director'; }
     else v = VIEWS[p] || startView();
+    if (AC) AC.closeMenu();
     FX.go(v);
     if (v !== 'film' && v !== 'director') document.title = C.siteName || 'TVC15';
     window.scrollTo(0, how === 'pop' ? fxNav.savedY() : 0);
   }
   fxNav.setHandler(route);
+  document.addEventListener('click', e => { if (AC && FX && !e.target.closest('.av-top') && AC.closeMenu()) FX.render(); }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && AC && FX && AC.closeMenu()) FX.render(); });
   // links to the app's own screens stay inside the app (a new tab, with ⌘ or Ctrl, still works)
   document.addEventListener('click', e => {
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -386,7 +389,8 @@
     if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
-      fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
+      topButton: AC ? on => AC.corner(on) : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
@@ -397,6 +401,7 @@
       const isAc = b => [...b.attributes].some(a => a.name.startsWith('data-ac-'));
       root.addEventListener('click', e => { const b = e.target.closest('button'); if (b && isAc(b)) AC.click(b, () => FX && FX.render()); });
       root.addEventListener('submit', e => { const f = e.target.closest('form'); if (f && isAc(f)) { e.preventDefault(); AC.submit(f, () => FX && FX.render()); } });
+      root.addEventListener('change', e => { if (e.target.matches && e.target.matches('input[data-ac-avfile]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) AC.file(f, () => FX && FX.render()); } });
     }
     route(location.pathname + location.search, 'init');
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
@@ -518,6 +523,7 @@
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary',
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
+      avatar: d => typeof fxAvatar === 'function' ? fxAvatar(name, d.name, d.av, 'xl') : '',
       // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
       lang: () => 'en',
       headerExtra: metaHtml,

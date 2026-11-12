@@ -106,7 +106,7 @@ function fxFilmPages(o) {
     } else if (seen) h += `<p class="dx-seen">You’ve seen this.</p>`;
     if (pw) h += `<p class="fp-plan"><span>In your plan</span> ${pw.done ? 'Watched, week ' + num(pw.w) : pw.now ? 'This week' : 'Week ' + num(pw.w) + (pw.when ? ' · ' + esc(pw.when) : '')}</p>`;
     if (fp.friends && fp.friends.length) {
-      h += `<section class="fx-card dx-sec"><h2>People you follow</h2><ul class="fp-fr">${fp.friends.slice(0, 12).map(e => `<li><a href="/u/${esc(e.u)}${e.id ? '#' + esc(e.id) : ''}"><b dir="auto">${esc(e.n || '@' + e.u)}</b></a>`
+      h += `<section class="fx-card dx-sec"><h2>People you follow</h2><ul class="fp-fr">${fp.friends.slice(0, 12).map(e => `<li><a class="fx-who" href="/u/${esc(e.u)}${e.id ? '#' + esc(e.id) : ''}">${typeof fxAvatar === 'function' ? fxAvatar(e.u, e.n, e.a, 's') : ''}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a>`
         + `<span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.w ? `<span class="fx-muted">${esc(U.longDay(e.w))}</span>` : ''}${e.rx ? `<p dir="auto">${esc(String(e.rx).slice(0, 200))}</p>` : ''}</li>`).join('')}</ul></section>`;
     }
     if (F.tag || F.ov) h += `<section class="dx-ov">${F.tag ? `<p class="dx-tag">${esc(F.tag)}</p>` : ''}${F.ov ? `<p>${esc(F.ov)}</p>` : ''}${F.cast.length ? `<p class="fx-muted">Starring ${esc(F.cast.join(', '))}</p>` : ''}</section>`;

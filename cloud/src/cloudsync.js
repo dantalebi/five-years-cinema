@@ -161,6 +161,9 @@ const CloudSync = (() => {
     me: () => me, check, login, signup, disconnect, changePassword, deleteAccount, onSignOut: f => outs.push(f),
     recover, newRecoveryKey, takeKey: () => { const k = lastKey; lastKey = ''; return k; }, unsent: () => dirty.size, say,
     sessions: () => api('GET', '/sessions'), endSession: id => api('POST', '/sessions/end', id === 'others' ? {others: true} : {id}),
+    // a profile picture (base64 JPEG) or none; the account remembers its version, for its address
+    async setAvatar(img) { const r = await api('PUT', '/avatar', {img}); if (r.ok && me) { me.av = r.j.av; put('fd-me', JSON.stringify(me)); } return r; },
+    async removeAvatar() { const r = await api('DELETE', '/avatar'); if (r.ok && me) { me.av = 0; put('fd-me', JSON.stringify(me)); } return r; },
     block: (username, on) => api('POST', '/block', {username, on}), blocks: () => api('GET', '/blocks'), removeFollower: username => api('POST', '/follower', {username}),
     run, syncNow: run, onStatus: f => subs.push(f), touch, setPayload: f => { payloadFn = f; },
     loadPlan, cachedPlan, savePlan, shareOn, shareOff, shareUrl, previewUrl: u => shareUrl(u),

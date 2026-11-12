@@ -74,12 +74,21 @@ function fxProfile(root, id, focusId, opts) {
     [['tg', L.tg || data.ch], ['sp', L.sp], ['ig', L.ig], ['web', L.web]].forEach(([k, u]) => { if (okUrl(u)) out.push(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t.links[k]}</a>`); });
     return out.length ? `<div class="fx-links"><span class="fx-tw">${out.join('')}</span></div>` : '';
   }
+  // who it is: picture (when the site has them), name, pronouns, a short bio, where they are
+  function ident(name) {
+    const pic = opts.avatar ? opts.avatar(data) : '';
+    const pron = data.pron ? `<span class="fx-pron" dir="auto">${esc(String(data.pron).slice(0, 30))}</span>` : '';
+    const bio = data.bio ? `<p class="fx-bio" dir="auto">${esc(String(data.bio).slice(0, 300))}</p>` : '';
+    const loc = data.loc ? `<p class="fx-loc" dir="auto">${esc(String(data.loc).slice(0, 60))}</p>` : '';
+    const nm = `<div class="fx-hrow"><h1 class="fx-h1">${esc(name)}</h1>${pron}</div>`;
+    return pic ? `<div class="fx-pid">${pic}<div class="fx-pidt">${nm}${loc}</div></div>${bio}` : nm + bio + loc;
+  }
   function header() {
     const t = T(), d = data.diary || [], mins = d.reduce((a, e) => a + (+e.m || 0), 0), rated = d.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
     const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(faDigits).join('  ·  ') : '';
-    let h = `<header class="fx-head"><div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div><div class="fx-hrow"><h1 class="fx-h1">${esc(name || t.title)}</h1></div>${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
+    let h = `<header class="fx-head"><div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ' · ' + esc(t.updated(ago(updated))) : ''}</div>${ident(name || t.title)}${strip ? `<div class="fx-strip">${esc(strip)}</div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
     if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].concat(PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
@@ -311,6 +320,7 @@ function fxProfile(root, id, focusId, opts) {
         if (!r.ok) throw new Error('http');
         const j = await r.json();
         data = j.data || {}; updated = new Date(+j.updated || Date.now()).toISOString();
+        if (j.av !== undefined) data.av = +j.av || 0;  // the profile picture's version (the multi-user site)
       } else {
         const r = await fetch('https://api.github.com/gists/' + id, {cache: 'no-store', headers: {Accept: 'application/vnd.github+json'}});
         if (r.status === 404) { shell(T().gone); return; }

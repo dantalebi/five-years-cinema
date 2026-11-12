@@ -335,6 +335,7 @@ function fxShare(D, seen, posterUrl) {
   const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
   const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
   const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
+  ['bio', 'pron', 'loc'].forEach(k => { const v = String(seen['cfg:' + k] || '').trim().slice(0, k === 'bio' ? 300 : 60); if (v) out[k] = v; });
   const lbf = fxFriends(seen['cfg:lbf']); if (lbf.length) out.lbf = lbf;
   const bd = fxBd(seen);
   if (bd) out.bd = {p: fxTmdbBd(bd.p), t: String(bd.t || '').slice(0, 120), y: +bd.y || 0};
@@ -567,6 +568,7 @@ function mountFocus(root, D, S, opts) {
     return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${last}${ST && !opts.settingsGear ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function gear() {
+    if (opts.topButton) return opts.topButton(view === 'settings');
     if (!ST || !opts.settingsGear) return '';
     const t = T();
     return `<button type="button" class="fx-gear" data-nav="settings" aria-label="${esc(t.navSettings)}" title="${esc(t.navSettings)}" aria-current="${view === 'settings' ? 'page' : 'false'}"><i aria-hidden="true"></i>${syncDot()}</button>`;
@@ -771,6 +773,9 @@ function mountFocus(root, D, S, opts) {
           <div class="fx-field"><span>${t.bdH}</span><p class="fx-muted">${t.bdP}</p>${bdField()}</div>
           <div class="fx-field"><span>${t.favH}</span><p class="fx-muted">${t.favP}</p><div class="fx-favs">${favTiles()}</div>${picker && picker.fav != null ? pickerBox() : ''}</div>
           <label class="fx-field"><span>${t.nameL}</span><input type="text" data-cfg="cfg:name" maxlength="60" dir="auto" placeholder="${esc(t.namePh)}" value="${esc(seen()['cfg:name'] || '')}"></label>
+          ${opts.profileMore ? `<label class="fx-field"><span>Bio</span><textarea data-cfg="cfg:bio" maxlength="300" rows="3" dir="auto" placeholder="A line or two about you and the films you love">${esc(seen()['cfg:bio'] || '')}</textarea></label>
+          <div class="fx-field fx-two"><label><span>Pronouns</span><input type="text" data-cfg="cfg:pron" maxlength="30" dir="auto" placeholder="Optional" value="${esc(seen()['cfg:pron'] || '')}"></label>
+          <label><span>Location</span><input type="text" data-cfg="cfg:loc" maxlength="60" dir="auto" placeholder="Optional" value="${esc(seen()['cfg:loc'] || '')}"></label></div>` : ''}
           <div class="fx-field"><span>${t.linksL}</span><div class="fx-links-ed">${[['lb', 'cfg:lb', 'text'], ['tg', 'cfg:channel', 'url'], ['sp', 'cfg:sp', 'url'], ['ig', 'cfg:ig', 'url'], ['web', 'cfg:web', 'url']].map(([k, ck, ty]) => `<label><span>${t.links[k][0]}</span><input type="${ty}" data-cfg="${ck}" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="${esc(t.links[k][1])}" value="${esc(seen()[ck] || '')}"></label>`).join('')}</div></div>
           <label class="fx-check"><input type="checkbox" data-pubdiary${seen()['cfg:pubdiary'] !== '0' ? ' checked' : ''}> ${t.pubDiary}</label>
           <div class="fx-row"><button type="button" class="fx-btn primary" data-cfg-save>${t.cfgSave}</button>${msg('cfg')}</div>`;
@@ -1188,7 +1193,7 @@ function mountFocus(root, D, S, opts) {
   }
   const say = (k, cls, txt) => { note[k] = [cls, txt]; render(); };
   root.addEventListener('input', e => {
-    if (note.cfg && e.target.matches('input[data-cfg]')) { delete note.cfg; const n = root.querySelector('[data-cfg-save] + .fx-note'); if (n) n.remove(); }
+    if (note.cfg && e.target.matches('[data-cfg]')) { delete note.cfg; const n = root.querySelector('[data-cfg-save] + .fx-note'); if (n) n.remove(); }
     if (!e.target.classList.contains('fx-pick-q') || !picker) return;
     picker.q = e.target.value;
     clearTimeout(tmTimer);
@@ -1201,7 +1206,7 @@ function mountFocus(root, D, S, opts) {
   root.addEventListener('change', e => {
     if (e.target.matches('input[data-lbimport]')) { const fs = [...(e.target.files || [])]; e.target.value = ''; lbImport(fs); return; }
     if (e.target.matches('input[data-limport]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; listImport(f); return; }
-    const c = e.target.closest('input[data-cfg]');
+    const c = e.target.closest('[data-cfg]');
     if (c) { saveCfg(c); return; }
     if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
   });
@@ -1210,6 +1215,7 @@ function mountFocus(root, D, S, opts) {
       let v = c.value.trim();
       if (c.dataset.cfg === 'cfg:lbf') { v = fxFriends(v).join(', '); c.value = v; }
       else if (c.dataset.cfg === 'cfg:lb') { v = v.replace(/^https?:\/\/(www\.)?letterboxd\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, ''); if (v && !/^[A-Za-z0-9_]{1,40}$/.test(v)) v = ''; c.value = v; }
+      else if (c.dataset.cfg === 'cfg:bio') v = v.replace(/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\n{3,}/g, '\n\n').slice(0, 300);
       else if (c.type === 'url' && v && !/^https:\/\/[^\s"<>]+$/.test(v)) { if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) v = 'https://' + v; else v = ''; c.value = v; }
       S.set(c.dataset.cfg, v || null);
     }
@@ -1322,7 +1328,7 @@ function mountFocus(root, D, S, opts) {
       ST.shareOff().then(r => { note.share = r ? ['bad', r] : ['ok', T().shareStopped]; render(); });
       return;
     }
-    else if (t.hasAttribute('data-cfg-save')) { root.querySelectorAll('input[data-cfg]').forEach(saveCfg); const pd = root.querySelector('input[data-pubdiary]'); if (pd) S.set('cfg:pubdiary', pd.checked ? null : '0'); note.cfg = ['ok', tt.cfgSaved]; }
+    else if (t.hasAttribute('data-cfg-save')) { root.querySelectorAll('[data-cfg]').forEach(saveCfg); const pd = root.querySelector('input[data-pubdiary]'); if (pd) S.set('cfg:pubdiary', pd.checked ? null : '0'); note.cfg = ['ok', tt.cfgSaved]; }
     else if (t.hasAttribute('data-share-copy')) { copy(ST.shareUrl(seen()['cfg:share']).replace(/\/$/, ''), t, root.querySelector('.fx-link-pre')); return; }
     else if (t.hasAttribute('data-tmdb-clear')) { S.set('cfg:tmdb', null); P.setToken(null); }
     else if (t.hasAttribute('data-bk-copy')) {

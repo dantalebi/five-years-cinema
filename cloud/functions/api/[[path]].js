@@ -27,9 +27,12 @@ const SCHEMA = [
   // a blocks b: no follows either way, no reactions on a's entries, neither appears to the other
   `CREATE TABLE IF NOT EXISTS blocks (a INTEGER NOT NULL, b INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (a, b))`,
   `CREATE INDEX IF NOT EXISTS blocks_b ON blocks(b)`,
+  // a profile picture: a small square JPEG (the app crops and shrinks it to 256 pixels), as base64
+  `CREATE TABLE IF NOT EXISTS avatars (uid INTEGER PRIMARY KEY, img TEXT NOT NULL, updated INTEGER NOT NULL)`,
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
-const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`];
+// users.av: when the profile picture last changed (0: none), so its address changes with it and can be cached for good
+const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`];
 let ready = null;
 const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
@@ -140,8 +143,8 @@ on('POST', '/api/logout', async (req, env, u) => {
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
 on('GET', '/api/me', async (req, env, u) => {
-  const r = await env.DB.prepare('SELECT rk FROM users WHERE id = ?').bind(u.id).first();
-  return json({me: Object.assign(me(u), {rk: !!(r && r.rk)})});
+  const r = await env.DB.prepare('SELECT rk, av FROM users WHERE id = ?').bind(u.id).first();
+  return json({me: Object.assign(me(u), {rk: !!(r && r.rk), av: (r && r.av) || 0})});
 }, {auth: true});
 // where you're signed in: each session with its browser and when it was last used (id: the start of the session's hash)
 on('GET', '/api/sessions', async (req, env, u) => {
@@ -195,7 +198,7 @@ on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
   await env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
-    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?',
+    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?', 'DELETE FROM avatars WHERE uid = ?',
     'DELETE FROM users WHERE id = ?'].map(s => env.DB.prepare(s).bind(u.id)));
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
@@ -257,18 +260,18 @@ on('PUT', '/api/profile', async (req, env, u) => {
 }, {auth: true});
 on('DELETE', '/api/profile', async (req, env, u) => { await env.DB.prepare('UPDATE profiles SET public = 0 WHERE uid = ?').bind(u.id).run(); return json({ok: true}); }, {auth: true});
 on('GET', '/api/u/([a-z0-9_]{3,24})', async (req, env, u, m) => {
-  const r = await env.DB.prepare('SELECT x.id, p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
+  const r = await env.DB.prepare('SELECT x.id, x.av, p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
   if (!r || !r.payload || (u && await blocked(env, u.id, r.id))) return fail('none', 404);
-  return raw('{"updated":' + r.updated + ',"data":' + r.payload + '}', 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=20'});
+  return raw('{"updated":' + r.updated + ',"av":' + (+r.av || 0) + ',"data":' + r.payload + '}', 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=20'});
 }, {optionalAuth: true});
 // who someone is on the site: counts, and whether you follow them
 on('GET', '/api/u/([a-z0-9_]{3,24})/meta', async (req, env, u, m) => {
-  const x = await env.DB.prepare(`SELECT x.id, x.username, x.name, p.public,
+  const x = await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.public,
       (SELECT COUNT(*) FROM follows WHERE b = x.id) AS followers, (SELECT COUNT(*) FROM follows WHERE a = x.id) AS following
       FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?`).bind(m[1]).first();
   if (!x || !x.public) return fail('none', 404);
   if (u && u.id !== x.id && await env.DB.prepare('SELECT 1 FROM blocks WHERE a = ? AND b = ?').bind(x.id, u.id).first()) return fail('none', 404);
-  const out = {username: x.username, name: x.name, followers: x.followers, following: x.following};
+  const out = {username: x.username, name: x.name, av: x.av || 0, followers: x.followers, following: x.following};
   if (u) {
     out.self = u.id === x.id;
     out.follows = !!await env.DB.prepare('SELECT 1 FROM follows WHERE a = ? AND b = ?').bind(u.id, x.id).first();
@@ -288,6 +291,31 @@ on('POST', '/api/follow', async (req, env, u) => {
   else await env.DB.prepare('INSERT OR IGNORE INTO follows (a, b, at) VALUES (?, ?, ?)').bind(u.id, x.id, Date.now()).run();
   return json({ok: true});
 }, {auth: true});
+// profile pictures: set (a JPEG of at most 120 KB), remove, and fetch by username (?v= the version, so it caches for good)
+on('PUT', '/api/avatar', async (req, env, u) => {
+  const b = await body(req, 170000), img = String(b.img || '');
+  if (!/^[A-Za-z0-9+/]+=*$/.test(img) || img.length > 160000) return fail('bad', 400);
+  let bytes; try { bytes = unb64(img); } catch (e) { return fail('bad', 400); }
+  if (bytes.length < 200 || bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return fail('bad', 400);  // a JPEG, nothing else
+  if (await limited(env.DB, 'avatar:' + u.id, 30, 36e5)) return fail('slow', 429);
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO avatars (uid, img, updated) VALUES (?, ?, ?) ON CONFLICT(uid) DO UPDATE SET img = excluded.img, updated = excluded.updated').bind(u.id, img, now),
+    env.DB.prepare('UPDATE users SET av = ? WHERE id = ?').bind(now, u.id),
+  ]);
+  return json({av: now});
+}, {auth: true});
+on('DELETE', '/api/avatar', async (req, env, u) => {
+  await env.DB.batch([env.DB.prepare('DELETE FROM avatars WHERE uid = ?').bind(u.id), env.DB.prepare('UPDATE users SET av = 0 WHERE id = ?').bind(u.id)]);
+  return json({av: 0});
+}, {auth: true});
+on('GET', '/api/avatar/([a-z0-9_]{3,24})', async (req, env, u, m) => {
+  const r = await env.DB.prepare('SELECT a.img, a.updated FROM users x JOIN avatars a ON a.uid = x.id WHERE x.username = ?').bind(m[1]).first();
+  if (!r) return new Response('', {status: 404, headers: {'cache-control': 'no-store'}});
+  const versioned = new URL(req.url).searchParams.get('v') === String(r.updated);
+  return new Response(unb64(r.img), {headers: {'content-type': 'image/jpeg', 'x-content-type-options': 'nosniff',
+    'cache-control': versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=300'}});
+});
 // block or unblock someone: blocking ends follows both ways and removes their reactions to your entries
 on('POST', '/api/block', async (req, env, u) => {
   const b = await body(req, 500), name = String(b.username || '').toLowerCase();
@@ -302,8 +330,8 @@ on('POST', '/api/block', async (req, env, u) => {
   return json({ok: true});
 }, {auth: true});
 on('GET', '/api/blocks', async (req, env, u) => {
-  const rows = (await env.DB.prepare('SELECT x.username, x.name, k.at FROM blocks k JOIN users x ON x.id = k.b WHERE k.a = ? ORDER BY k.at DESC').bind(u.id).all()).results || [];
-  return json({blocks: rows.map(r => ({username: r.username, name: r.name || '', at: r.at}))});
+  const rows = (await env.DB.prepare('SELECT x.username, x.name, x.av, k.at FROM blocks k JOIN users x ON x.id = k.b WHERE k.a = ? ORDER BY k.at DESC').bind(u.id).all()).results || [];
+  return json({blocks: rows.map(r => ({username: r.username, name: r.name || '', av: r.av || 0, at: r.at}))});
 }, {auth: true});
 // stop someone following you (without blocking them)
 on('POST', '/api/follower', async (req, env, u) => {
@@ -314,42 +342,42 @@ on('POST', '/api/follower', async (req, env, u) => {
   return json({ok: true});
 }, {auth: true});
 on('GET', '/api/people', async (req, env, u) => {
-  const rows = (await env.DB.prepare(`SELECT x.username, x.name, p.updated,
+  const rows = (await env.DB.prepare(`SELECT x.username, x.name, x.av, p.updated,
       EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS following, EXISTS (SELECT 1 FROM follows WHERE a = x.id AND b = ?) AS follower
       FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id, u.id, u.id).all()).results || [];
-  return json({people: rows.map(r => ({username: r.username, name: r.name, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
+  return json({people: rows.map(r => ({username: r.username, name: r.name, av: r.av || 0, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
 // with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]
 const REACT_DAYS = 180;
-const reactRows = rows => rows.map(r => [r.id, r.ou, r.eid, r.kind, r.text, r.at, r.xu, r.xn || '', r.ft || '']);
+const reactRows = rows => rows.map(r => [r.id, r.ou, r.eid, r.kind, r.text, r.at, r.xu, r.xn || '', r.ft || '', r.xa || 0]);
 on('GET', '/api/feed', async (req, env, u) => {
   const [rows, re] = await Promise.all([
-    env.DB.prepare(`SELECT x.username, x.name, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
+    env.DB.prepare(`SELECT x.username, x.name, x.av, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
       WHERE f.a = ? AND p.public = 1 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
-    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
+    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
       WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
       ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY, u.id, u.id).all(),
   ]);
-  return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
+  return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"a":' + (+r.av || 0) + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
 }, {auth: true});
 // your notifications: reactions to your own entries, new followers, and replies after your comments on others' entries
 on('GET', '/api/inbox', async (req, env, u) => {
   const cut = Date.now() - REACT_DAYS * DAY;
   const [re, fol, thr] = await Promise.all([
-    env.DB.prepare(`SELECT r.id, ? AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r JOIN users x ON x.id = r.uid
+    env.DB.prepare(`SELECT r.id, ? AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r JOIN users x ON x.id = r.uid
       WHERE r.owner = ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?)) ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut, u.id, u.id).all(),
-    env.DB.prepare(`SELECT x.username, x.name, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS back FROM follows f JOIN users x ON x.id = f.a
+    env.DB.prepare(`SELECT x.username, x.name, x.av, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS back FROM follows f JOIN users x ON x.id = f.a
       WHERE f.b = ? AND f.at > ? ORDER BY f.at DESC LIMIT 100`).bind(u.id, u.id, cut).all(),
-    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
+    env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
       WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
         AND EXISTS (SELECT 1 FROM reacts m WHERE m.owner = r.owner AND m.eid = r.eid AND m.uid = ? AND m.kind = 'c' AND m.at < r.at)
       ORDER BY r.at DESC LIMIT 200`).bind(u.id, u.id, cut, u.id, u.id, u.id).all(),
   ]);
-  return json({re: reactRows(re.results || []), thr: reactRows(thr.results || []), fol: (fol.results || []).map(f => [f.username, f.name || '', f.at, !!f.back])});
+  return json({re: reactRows(re.results || []), thr: reactRows(thr.results || []), fol: (fol.results || []).map(f => [f.username, f.name || '', f.at, !!f.back, f.av || 0])});
 }, {auth: true});
 // react to an entry, or take it back; comments can be deleted by whoever wrote them and by the entry's owner
 const EID = /^[a-z0-9-]{1,120}$/i;

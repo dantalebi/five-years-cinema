@@ -56,10 +56,10 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   // the bar: Discover after Diary, Settings behind the gear
   const bar = await p.$$eval('.fx-tabbar button', bs => bs.map(x => x.dataset.nav || (x.hasAttribute('data-qlog') ? '+' : '')));
   ok(bar.join(',') === 'friends,week,+,diary,discover', 'the bar: Activity, This Week, +, Diary, Discover', bar);
-  ok(await p.$('.fx-gear[data-nav="settings"]') !== null, 'Settings is a gear at the top');
-  await p.click('.fx-gear'); await p.waitForSelector('.fx-h1');
+  ok(await p.$('.av-top [data-ac-menu]') !== null, 'Settings is in the account menu at the top');
+  await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.fx-h1');
   ok(/Settings/.test(await p.$eval('.fx-h1', e => e.textContent)), 'the gear opens Settings');
-  ok(await p.$eval('.fx-gear', e => e.getAttribute('aria-current')) === 'page', 'the gear shows Settings is open');
+  ok(await p.$('.av-me.on') !== null, 'the corner shows Settings is open');
 
   // the home page
   await p.click('[data-nav="discover"]'); await p.waitForSelector('.dx-doors', {timeout: 8000});

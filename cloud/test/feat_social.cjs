@@ -40,7 +40,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await a.click('[data-nav="friends"]'); await a.waitForSelector('.fx-ncount');
   ok(await a.$eval('.fx-ncount', e => e.innerText) === '4', 'Notifications (4): heart, want, comment, follow', await a.$eval('.fx-ncount', e => e.innerText));
   await a.click('[data-seg="n"]'); await a.waitForSelector('.fx-note-i', {timeout: 8000});
-  const ib = await a.$eval('.fx-notes', e => e.innerText);
+  const ib = await a.$eval('.fx-notes', e => e.innerText.replace(/\s+/g, ' '));
   ok(/ZED liked your entry for Close-Up/.test(ib) && /ZED commented on your entry for Close-Up/.test(ib) && /great pick/.test(ib) && /ZED started following you/.test(ib) && /added Close-Up to their watchlist/.test(ib), 'what happened, in words', ib.replace(/\s+/g, ' '));
   ok(await a.$$eval('.fx-note-i.fresh', l => l.length) === 4, 'all four marked new');
   await a.click('.fx-note-i.nc [data-rn]'); await a.fill('.fx-note-i.nc form[data-rcf] input', 'thanks!'); await a.press('.fx-note-i.nc form[data-rcf] input', 'Enter'); await a.waitForTimeout(800);
@@ -53,7 +53,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await z.reload(); await z.waitForSelector('.fx-actv');
   ok(/thanks!/.test(await z.$eval('.fx-actv:has-text("Close-Up")', e => e.innerText)), 'her reply reaches his feed');
   await z.click('[data-seg="n"]'); await z.waitForSelector('.fx-note-i', {timeout: 8000});
-  const zn = await z.$eval('.fx-notes', e => e.innerText);
+  const zn = await z.$eval('.fx-notes', e => e.innerText.replace(/\s+/g, ' '));
   ok(/ANA replied to your comment on Close-Up/.test(zn) && /ANA started following you/.test(zn), 'he’s told about her reply and her follow', zn.replace(/\s+/g, ' '));
   await a.click('[data-nav="friends"]'); await a.click('[data-seg="n"]'); await a.waitForSelector('.fx-note-i.nc');
   if (!(await a.$('.fx-note-i.nc .fx-nthread'))) await a.click('.fx-note-i.nc [data-rn]');
@@ -68,7 +68,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const r3 = await z.evaluate(async () => (await fetch('/api/react', {method: 'POST', headers: {'content-type': 'text/plain'}, body: JSON.stringify({owner: 'ana', eid: 'x', kind: 'h'})})).status);
   ok(r3 === 403, 'a plain form post from elsewhere is refused', r3);
   // home choice
-  await z.click('[data-nav="settings"]'); await z.click('[data-home="week"]'); await z.waitForTimeout(1500); await z.goto(B + '/'); await z.waitForSelector('.fx-tabbar');
+  await z.click('[data-ac-menu]'); await z.click('.av-menu a[href="/settings"]'); await z.click('[data-home="week"]'); await z.waitForTimeout(1500); await z.goto(B + '/'); await z.waitForSelector('.fx-tabbar');
   ok(await z.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'week', 'Settings: start on This week');
   ok(!errs.length, 'no page errors', errs);
   await b.close();

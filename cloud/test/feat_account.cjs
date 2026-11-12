@@ -32,7 +32,7 @@ const here = p => p.url().replace(B, '');
   ok(/^[A-Z2-9]{5}(-[A-Z2-9]{5}){3}$/.test(key), 'a recovery key, shown after signing up', key);
 
   // ---- Settings: who you are and Sign out, right at the top ----
-  await p.click('.fx-gear'); await p.waitForSelector('.ac-me');
+  await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
   const first = await p.$eval('.fx-app .fx-card', e => e.className);
   ok(/ac-me/.test(first), 'the account is the first thing in Settings');
   ok(/@pia/.test(await p.$eval('.ac-me', e => e.innerText)) && await p.$('.ac-me [data-ac-out]') !== null, 'signed in as @pia, with Sign out');

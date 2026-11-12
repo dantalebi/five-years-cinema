@@ -2,9 +2,11 @@
 // your recovery key, the devices you're signed in on, and deleting the account (bottom).
 // fxAccount(CloudSync) → {ui(where), click(button, render), submit(form, render), about()}: Settings calls ui('top') and
 // ui('bottom'); the app passes its clicks and form submissions through.
-function fxAccount(CS) {
+function fxAccount(CS, o) {
+  o = o || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-  const st = {sessions: null, blocks: null, note: {}, rk: '', rkAsk: false, outWarn: false, allWarn: false, delSure: false, busy: ''};
+  const st = {sessions: null, blocks: null, note: {}, rk: '', rkAsk: false, outWarn: false, allWarn: false, delSure: false, busy: '', menu: false};
+  const pic = (u, n, a, size) => typeof fxAvatar === 'function' ? fxAvatar(u, n, a, size) : '';
   let loadedAt = 0;
   const ago = ms => {
     const m = Math.max(0, (Date.now() - ms) / 6e4);
@@ -32,9 +34,9 @@ function fxAccount(CS) {
 
   function top() {
     const me = CS.me() || {}, sync = CS.status ? CS.status() : {};
-    const initial = esc(String(me.name || me.username || '?').trim().charAt(0).toUpperCase());
     const syncLine = sync.state === 'err' ? `<span class="fx-bad">${esc(sync.msg || 'Not synced')}</span>` : sync.state === 'busy' ? 'Saving…' : 'Your diary is saved to your account and stays in sync on all your devices.';
-    let h = `<section class="fx-card ac-me"><div class="ac-who"><span class="ac-av" aria-hidden="true">${initial}</span><div><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div></div>
+    const picAct = typeof fxAvatarEditor !== 'undefined' ? `<div class="ac-avact"><label class="fx-link ac-file">${me.av ? 'Change picture' : 'Add a picture'}<input type="file" accept="image/*" data-ac-avfile></label><button type="button" class="fx-link" data-ac-avstill>Use a film still</button>${me.av ? '<button type="button" class="fx-link" data-ac-avrm>Remove</button>' : ''}</div>` : '';
+    let h = `<section class="fx-card ac-me"><div class="ac-who">${pic(me.username, me.name, me.av, 'l')}<div><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span>${picAct}</div></div>${msg('av')}
       <p class="fx-muted">${syncLine}</p>
       <div class="fx-row"><a class="fx-btn" href="/u/${esc(me.username || '')}">Your profile</a><button type="button" class="fx-btn" data-ac-out>Sign out</button></div>`;
     if (st.outWarn) h += `<div class="fx-note bad ac-warn"><p>Some changes on this device haven’t been saved to your account yet (you may be offline). If you sign out now, they’ll be lost.</p>
@@ -81,10 +83,13 @@ function fxAccount(CS) {
 
   async function click(b, render) {
     const d = b.dataset;
+    if (b.hasAttribute('data-ac-menu')) { st.menu = !st.menu; render(); return true; }
+    if (b.hasAttribute('data-ac-avstill')) { const v = await fxAvatarEditor.stills(); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); } return true; }
+    if (b.hasAttribute('data-ac-avrm')) { const r = await CS.removeAvatar(); st.note.av = r.ok ? null : ['bad', CS.say(r.code)]; render(); return true; }
     if (b.hasAttribute('data-ac-out') || b.hasAttribute('data-ac-retry')) {
-      st.note.out = null; b.disabled = true;
+      st.note.out = null; b.disabled = true; st.menu = false;
       const r = await CS.disconnect();
-      if (r === 'unsynced') { st.outWarn = true; render(); }
+      if (r === 'unsynced') { st.outWarn = true; render(); if (o.toSettings) o.toSettings(); }
       else if (r) { st.note.out = ['bad', r]; render(); }
       return true;
     }
@@ -165,5 +170,16 @@ function fxAccount(CS) {
         <li>Be decent in comments. You can block anyone, and accounts that harass others can be removed.</li></ul></section>
       <p class="fx-muted dx-attr">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>`;
   }
-  return {ui, click, submit, about, device};
+  // a picture from this device: frame it, save it
+  async function file(f, render) { const v = await fxAvatarEditor.open(f); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); } }
+  // the corner of every screen: your picture, opening a small menu (your profile, Settings, About, Sign out)
+  function corner(onSettings) {
+    const me = CS.me() || {}, sync = CS.status ? CS.status() : {};
+    return `<div class="av-top"><button type="button" class="av-me${onSettings ? ' on' : ''}" data-ac-menu aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="Your account" title="Your account">${pic(me.username, me.name, me.av, 's')}${sync.state === 'err' ? '<i class="av-err" aria-hidden="true"></i>' : ''}</button>
+      ${st.menu ? `<div class="av-menu" role="menu"><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
+        <a role="menuitem" href="/u/${esc(me.username || '')}">Your profile</a><a role="menuitem" href="/settings" data-app>Settings</a><a role="menuitem" href="/about" data-app>About</a>
+        <button type="button" role="menuitem" data-ac-out>Sign out</button></div>` : ''}</div>`;
+  }
+  const closeMenu = () => { if (!st.menu) return false; st.menu = false; return true; };
+  return {ui, click, submit, about, device, corner, closeMenu, file};
 }

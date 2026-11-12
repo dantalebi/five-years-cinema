@@ -35,7 +35,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   // Letterboxd's watchlist.csv through Settings
   const fs = require('fs'), path = require('path'), f = path.join(process.env.OUT || '/tmp', 'watchlist.csv');
   fs.writeFileSync(f, 'Date,Name,Year,Letterboxd URI\n2026-02-13,An Autumn Afternoon,1962,https://boxd.it/CUU\n2026-02-13,Heat,1995,https://boxd.it/x\n');
-  await kim.click('[data-nav="settings"]'); await kim.waitForSelector('#ac-security .ac-list li'); await kim.setInputFiles('[data-lbimport]', f); await kim.waitForTimeout(2000);
+  await kim.click('[data-ac-menu]'); await kim.click('.av-menu a[href="/settings"]'); await kim.waitForSelector('#ac-security .ac-list li'); await kim.setInputFiles('[data-lbimport]', f); await kim.waitForTimeout(2000);
   const wl = await kim.evaluate(() => Object.keys(Store.data).filter(k => k.startsWith('wl:') && Store.data[k]).map(k => JSON.parse(Store.data[k]).t));
   ok(wl.includes('An Autumn Afternoon') && !wl.includes('Heat'), 'watchlist.csv: new films in, seen ones left out', wl);
   ok(!errs.length, 'no page errors', errs);

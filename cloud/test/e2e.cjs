@@ -111,7 +111,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'unknown profile: no longer published', await text(v, 'h1'));
 
   // Danial's settings: account section, sign out wipes this device
-  await a.click('[data-nav="settings"]'); await a.waitForTimeout(300);
+  await a.click('[data-ac-menu]'); await a.click('.av-menu a[href="/settings"]'); await a.waitForTimeout(300);
   ok(/@danial/.test(await text(a, '.fx-app')), 'settings show who is signed in');
   ok(!(await a.$('form[data-tmdb]')) && !(await a.$('form[data-gh]')), 'no TMDB key or GitHub token to paste');
   await a.screenshot({path: path.join(OUT, 'cl-settings.png'), fullPage: true});

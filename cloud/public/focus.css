@@ -1137,3 +1137,76 @@ a.fx-tgbig{display:block}
 .ac-doc li{font-size:14.5px; line-height:1.55}
 .fx-pmore{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:4px}
 .fx-pmore .fx-note{flex-basis:100%; margin:0}
+
+/* ---------- profile pictures ---------- */
+.av{display:inline-block; flex:none; border-radius:50%; object-fit:cover; background:var(--sunk); vertical-align:middle}
+.av-i{display:inline-grid; place-items:center; background:var(--avc, #5b5b78); color:#fff; font-family:var(--serif); font-weight:400; line-height:1}
+.av-s{width:24px; height:24px; font-size:13px}
+.av-m{width:36px; height:36px; font-size:18px}
+.av-l{width:64px; height:64px; font-size:30px}
+.av-xl{width:96px; height:96px; font-size:44px}
+@media (min-width:520px){ .av-xl{width:112px; height:112px; font-size:52px} }
+.fx-who{display:inline-flex; align-items:center; gap:7px; vertical-align:middle}
+.fx-who .av-s{width:20px; height:20px; font-size:11px}
+.fx-cm .fx-who{margin-inline-end:4px}
+.fx-people li{justify-content:flex-start}
+.fx-people li .fx-pn{flex:1}
+.fp-fr li .fx-who{gap:8px}
+/* the corner: your picture opens a small menu */
+.av-top{position:absolute; z-index:7; top:max(18px, env(safe-area-inset-top, 0px)); inset-inline-end:max(10px, env(safe-area-inset-right, 0px))}
+.av-me{all:unset; box-sizing:border-box; cursor:pointer; position:relative; display:grid; place-items:center; width:42px; height:42px; border-radius:50%}
+.av-me .av{width:32px; height:32px; font-size:16px; box-shadow:0 0 0 2px var(--bg)}
+.av-me:hover .av, .av-me.on .av, .av-me[aria-expanded="true"] .av{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--star)}
+.av-me:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.av-err{position:absolute; top:6px; inset-inline-end:6px; width:9px; height:9px; border-radius:50%; background:var(--bad); box-shadow:0 0 0 2px var(--bg)}
+.av-menu{position:absolute; top:46px; inset-inline-end:0; min-width:210px; display:grid; padding:6px; border-radius:12px; background:var(--surface); box-shadow:0 0 0 1px var(--line), 0 14px 40px rgba(0,0,0,.18)}
+.av-mh{display:grid; gap:1px; padding:8px 10px 10px; margin-bottom:4px; border-bottom:1px solid var(--line)}
+.av-mh b{font-size:14.5px; font-weight:600}
+.av-mh span{font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+.av-menu a, .av-menu button{all:unset; box-sizing:border-box; cursor:pointer; display:block; padding:9px 10px; border-radius:8px; font-size:14.5px; color:var(--ink)}
+.av-menu a:hover, .av-menu button:hover, .av-menu a:focus-visible, .av-menu button:focus-visible{background:var(--sunk)}
+.av-menu button{color:var(--bad)}
+/* your picture in Settings */
+.ac-who{align-items:flex-start}
+.ac-avact{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px}
+.ac-avact .fx-link{font-size:13px}
+.ac-file{position:relative; overflow:hidden}
+.ac-file input{position:absolute; inset:0; opacity:0; cursor:pointer}
+/* framing a picture */
+.av-sheet .fx-shbody{display:grid; gap:14px; justify-items:center; padding-bottom:20px}
+.av-sheet .fx-shh{justify-self:stretch}
+.av-crop{position:relative; width:260px; height:260px; border-radius:12px; overflow:hidden; touch-action:none; background:#111}
+.av-crop canvas{display:block; cursor:grab}
+.av-crop canvas:active{cursor:grabbing}
+.av-crop i{position:absolute; inset:0; pointer-events:none; border-radius:50%; box-shadow:0 0 0 999px rgba(0,0,0,.45); outline:2px solid rgba(255,255,255,.8); outline-offset:-2px}
+.av-zoom{display:flex; align-items:center; gap:12px; width:260px; font-size:13px; color:var(--muted)}
+.av-zoom input{flex:1; accent-color:var(--star)}
+.av-sheet .fx-form{justify-self:stretch}
+.av-films, .av-stills{list-style:none; margin:0; padding:0; justify-self:stretch}
+.av-films li button{all:unset; box-sizing:border-box; cursor:pointer; width:100%; display:grid; grid-template-columns:40px minmax(0, 1fr) auto; gap:12px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line)}
+.av-films img, .av-films li button > span:first-child{width:40px; aspect-ratio:2/3; object-fit:cover; border-radius:3px; background:var(--sunk)}
+.av-films b{font-weight:500; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.av-films li button > span:last-child{font-family:var(--mono); font-size:12px; color:var(--muted)}
+.av-films li button:hover b{text-decoration:underline}
+.av-stills{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px}
+.av-stills button{all:unset; cursor:pointer; display:block; border-radius:6px; overflow:hidden}
+.av-stills img{display:block; width:100%; aspect-ratio:16/9; object-fit:cover}
+.av-stills button:hover{outline:2px solid var(--star); outline-offset:-2px}
+/* a profile page: picture, name, pronouns, bio, place */
+.fx-pid{display:flex; align-items:center; gap:18px}
+.fx-pidt{display:grid; gap:4px; min-width:0}
+.fx-pron{font-size:13px; color:var(--muted)}
+.fx-bio{margin:4px 0 0; font-size:15px; line-height:1.55; white-space:pre-line; max-width:36em}
+.fx-loc{margin:0; font-size:13px; color:var(--muted)}
+.fx-loc::before{content:""; display:inline-block; width:11px; height:13px; margin-inline-end:6px; vertical-align:-1px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 15'%3E%3Cpath d='M6 0a6 6 0 0 0-6 6c0 4.2 6 9 6 9s6-4.8 6-9a6 6 0 0 0-6-6zm0 8.3A2.3 2.3 0 1 1 6 3.7a2.3 2.3 0 0 1 0 4.6z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 15'%3E%3Cpath d='M6 0a6 6 0 0 0-6 6c0 4.2 6 9 6 9s6-4.8 6-9a6 6 0 0 0-6-6zm0 8.3A2.3 2.3 0 1 1 6 3.7a2.3 2.3 0 0 1 0 4.6z'/%3E%3C/svg%3E") center/contain no-repeat}
+/* Settings: two short fields side by side, a longer bio */
+.fx-two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.fx-two label{display:grid; gap:6px; min-width:0}
+.fx-two label > span{font-size:13px; color:var(--muted)}
+.fx-two input, .fx-field textarea{font:inherit; font-size:15px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink); width:100%; box-sizing:border-box; min-width:0}
+.fx-field textarea{resize:vertical; line-height:1.5}
+.fx-two input:focus, .fx-field textarea:focus{outline:none; border-color:var(--accent)}
+.av-sheet .fx-shh{display:flex; justify-content:space-between; align-items:center; padding:12px 4px}
+.av-sheet .fx-shh .fx-h2{margin:0; font-size:18px}

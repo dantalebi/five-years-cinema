@@ -70,7 +70,7 @@ const here = p => p.url().replace(B, '');
   ok(here(p) === '/diary', 'Back: the diary', here(p));
 
   // Settings behind the gear, and Back out of it
-  await p.click('.fx-gear'); await p.waitForTimeout(200);
+  await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForTimeout(200);
   ok(here(p) === '/settings', 'Settings', here(p));
   ok(await p.$('a[href="/plan/new"]') !== null, 'Settings offers to build a new plan');
   await p.goBack(); await p.waitForTimeout(300);

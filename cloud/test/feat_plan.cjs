@@ -47,7 +47,7 @@ const here = p => p.url().replace(B, '');
   ok(/Movements & Periods/i.test(map) && /Directors across the plan/i.test(map), 'the plan map works for a built plan');
   await p.screenshot({path: path.join(OUT, 'plan-map.png'), fullPage: false});
   // rebuild from Settings
-  await p.click('.fx-gear'); await p.click('a[href="/plan/new"]'); await p.waitForSelector('[data-pb-go]');
+  await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.click('a[href="/plan/new"]'); await p.waitForSelector('[data-pb-go]');
   ok(here(p) === '/plan/new', 'the builder in the app', here(p));
   await p.click('[data-pb-years="2"]'); await p.click('[data-pb-preset="directors"]'); await p.click('[data-pb-go]'); await p.waitForSelector('[data-pb-start]', {timeout: 15000});
   ok(/replaces your current plan \(the plan you built on/.test(await p.$eval('.fx-app', e => e.innerText)), 'it says it will replace the current plan');
