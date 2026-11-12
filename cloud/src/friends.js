@@ -379,6 +379,7 @@ function fxFriendsTab(CS) {
     },
     wl: {list: wlList, set: wlSet, has: wlHas, key: wlKey},
     // the latest entries from people you follow, newest first (null while they load; asking starts loading them)
-    recent(n) { if (!feed) { if (!err) load(); return err ? [] : null; } return feedRows().sort((a, b) => String(b.w || '').localeCompare(String(a.w || ''))).slice(0, n); },
+    // (at most two each, so one busy person doesn't fill it)
+    recent(n) { if (!feed) { if (!err) load(); return err ? [] : null; } const per = {}; return feedRows().sort((a, b) => String(b.w || '').localeCompare(String(a.w || ''))).filter(e => (per[e.u] = (per[e.u] || 0) + 1) <= 2).slice(0, n); },
   };
 }
