@@ -758,6 +758,8 @@ function mountFocus(root, D, S, opts) {
     const st = ST.status(), tm = seen()['cfg:tmdb'], t = T(), lang = L();
     const msg = k => note[k] ? `<p class="fx-note ${note[k][0]}">${esc(note[k][1])}</p>` : '';
     let h = `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${t.settings}</h1></div></header>`;
+    // the site's own account controls (who you're signed in as, sign out) come first when it has them
+    if (opts.accountUI) h += opts.accountUI('top');
     if (opts.plan) h += `<section class="fx-card"><h2>${t.planH}</h2><p>${esc(D.kind === 'list' ? t.planList(fa(F.length)) : opts.plan.own ? t.planOwn(fa(F.length)) : t.planSample)}</p><div class="fx-row"><button type="button" class="fx-link${note.planReset ? ' fx-warn' : ''}" data-plan-reset>${note.planReset ? t.planReset2 : t.planReset}</button></div></section>`;
     if (ST.shareOn) {
       const sid = seen()['cfg:share'];
@@ -787,7 +789,8 @@ function mountFocus(root, D, S, opts) {
     }
     if (!opts.noLang) h += `<section class="fx-card"><h2>${t.langH}</h2><div class="fx-row"><button type="button" class="fx-btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button><button type="button" class="fx-btn${lang === 'fa' ? ' primary' : ''}" data-lang="fa">فارسی</button></div><p class="fx-muted">${t.langNote}</p>${lang === 'fa' && typeof FX_JF !== 'undefined' && FX_JF ? `<div class="fx-field"><span>تقویم</span><div class="fx-row"><button type="button" class="fx-btn${seen()['cfg:cal'] !== 'g' ? ' primary' : ''}" data-cal="j">شمسی</button><button type="button" class="fx-btn${seen()['cfg:cal'] === 'g' ? ' primary' : ''}" data-cal="g">میلادی</button></div></div>` : ''}</section>`;
     if (opts.settingsExtra) h += opts.settingsExtra(lang);
-    if (ST.kind === 'cloud') {
+    if (opts.accountUI) {}
+    else if (ST.kind === 'cloud') {
       h += `<section class="fx-card"><h2>${t.acctH}</h2><p>${esc(t.acctOn(st.login))} ${st.state === 'err' ? `<span class="fx-bad">${esc(st.msg || '')}</span>` : st.state === 'busy' ? t.syncBusy : st.at ? esc(t.syncAt(ago(st.at))) : ''}</p>
         <div class="fx-row"><button type="button" class="fx-btn" data-sync-now>${t.syncNow}</button><button type="button" class="fx-btn" data-dl-data>${t.dlData}</button><button type="button" class="fx-link" data-disconnect>${t.signOut}</button></div>${msg('gh')}
         <details class="fx-more"><summary>${t.pwH}</summary><form class="fx-form fx-pwform" data-pw><input type="password" name="cur" autocomplete="current-password" dir="ltr" placeholder="${esc(t.pwCur)}" aria-label="${esc(t.pwCur)}" required><input type="password" name="next" autocomplete="new-password" minlength="8" dir="ltr" placeholder="${esc(t.pwNew)}" aria-label="${esc(t.pwNew)}" required><button type="submit" class="fx-btn">${t.pwSave}</button></form>${msg('pw')}</details>
@@ -814,6 +817,7 @@ function mountFocus(root, D, S, opts) {
     h += `<section class="fx-card"><h2>${t.bkH}</h2><p class="fx-muted">${t.bkP}</p>
       <div class="fx-row"><button type="button" class="fx-btn" data-bk-copy>${t.bkCopy}</button><button type="button" class="fx-btn" data-dl-all>${t.dlAll}</button></div>
       <form class="fx-form" data-bk><input type="text" autocomplete="off" dir="ltr" placeholder="${esc(t.bkPh)}" aria-label="${esc(t.bkPh)}" required><button type="submit" class="fx-btn">${t.bkLoad}</button></form>${msg('bk')}</section>`;
+    if (opts.accountUI) h += opts.accountUI('bottom');
     return h;
   }
   function applyLang() {

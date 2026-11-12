@@ -24,9 +24,14 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS reacts_owner ON reacts(owner, at)`,
   `CREATE INDEX IF NOT EXISTS reacts_uid ON reacts(uid)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS reacts_one ON reacts(owner, eid, uid, kind) WHERE kind != 'c'`,
+  // a blocks b: no follows either way, no reactions on a's entries, neither appears to the other
+  `CREATE TABLE IF NOT EXISTS blocks (a INTEGER NOT NULL, b INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (a, b))`,
+  `CREATE INDEX IF NOT EXISTS blocks_b ON blocks(b)`,
 ];
+// columns added after the first release (each is added once; on later starts the database says it's already there)
+const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`];
 let ready = null;
-const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).catch(e => { ready = null; throw e; }));
+const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
 const HDR = {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'};
 const json = (o, status = 200, h) => new Response(JSON.stringify(o), {status, headers: Object.assign({}, HDR, h || {})});
@@ -89,12 +94,18 @@ async function who(req, env) {
   if (r.seen < now - DAY) await env.DB.prepare('UPDATE sessions SET seen = ? WHERE h = ?').bind(now, h).run();
   return {id: r.uid, username: r.username, name: r.name, h};
 }
-async function startSession(env, uid) {
-  const token = b64url(crypto.getRandomValues(new Uint8Array(32))), now = Date.now();
-  await env.DB.prepare('INSERT INTO sessions (h, uid, created, seen) VALUES (?, ?, ?, ?)').bind(await sha256(token), uid, now, now).run();
+async function startSession(env, uid, req) {
+  const token = b64url(crypto.getRandomValues(new Uint8Array(32))), now = Date.now(), ua = String((req && req.headers.get('user-agent')) || '').slice(0, 250);
+  await env.DB.prepare('INSERT INTO sessions (h, uid, created, seen, ua) VALUES (?, ?, ?, ?, ?)').bind(await sha256(token), uid, now, now, ua).run();
   return sessionCookie(token, SESSION_DAYS * 86400);
 }
 const me = u => ({username: u.username, name: u.name});
+// a recovery key: the way back in after a forgotten password (there's no email). Shown once, kept only as a hash.
+const RK_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newRecoveryKey = () => [...crypto.getRandomValues(new Uint8Array(20))].map(b => RK_ALPHA[b % 32]).join('').replace(/(.{5})(?=.)/g, '$1-');
+const rkHash = (rk, env) => sha256('rk|' + (env.PEPPER || '') + '|' + String(rk || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+// is either of two people blocking the other?
+const blocked = async (env, x, y) => !!await env.DB.prepare('SELECT 1 FROM blocks WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(x, y, y, x).first();
 
 // ---- the routes ----
 const routes = [];
@@ -110,8 +121,9 @@ on('POST', '/api/signup', async (req, env, ctx) => {
   const taken = await env.DB.prepare('SELECT 1 FROM users WHERE username = ?').bind(username).first();
   if (taken) return fail('taken', 409);
   const name = String(b.name || '').trim().slice(0, 60);
-  const r = await env.DB.prepare('INSERT INTO users (username, name, pw, created) VALUES (?, ?, ?, ?) RETURNING id').bind(username, name, await hashKey(key, env), Date.now()).first();
-  return json({me: {username, name}}, 200, {'set-cookie': await startSession(env, r.id)});
+  const rk = newRecoveryKey();
+  const r = await env.DB.prepare('INSERT INTO users (username, name, pw, created, rk) VALUES (?, ?, ?, ?, ?) RETURNING id').bind(username, name, await hashKey(key, env), Date.now(), await rkHash(rk, env)).first();
+  return json({me: {username, name, rk: true}, rk}, 200, {'set-cookie': await startSession(env, r.id, req)});
 });
 on('POST', '/api/login', async (req, env) => {
   const b = await body(req, 2000), username = String(b.username || '').toLowerCase().trim(), key = String(b.key || '');
@@ -119,13 +131,54 @@ on('POST', '/api/login', async (req, env) => {
   if (await limited(env.DB, 'login:' + ip(req), 30, 9e5) || await limited(env.DB, 'login:' + username, 10, 9e5)) return fail('slow', 429);
   const u = await env.DB.prepare('SELECT id, username, name, pw FROM users WHERE username = ?').bind(username).first();
   if (!u || !await keyOk(key, u.pw, env)) return fail('wrong', 401);
-  return json({me: me(u)}, 200, {'set-cookie': await startSession(env, u.id)});
+  return json({me: me(u)}, 200, {'set-cookie': await startSession(env, u.id, req)});
 });
+// sign out of this device, or (all: true) of every device
 on('POST', '/api/logout', async (req, env, u) => {
-  await env.DB.prepare('DELETE FROM sessions WHERE h = ?').bind(u.h).run();
+  const b = await body(req, 200);
+  await env.DB.prepare(b.all ? 'DELETE FROM sessions WHERE uid = ?' : 'DELETE FROM sessions WHERE h = ?').bind(b.all ? u.id : u.h).run();
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
-on('GET', '/api/me', async (req, env, u) => json({me: me(u)}), {auth: true});
+on('GET', '/api/me', async (req, env, u) => {
+  const r = await env.DB.prepare('SELECT rk FROM users WHERE id = ?').bind(u.id).first();
+  return json({me: Object.assign(me(u), {rk: !!(r && r.rk)})});
+}, {auth: true});
+// where you're signed in: each session with its browser and when it was last used (id: the start of the session's hash)
+on('GET', '/api/sessions', async (req, env, u) => {
+  const rows = (await env.DB.prepare('SELECT h, created, seen, ua FROM sessions WHERE uid = ? ORDER BY seen DESC LIMIT 50').bind(u.id).all()).results || [];
+  return json({sessions: rows.map(r => ({id: r.h.slice(0, 16), created: r.created, seen: r.seen, ua: r.ua || '', current: r.h === u.h}))});
+}, {auth: true});
+on('POST', '/api/sessions/end', async (req, env, u) => {
+  const b = await body(req, 200);
+  if (b.others) await env.DB.prepare('DELETE FROM sessions WHERE uid = ? AND h != ?').bind(u.id, u.h).run();
+  else if (/^[0-9a-f]{16}$/.test(String(b.id || ''))) await env.DB.prepare('DELETE FROM sessions WHERE uid = ? AND substr(h, 1, 16) = ? AND h != ?').bind(u.id, b.id, u.h).run();
+  else return fail('bad', 400);
+  return json({ok: true});
+}, {auth: true});
+// a new recovery key (the old one stops working); asks for the password first
+on('POST', '/api/recovery', async (req, env, u) => {
+  const b = await body(req, 500);
+  if (await limited(env.DB, 'login:' + u.username, 10, 9e5)) return fail('slow', 429);
+  const row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
+  if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
+  const rk = newRecoveryKey();
+  await env.DB.prepare('UPDATE users SET rk = ? WHERE id = ?').bind(await rkHash(rk, env), u.id).run();
+  return json({rk});
+}, {auth: true});
+// forgot your password: username + recovery key + a new password. Every device is signed out; a new key replaces the used one.
+on('POST', '/api/recover', async (req, env) => {
+  const b = await body(req, 1000), username = String(b.username || '').toLowerCase().trim();
+  if (!USERNAME.test(username) || !KEY.test(String(b.next || '')) || !/^[A-Za-z0-9-]{20,40}$/.test(String(b.rk || ''))) return fail('wrongrk', 401);
+  if (await limited(env.DB, 'recover:' + ip(req), 10, 36e5) || await limited(env.DB, 'recover:' + username, 5, 36e5)) return fail('slow', 429);
+  const u = await env.DB.prepare('SELECT id, username, name, rk FROM users WHERE username = ?').bind(username).first();
+  if (!u || !u.rk || !same(await rkHash(b.rk, env), u.rk)) return fail('wrongrk', 401);
+  const rk = newRecoveryKey();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE users SET pw = ?, rk = ? WHERE id = ?').bind(await hashKey(b.next, env), await rkHash(rk, env), u.id),
+    env.DB.prepare('DELETE FROM sessions WHERE uid = ?').bind(u.id),
+  ]);
+  return json({me: Object.assign(me(u), {rk: true}), rk}, 200, {'set-cookie': await startSession(env, u.id, req)});
+});
 on('POST', '/api/password', async (req, env, u) => {
   const b = await body(req, 2000);
   if (!KEY.test(String(b.key || '')) || !KEY.test(String(b.next || ''))) return fail('key', 400);
@@ -142,7 +195,7 @@ on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
   await env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
-    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?',
+    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?',
     'DELETE FROM users WHERE id = ?'].map(s => env.DB.prepare(s).bind(u.id)));
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
@@ -204,18 +257,24 @@ on('PUT', '/api/profile', async (req, env, u) => {
 }, {auth: true});
 on('DELETE', '/api/profile', async (req, env, u) => { await env.DB.prepare('UPDATE profiles SET public = 0 WHERE uid = ?').bind(u.id).run(); return json({ok: true}); }, {auth: true});
 on('GET', '/api/u/([a-z0-9_]{3,24})', async (req, env, u, m) => {
-  const r = await env.DB.prepare('SELECT p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
-  if (!r || !r.payload) return fail('none', 404);
-  return raw('{"updated":' + r.updated + ',"data":' + r.payload + '}', 200, {'cache-control': 'public, max-age=20'});
-});
+  const r = await env.DB.prepare('SELECT x.id, p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
+  if (!r || !r.payload || (u && await blocked(env, u.id, r.id))) return fail('none', 404);
+  return raw('{"updated":' + r.updated + ',"data":' + r.payload + '}', 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=20'});
+}, {optionalAuth: true});
 // who someone is on the site: counts, and whether you follow them
 on('GET', '/api/u/([a-z0-9_]{3,24})/meta', async (req, env, u, m) => {
   const x = await env.DB.prepare(`SELECT x.id, x.username, x.name, p.public,
       (SELECT COUNT(*) FROM follows WHERE b = x.id) AS followers, (SELECT COUNT(*) FROM follows WHERE a = x.id) AS following
       FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?`).bind(m[1]).first();
   if (!x || !x.public) return fail('none', 404);
+  if (u && u.id !== x.id && await env.DB.prepare('SELECT 1 FROM blocks WHERE a = ? AND b = ?').bind(x.id, u.id).first()) return fail('none', 404);
   const out = {username: x.username, name: x.name, followers: x.followers, following: x.following};
-  if (u) { out.self = u.id === x.id; out.follows = !!await env.DB.prepare('SELECT 1 FROM follows WHERE a = ? AND b = ?').bind(u.id, x.id).first(); }
+  if (u) {
+    out.self = u.id === x.id;
+    out.follows = !!await env.DB.prepare('SELECT 1 FROM follows WHERE a = ? AND b = ?').bind(u.id, x.id).first();
+    out.followsYou = !!await env.DB.prepare('SELECT 1 FROM follows WHERE a = ? AND b = ?').bind(x.id, u.id).first();
+    out.blocked = !!await env.DB.prepare('SELECT 1 FROM blocks WHERE a = ? AND b = ?').bind(u.id, x.id).first();
+  }
   return json(out);
 }, {optionalAuth: true});
 
@@ -224,14 +283,41 @@ on('POST', '/api/follow', async (req, env, u) => {
   const b = await body(req, 500), name = String(b.username || '').toLowerCase();
   const x = USERNAME.test(name) && await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(name).first();
   if (!x || x.id === u.id) return fail('none', 404);
+  if (b.on !== false && await blocked(env, u.id, x.id)) return fail('none', 404);
   if (b.on === false) await env.DB.prepare('DELETE FROM follows WHERE a = ? AND b = ?').bind(u.id, x.id).run();
   else await env.DB.prepare('INSERT OR IGNORE INTO follows (a, b, at) VALUES (?, ?, ?)').bind(u.id, x.id, Date.now()).run();
+  return json({ok: true});
+}, {auth: true});
+// block or unblock someone: blocking ends follows both ways and removes their reactions to your entries
+on('POST', '/api/block', async (req, env, u) => {
+  const b = await body(req, 500), name = String(b.username || '').toLowerCase();
+  const x = USERNAME.test(name) && await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(name).first();
+  if (!x || x.id === u.id) return fail('none', 404);
+  if (b.on === false) { await env.DB.prepare('DELETE FROM blocks WHERE a = ? AND b = ?').bind(u.id, x.id).run(); return json({ok: true}); }
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR IGNORE INTO blocks (a, b, at) VALUES (?, ?, ?)').bind(u.id, x.id, Date.now()),
+    env.DB.prepare('DELETE FROM follows WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(u.id, x.id, x.id, u.id),
+    env.DB.prepare('DELETE FROM reacts WHERE owner = ? AND uid = ?').bind(u.id, x.id),
+  ]);
+  return json({ok: true});
+}, {auth: true});
+on('GET', '/api/blocks', async (req, env, u) => {
+  const rows = (await env.DB.prepare('SELECT x.username, x.name, k.at FROM blocks k JOIN users x ON x.id = k.b WHERE k.a = ? ORDER BY k.at DESC').bind(u.id).all()).results || [];
+  return json({blocks: rows.map(r => ({username: r.username, name: r.name || '', at: r.at}))});
+}, {auth: true});
+// stop someone following you (without blocking them)
+on('POST', '/api/follower', async (req, env, u) => {
+  const b = await body(req, 500), name = String(b.username || '').toLowerCase();
+  const x = USERNAME.test(name) && await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(name).first();
+  if (!x) return fail('none', 404);
+  await env.DB.prepare('DELETE FROM follows WHERE a = ? AND b = ?').bind(x.id, u.id).run();
   return json({ok: true});
 }, {auth: true});
 on('GET', '/api/people', async (req, env, u) => {
   const rows = (await env.DB.prepare(`SELECT x.username, x.name, p.updated,
       EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS following, EXISTS (SELECT 1 FROM follows WHERE a = x.id AND b = ?) AS follower
-      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ? ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id).all()).results || [];
+      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
+        AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id, u.id, u.id).all()).results || [];
   return json({people: rows.map(r => ({username: r.username, name: r.name, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
@@ -244,7 +330,8 @@ on('GET', '/api/feed', async (req, env, u) => {
       WHERE f.a = ? AND p.public = 1 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
     env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
-      WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY).all(),
+      WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
+      ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY, u.id, u.id).all(),
   ]);
   return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
 }, {auth: true});
@@ -253,14 +340,14 @@ on('GET', '/api/inbox', async (req, env, u) => {
   const cut = Date.now() - REACT_DAYS * DAY;
   const [re, fol, thr] = await Promise.all([
     env.DB.prepare(`SELECT r.id, ? AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r JOIN users x ON x.id = r.uid
-      WHERE r.owner = ? AND r.at > ? ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut).all(),
+      WHERE r.owner = ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?)) ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut, u.id, u.id).all(),
     env.DB.prepare(`SELECT x.username, x.name, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS back FROM follows f JOIN users x ON x.id = f.a
       WHERE f.b = ? AND f.at > ? ORDER BY f.at DESC LIMIT 100`).bind(u.id, u.id, cut).all(),
     env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
-      WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ?
+      WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
         AND EXISTS (SELECT 1 FROM reacts m WHERE m.owner = r.owner AND m.eid = r.eid AND m.uid = ? AND m.kind = 'c' AND m.at < r.at)
-      ORDER BY r.at DESC LIMIT 200`).bind(u.id, u.id, cut, u.id).all(),
+      ORDER BY r.at DESC LIMIT 200`).bind(u.id, u.id, cut, u.id, u.id, u.id).all(),
   ]);
   return json({re: reactRows(re.results || []), thr: reactRows(thr.results || []), fol: (fol.results || []).map(f => [f.username, f.name || '', f.at, !!f.back])});
 }, {auth: true});
@@ -278,7 +365,7 @@ on('POST', '/api/react', async (req, env, u) => {
   const ft = String(b.ft || '').replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 200);
   if (!USERNAME.test(owner) || !EID.test(eid) || !/^[hswc]$/.test(kind)) return fail('bad', 400);
   const o = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(owner).first();
-  if (!o) return fail('none', 404);
+  if (!o || await blocked(env, u.id, o.id)) return fail('none', 404);
   if (kind === 'c') {
     const text = String(b.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 500);
     if (!text) return fail('empty', 400);

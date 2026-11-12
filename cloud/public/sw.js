@@ -1,7 +1,7 @@
 // Offline shell: the app's own files come from the cache; posters and fonts are kept once fetched.
 // GitHub and TMDB API calls always go to the network.
-const V = 'fd-97e02adae222';
-const SHELL = ["/", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/nav.js", "/catalog.js", "/friends.js", "/planmap.js", "/discover.js", "/filmpage.js", "/planner.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
+const V = 'fd-e8842b0540cf';
+const SHELL = ["/", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/nav.js", "/catalog.js", "/friends.js", "/planmap.js", "/discover.js", "/filmpage.js", "/planner.js", "/account.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
 // fetch past the browser's HTTP cache, so a new version never stores a file from the previous one
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

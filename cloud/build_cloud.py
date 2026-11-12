@@ -11,7 +11,7 @@ for f in ('store.js', 'posters.js', 'share.js', 'fxlist.js', 'fxlb.js', 'play.js
     shutil.copy(SRC + f, OUT + f)
 for f in ('focus.js', 'focus.css', 'fxcal.js'):
     shutil.copy(W5 + f, OUT + f)
-for f in ('cloudsync.js', 'nav.js', 'catalog.js', 'friends.js', 'planmap.js', 'discover.js', 'filmpage.js', 'planner.js', 'cloud.js'):
+for f in ('cloudsync.js', 'nav.js', 'catalog.js', 'friends.js', 'planmap.js', 'discover.js', 'filmpage.js', 'planner.js', 'account.js', 'cloud.js'):
     shutil.copy(HERE + 'src/' + f, OUT + f)
 for f in ('icon32.png', 'apple-touch-icon.png', 'icon192.png', 'icon512.png', 'maskable512.png'):
     shutil.copy(SITE5 + f, OUT + f)
@@ -35,7 +35,7 @@ DESC = 'Log what you watch. See what your friends are watching. Pick tonight’s
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
        # connect-src: the offline worker fetches posters and fonts itself, and the worker obeys the policy sent with sw.js
        "img-src 'self' data: blob: https://image.tmdb.org; connect-src 'self' https://image.tmdb.org https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")
-scripts = ('config.js', 'store.js', 'posters.js', 'fxcal.js', 'focus.js', 'fxlb.js', 'play.js', 'share.js', 'fxlist.js', 'cloudsync.js', 'nav.js', 'catalog.js', 'friends.js', 'planmap.js', 'discover.js', 'filmpage.js', 'planner.js', 'cloud.js')
+scripts = ('config.js', 'store.js', 'posters.js', 'fxcal.js', 'focus.js', 'fxlb.js', 'play.js', 'share.js', 'fxlist.js', 'cloudsync.js', 'nav.js', 'catalog.js', 'friends.js', 'planmap.js', 'discover.js', 'filmpage.js', 'planner.js', 'account.js', 'cloud.js')
 fonts = re.search(r'<link rel="stylesheet" href="https://fonts[^>]+>', open(SITE5 + 'index.html').read()).group(0)
 # absolute paths throughout: the same page also answers at /u/<name>
 index = f'''<!doctype html>
@@ -82,7 +82,7 @@ json.dump(man, open(OUT + 'manifest.webmanifest', 'w'), ensure_ascii=False, inde
 
 # Cloudflare Pages: headers for every file
 # every screen has an address (nav.js); all of them are the same page
-APP_PATHS = ['/u/*', '/plan/*', '/film/*', '/director/*', '/discover', '/discover/*', '/activity', '/activity/*', '/week', '/diary', '/stats', '/settings', '/plan', '/list']
+APP_PATHS = ['/u/*', '/plan/*', '/film/*', '/director/*', '/discover', '/discover/*', '/activity', '/activity/*', '/week', '/diary', '/stats', '/settings', '/plan', '/list', '/about']
 # (an exact path rewritten to /index.html gets redirected to / by Pages' pretty URLs, so those go to / itself)
 open(OUT + '_redirects', 'w').write(''.join(f'{p}  {"/index.html" if p.endswith("*") else "/"}  200\n' for p in APP_PATHS))
 open(OUT + '_headers', 'w').write(f'''/*

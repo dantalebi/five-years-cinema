@@ -13,7 +13,7 @@ const CloudSync = (() => {
   const L = () => langFn() === 'fa' ? 'fa' : 'en';
   const MSG = {
     en: {net: 'Can’t connect right now. Trying again automatically.', slow: 'Too many attempts. Try again in a few minutes.', wrong: 'Wrong username or password.', taken: 'That username’s already taken.',
-      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code doesn’t work.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', other: 'Something went wrong'},
+      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code doesn’t work.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', none: 'That account isn’t available.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
     fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
       username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
   };
@@ -24,7 +24,7 @@ const CloudSync = (() => {
     try { r = await fetch('/api' + path, {method, credentials: 'same-origin', cache: 'no-store', headers: body !== undefined ? {'content-type': 'application/json'} : {}, body: body !== undefined ? JSON.stringify(body) : undefined}); }
     catch (e) { return {ok: false, status: 0, code: 'net'}; }
     let j = null; try { j = await r.json(); } catch (e) {}
-    if (r.status === 401 && me && !/^\/(login|signup|password|delete)$/.test(path)) { signedOut(); }
+    if (r.status === 401 && me && !/^\/(login|signup|password|delete|recovery|recover)$/.test(path)) { signedOut(); }
     return {ok: r.ok, status: r.status, j, code: (j && j.error) || (r.ok ? '' : 'http' + r.status)};
   }
   // the password never leaves the device as typed: 600,000 rounds of PBKDF2, salted with the site and username
@@ -100,12 +100,33 @@ const CloudSync = (() => {
     if (!r.ok) return say(r.code);
     signedIn(r.j.me); return null;
   }
+  // a new account comes with a recovery key, shown once (lastKey) and never stored on this device
+  let lastKey = '';
   async function signup(username, password, name, code) {
     const r = await api('POST', '/signup', {username, key: await stretch(username, password), name, code});
     if (!r.ok) return say(r.code);
-    signedIn(r.j.me); return null;
+    lastKey = r.j.rk || ''; signedIn(r.j.me); return null;
   }
-  async function disconnect() { await api('POST', '/logout', {}); signedOut(); }
+  // sign out: first send what this device hasn't sent yet; if that fails, say so (force: sign out anyway)
+  async function disconnect(o) {
+    o = o || {};
+    if (dirty.size && !o.force) { await run(); if (dirty.size) return 'unsynced'; }
+    const r = await api('POST', '/logout', {all: !!o.all});
+    if (!r.ok && r.status !== 401 && !o.force) return say(r.code);
+    signedOut(); return null;
+  }
+  async function recover(username, rk, next) {
+    username = String(username || '').toLowerCase().trim();
+    const r = await api('POST', '/recover', {username, rk: String(rk || '').trim(), next: await stretch(username, next)});
+    if (!r.ok) return say(r.code);
+    lastKey = r.j.rk || ''; signedIn(r.j.me); return null;
+  }
+  async function newRecoveryKey(password) {
+    const r = await api('POST', '/recovery', {key: await stretch(me.username, password)});
+    if (!r.ok) return {err: say(r.code)};
+    if (me) { me.rk = true; put('fd-me', JSON.stringify(me)); }
+    return {rk: r.j.rk};
+  }
   async function changePassword(cur, next) {
     const r = await api('POST', '/password', {key: await stretch(me.username, cur), next: await stretch(me.username, next)});
     return r.ok ? null : say(r.code);
@@ -138,6 +159,9 @@ const CloudSync = (() => {
   return {
     kind: 'cloud', status: () => ({connected: !!me, login: me ? me.username : '', state, msg, at: +ls('fd-at') || 0}),
     me: () => me, check, login, signup, disconnect, changePassword, deleteAccount, onSignOut: f => outs.push(f),
+    recover, newRecoveryKey, takeKey: () => { const k = lastKey; lastKey = ''; return k; }, unsent: () => dirty.size, say,
+    sessions: () => api('GET', '/sessions'), endSession: id => api('POST', '/sessions/end', id === 'others' ? {others: true} : {id}),
+    block: (username, on) => api('POST', '/block', {username, on}), blocks: () => api('GET', '/blocks'), removeFollower: username => api('POST', '/follower', {username}),
     run, syncNow: run, onStatus: f => subs.push(f), touch, setPayload: f => { payloadFn = f; },
     loadPlan, cachedPlan, savePlan, shareOn, shareOff, shareUrl, previewUrl: u => shareUrl(u),
     follow: (username, on) => api('POST', '/follow', {username, on}), feed: () => api('GET', '/feed'), people: () => api('GET', '/people'), meta: u => api('GET', '/u/' + u + '/meta'),

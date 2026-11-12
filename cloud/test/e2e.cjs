@@ -36,6 +36,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await a.click('[data-amode="up"]');
   await a.fill('input[name=u]', 'Danial'); await a.fill('input[name=n]', 'Danial Talebi'); await a.fill('input[name=p]', 'correct horse 1');
   await a.click('form[data-auth] button[type=submit]');
+  await a.waitForSelector('[data-knext]', {timeout: 15000}); await a.check('[data-kok]'); await a.click('[data-knext]');
   await a.waitForSelector('[data-omove]', {timeout: 15000});
   ok(true, 'signed up → setup screen');
   const reqs = []; a.on('request', r => { if (r.url().includes('/api/')) reqs.push(r.method() + ' ' + new URL(r.url()).pathname); });
@@ -75,7 +76,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await s.fill('input[name=u]', 'sara_k'); await s.fill('input[name=n]', 'Sara'); await s.fill('input[name=p]', 'another pass 2');
   await s.screenshot({path: path.join(OUT, 'cl-auth.png'), fullPage: true});
   await s.click('form[data-auth] button[type=submit]');
-  await s.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
+  await s.waitForSelector('[data-knext]', {timeout: 15000}); await s.check('[data-kok]'); await s.click('[data-knext]'); await s.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
   await s.click('[data-ostart="sample"]'); await s.waitForSelector('.fx-tabbar', {timeout: 15000});
   await s.evaluate(([k0]) => { Store.set(k0, '2026-11-04'); Store.set('r:' + k0, 8); Store.set('log:s1', 't:Heat (1995)'); Store.set('v:log:s1', '2026-11-05'); Store.set('r:log:s1', 10); Store.set('md:log:s1', JSON.stringify({tm: 949, t: 'Heat', y: 1995})); Store.set('log:s2', 't:Fargo (1996)'); Store.set('v:log:s2', '2026-11-06'); Store.set('r:log:s2', 4); }, [k0]);
   await s.waitForTimeout(2500); await s.evaluate(() => CloudSync.run()); await s.waitForTimeout(800);
@@ -117,7 +118,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await a.click('[data-share-off]'); await a.waitForTimeout(800);
   await v.goto(B + '/u/danial'); await v.waitForTimeout(800);
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'profile off → not readable');
-  await a.click('[data-disconnect]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
+  await a.click('.ac-me [data-ac-out]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
   ok(await a.evaluate(() => !localStorage.getItem('fy-state') && !localStorage.getItem('fd-me')), 'signing out leaves nothing on the device');
   // nothing went straight to TMDB or Letterboxd
   console.log('errors', errs);

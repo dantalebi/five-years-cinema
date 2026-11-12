@@ -59,6 +59,7 @@
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
+    if (authMode === 'rec') { recoverScreen(); return; }
     shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.eyebrow || t.site)}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
       <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
@@ -69,8 +70,10 @@
         ${up ? `<label class="fx-check"><input type="checkbox" name="pub" checked> ${t.pub}</label>` : ''}
         <div class="fx-row"><button type="submit" class="fx-btn primary">${up ? t.make : t.go}</button></div>
         ${authNote ? `<p class="fx-note ${authNote === t.working ? 'busy' : 'bad'}">${esc(authNote)}</p>` : ''}
+        ${up ? '' : `<p class="fx-small"><button type="button" class="fx-link" data-amode="rec">Forgot your password?</button></p>`}
         <p class="fx-muted fx-small">${t.privacy}</p>
-      </form>`, 'fx-auth');
+      </form>
+      <p class="fx-muted fx-small fx-authfoot"><a href="/about">About ${esc(C.siteName || 'TVC15')} and your privacy</a></p>`, 'fx-auth');
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authScreen(); }
@@ -94,7 +97,61 @@
         if (pub) Store.set('cfg:share', u);
       }
       await CloudSync.run();
-      home();
+      const rk = CloudSync.takeKey();
+      if (rk) keyScreen(rk, true, home); else home();
+    });
+  }
+  // forgot your password: username, recovery key, a new password
+  function recoverScreen(note) {
+    fresh();
+    shell(`<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link" data-amode="in">← Sign in</button></div><h1 class="fx-h1">Reset your password</h1>
+      <p class="fx-lede">Use the recovery key you saved when you made your account (or later, in Settings).</p></header>
+      <form class="fx-card fx-authf" data-recover novalidate>
+        <label class="fx-field"><span>Username</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+        <label class="fx-field"><span>Recovery key</span><input name="k" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required></label>
+        <label class="fx-field"><span>New password (at least 8 characters)</span><input name="p" type="password" dir="ltr" autocomplete="new-password" minlength="8" required></label>
+        <label class="fx-field"><span>New password again</span><input name="p2" type="password" dir="ltr" autocomplete="new-password" minlength="8" required></label>
+        <div class="fx-row"><button type="submit" class="fx-btn primary">Reset password</button></div>
+        ${note ? `<p class="fx-note bad">${esc(note)}</p>` : ''}
+        <p class="fx-muted fx-small">No recovery key? Only someone who runs the site can help, and they’ll need to confirm it’s you.</p>
+      </form>`, 'fx-auth');
+    root.addEventListener('click', e => { const b = e.target.closest('button[data-amode]'); if (b) { authMode = b.dataset.amode; authNote = ''; authScreen(); } });
+    root.querySelector('form[data-recover]').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.target, u = f.elements.u.value.trim().toLowerCase(), k = f.elements.k.value.trim(), p = f.elements.p.value;
+      if (!u || !k || !p) return;
+      if (p.length < 8) { recoverScreen('Your new password needs at least 8 characters.'); return; }
+      if (p !== f.elements.p2.value) { recoverScreen('The two passwords don’t match.'); return; }
+      f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
+      const err = await CloudSync.recover(u, k, p);
+      if (err) { recoverScreen(err); return; }
+      authMode = 'in';
+      await Store.load(); await CloudSync.run();
+      keyScreen(CloudSync.takeKey(), false, home);
+    });
+  }
+  // a recovery key, shown once: copy it or download it, then carry on
+  // while the recovery key is on screen, nothing (a sync bringing your plan in, say) replaces it
+  let keyHold = false;
+  function keyScreen(rk, isNew, then) {
+    keyHold = true;
+    fresh();
+    shell(`<header class="fx-head"><div class="fx-eye">${isNew ? 'One more thing' : 'Password reset'}</div><h1 class="fx-h1">Your recovery key</h1>
+      <p class="fx-lede">${isNew ? 'If you ever forget your password, this key and your username get you back in.' : 'Your password is changed, and you’re signed out everywhere else. Your old recovery key is used up; here’s a new one.'} Save it now: it won’t be shown again.</p></header>
+      <section class="fx-card ac-key"><code class="ac-keybig" dir="ltr">${esc(rk)}</code>
+        <div class="fx-row"><button type="button" class="fx-btn" data-kcopy>Copy</button><button type="button" class="fx-btn" data-kdl>Download as a text file</button></div>
+        <label class="fx-check"><input type="checkbox" data-kok> I’ve saved my recovery key somewhere safe</label>
+        <div class="fx-row"><button type="button" class="fx-btn primary" data-knext disabled>Continue</button></div></section>`, 'fx-auth');
+    root.addEventListener('change', e => { if (e.target.matches('[data-kok]')) root.querySelector('[data-knext]').disabled = !e.target.checked; });
+    root.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.hasAttribute('data-kcopy')) (navigator.clipboard ? navigator.clipboard.writeText(rk) : Promise.reject()).then(() => { b.textContent = 'Copied'; }, () => {});
+      if (b.hasAttribute('data-kdl')) {
+        const me = CloudSync.me() || {}, a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([`${C.siteName || 'TVC15'} recovery key\nUsername: ${me.username || ''}\nRecovery key: ${rk}\n\nKeep this somewhere safe. With your username, it resets your password.\n`], {type: 'text/plain'}));
+        a.download = (C.siteName || 'TVC15') + '-recovery-key.txt'; document.body.appendChild(a); a.click(); a.remove();
+      }
+      if (b.hasAttribute('data-knext')) { keyHold = false; then(); }
     });
   }
 
@@ -239,10 +296,12 @@
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
 
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
+  const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync) : null;
+  const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
   const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
-  const VIEWS = {'/plan/new': 'build', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
+  const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
   const pathOf = v => v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
@@ -326,14 +385,19 @@
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
     if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true)].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
-      fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
     if (DX) DX.attach(root, () => FX && FX.render());
     if (FP) { FP.attach(root, () => FX && FX.render()); FP.setLogger(logTo); }
     if (PB) PB.attach(root, () => FX && FX.render());
+    if (AC) {
+      const isAc = b => [...b.attributes].some(a => a.name.startsWith('data-ac-'));
+      root.addEventListener('click', e => { const b = e.target.closest('button'); if (b && isAc(b)) AC.click(b, () => FX && FX.render()); });
+      root.addEventListener('submit', e => { const f = e.target.closest('form'); if (f && isAc(f)) { e.preventDefault(); AC.submit(f, () => FX && FX.render()); } });
+    }
     route(location.pathname + location.search, 'init');
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
@@ -359,7 +423,7 @@
   function planChanged() {
     clearTimeout(rt);
     rt = setTimeout(async () => {
-      if (!CloudSync.me() || location.pathname.startsWith('/u/')) return;
+      if (!CloudSync.me() || location.pathname.startsWith('/u/') || keyHold) return;
       const want = Store.data['cfg:plan'] || '';
       if (want !== kind) { if (want) start(); else if (FX) onboard(); return; }
       if (FX && kind === 'list') { const sg = FXL.sig(Store.data); if (sg !== sig) { sig = sg; const D = await planData(); window.D = D; FX.setPlan(D); return; } }
@@ -433,15 +497,22 @@
     fresh();
     const m = location.hash.match(/^#([a-z0-9-]{1,120})$/i), eid = m ? m[1] : '';
     const me = CloudSync.me();
-    let meta = null, mine = null;
+    let meta = null, mine = null, pmore = false, pblock = false, pnote = '';
     const metaHtml = L => {
       const t = GT[L === 'fa' ? 'fa' : 'en'], fa = n => L === 'fa' ? Number(n).toLocaleString('fa-IR') : String(n);
       if (!meta) return '';
       let btn = '';
       if (!me) btn = `<a class="fx-btn" href="/">${t.join}</a>`;
       else if (meta.self) btn = `<a class="fx-btn" href="/">${t.mine}</a>`;
-      else btn = `<button type="button" class="fx-btn${meta.follows ? '' : ' primary'}" data-pfollow aria-pressed="${!!meta.follows}">${meta.follows ? t.unfollow : t.follow}</button>`;
-      return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))} · ${esc(t.following(fa(meta.following)))}</span>${btn}</div>`;
+      else btn = `<button type="button" class="fx-btn${meta.follows ? '' : ' primary'}" data-pfollow aria-pressed="${!!meta.follows}">${meta.follows ? t.unfollow : t.follow}</button>`
+        + `<button type="button" class="fx-link" data-pmore aria-expanded="${pmore}">More</button>`;
+      let more = '';
+      if (me && !meta.self && pmore) {
+        more = `<div class="fx-pmore">${meta.followsYou ? `<button type="button" class="fx-btn" data-prmfollower>Remove @${esc(name)} as a follower</button>` : ''}`
+          + (pblock ? `<p class="fx-note bad">Block @${esc(name)}? They won’t be able to follow you, react to or comment on your entries, or see your profile while signed in. They aren’t told.</p><div class="fx-row"><button type="button" class="fx-btn fx-danger" data-pblockyes>Block</button><button type="button" class="fx-btn" data-pblockno>Cancel</button></div>`
+            : `<button type="button" class="fx-btn" data-pblock>Block @${esc(name)}</button>`) + (pnote ? `<p class="fx-note ok">${esc(pnote)}</p>` : '') + '</div>';
+      }
+      return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))} · ${esc(t.following(fa(meta.following)))}${meta.followsYou && !meta.self ? ' · <span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
     };
     PF = fxProfile(root, name, eid, {
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary',
@@ -451,7 +522,13 @@
       lang: () => 'en',
       headerExtra: metaHtml,
       onButton: (b, render) => {
-        if (!b.hasAttribute('data-pfollow') || !meta) return false;
+        if (!meta) return false;
+        if (b.hasAttribute('data-pmore')) { pmore = !pmore; pblock = false; pnote = ''; render(); return true; }
+        if (b.hasAttribute('data-pblock')) { pblock = true; render(); return true; }
+        if (b.hasAttribute('data-pblockno')) { pblock = false; render(); return true; }
+        if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) location.href = '/settings'; }); return true; }
+        if (b.hasAttribute('data-prmfollower')) { CloudSync.removeFollower(name).then(r => { if (r.ok) { meta.followsYou = false; meta.followers = Math.max(0, meta.followers - 1); pnote = '@' + name + ' no longer follows you.'; render(); } }); return true; }
+        if (!b.hasAttribute('data-pfollow')) return false;
         const on = !meta.follows; meta.follows = on; meta.followers += on ? 1 : -1; render();
         CloudSync.follow(name, on).then(r => { if (!r.ok) { meta.follows = !on; meta.followers += on ? -1 : 1; render(); } });
         return true;
@@ -484,6 +561,7 @@
     await Store.load();
     if (um) { profilePage(um[1]); return; }
     let me = CloudSync.me();
+    if (!me && /^\/about\/?$/.test(location.pathname)) { fresh(); shell(AC.about(), 'fx-about'); root.addEventListener('click', e => { if (e.target.closest('[data-ac-back]')) { if (history.length > 1) history.back(); else location.href = '/'; } }); return; }
     if (!me) { authScreen(); return; }
     if (Store.data['cfg:plan']) start(); else onboard();
     me = await CloudSync.check();

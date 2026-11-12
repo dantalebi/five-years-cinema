@@ -14,7 +14,7 @@ const here = p => p.url().replace(B, '');
   p.on('pageerror', e => errs.push(e.message));
   await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'otto'); await p.fill('input[name=n]', 'Otto'); await p.fill('input[name=p]', 'pass for otto');
-  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-obuild]', {timeout: 15000});
+  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-obuild]', {timeout: 15000});
   const opts = await p.$$eval('.fx-opt h2', hs => hs.map(h => h.textContent));
   ok(/Build your plan/.test(opts[0]), 'building a plan is the first way to start', opts);
   // he has seen Citizen Kane: the plan must leave it out

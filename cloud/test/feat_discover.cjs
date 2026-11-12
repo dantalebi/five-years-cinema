@@ -45,7 +45,7 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   p.on('pageerror', e => errs.push(e.message));
   await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'dora'); await p.fill('input[name=n]', 'Dora'); await p.fill('input[name=p]', 'pass for dora');
-  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
+  await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
   await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
   // she has seen Mirror (logged with its TMDB id) and has Stalker on her watchlist
   await p.evaluate(() => {

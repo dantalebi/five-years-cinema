@@ -1109,3 +1109,31 @@ a.fx-tgbig{display:block}
 .pb-names b{font-family:var(--mono); font-weight:500; font-size:11px; color:var(--faint); margin-inline-start:2px}
 .pb-week{grid-template-columns:repeat(4, minmax(0, 1fr))}
 @media (min-width:620px){ .pb-week{grid-template-columns:repeat(6, minmax(0, 1fr))} }
+
+/* ---------- your account ---------- */
+.ac-who{display:flex; align-items:center; gap:14px}
+.ac-av{width:46px; height:46px; flex:none; border-radius:50%; display:grid; place-items:center; background:var(--ink); color:var(--bg); font-family:var(--serif); font-size:24px; line-height:1}
+.ac-who b{display:block; font-size:17px; font-weight:600}
+.ac-who > div > span{font-family:var(--mono); font-size:12px; color:var(--muted)}
+.ac-warn{display:grid; gap:10px}
+.ac-warn p{margin:0}
+.ac-rknote a{color:inherit}
+.ac-sub{display:grid; gap:10px; padding-top:14px; border-top:1px dashed var(--line)}
+.ac-sub h3{margin:0; font-size:14.5px; font-weight:600}
+.ac-sub p{margin:0}
+.ac-list{list-style:none; margin:0; padding:0}
+.ac-list li{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px}
+.ac-list li:last-child{border-bottom:0}
+.ac-list li > span{min-width:0}
+.ac-list .fx-btn{padding:5px 12px; font-size:13px}
+.ac-form{flex-direction:column; align-items:stretch; max-width:420px}
+.ac-form .fx-btn{align-self:flex-start}
+.ac-key{display:grid; gap:12px}
+.ac-key code, .ac-keybig{font-family:var(--mono); font-size:16px; letter-spacing:.06em; padding:12px 14px; border-radius:8px; background:var(--sunk); color:var(--ink); word-break:break-all; user-select:all}
+.ac-keybig{font-size:18px; text-align:center}
+.ac-foot{margin:0; font-size:13px}
+.ac-foot a, .fx-authfoot a{color:var(--muted)}
+.ac-doc ul{margin:0; padding-inline-start:18px; display:grid; gap:7px}
+.ac-doc li{font-size:14.5px; line-height:1.55}
+.fx-pmore{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:4px}
+.fx-pmore .fx-note{flex-basis:100%; margin:0}

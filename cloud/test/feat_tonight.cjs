@@ -10,7 +10,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
     p.on('pageerror', e => errs.push(u + ' ' + e.message));
     await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u[0].toUpperCase() + u.slice(1)); await p.fill('input[name=p]', 'pass for ' + u);
-    await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
+    await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
     await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
     await p.evaluate(([logs, wl]) => {
       logs.forEach(([t, y, r], i) => { const k = 'log:t' + i; Store.set(k, 't:' + t + ' (' + y + ')'); Store.set('v:' + k, '2026-10-1' + i); Store.set('r:' + k, r); });
@@ -35,7 +35,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   // Letterboxd's watchlist.csv through Settings
   const fs = require('fs'), path = require('path'), f = path.join(process.env.OUT || '/tmp', 'watchlist.csv');
   fs.writeFileSync(f, 'Date,Name,Year,Letterboxd URI\n2026-02-13,An Autumn Afternoon,1962,https://boxd.it/CUU\n2026-02-13,Heat,1995,https://boxd.it/x\n');
-  await kim.click('[data-nav="settings"]'); await kim.setInputFiles('[data-lbimport]', f); await kim.waitForTimeout(2000);
+  await kim.click('[data-nav="settings"]'); await kim.waitForSelector('#ac-security .ac-list li'); await kim.setInputFiles('[data-lbimport]', f); await kim.waitForTimeout(2000);
   const wl = await kim.evaluate(() => Object.keys(Store.data).filter(k => k.startsWith('wl:') && Store.data[k]).map(k => JSON.parse(Store.data[k]).t));
   ok(wl.includes('An Autumn Afternoon') && !wl.includes('Heat'), 'watchlist.csv: new films in, seen ones left out', wl);
   ok(!errs.length, 'no page errors', errs);
