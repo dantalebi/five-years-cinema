@@ -12,7 +12,10 @@ const day = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year', 'runtime', 'poster', 'dirs', 'countries', 'genres', 'groups', 'lenses', 'quality', 'reach', 'votes', 'canon', 'original', 'lang'],
   canon: ['ss_critics', 'ss_directors', 'tspdt_1000', 'tspdt_21c', 'criterion_closet'], dirs: ['Someone'], countries: ['IT'], genres: {18: 'Drama'},
   groups: [{id: 'slow-cinema', name: 'Slow Cinema', kind: 'movement', from: 1975, to: 2026, desc: 'Long takes.'}], lenses: [{id: 'essentials', name: 'Essentials', door: 'New to film?', desc: 'Widely loved.'}],
-  films: Array.from({length: 12}, (_, i) => [3000 + i, 'cat-' + i, 'Catalog Film ' + i, 1970 + i, 90, '/c' + i + '.jpg', [0], [0], [18], [0], 1, 60, 50, 100, [0, 0, 0, 0, 0], '', 'it'])};
+  // themes: one always in season here (Halloween's own weeks are in October), one not
+  themes: [{id: 'halloween', name: 'Halloween', desc: 'Ghosts, witches, monsters and masks.', season: [1, 1, 12, 31]}, {id: 'queer-cinema', name: 'Queer Cinema', desc: 'Gay, lesbian, bi and trans lives on screen.', season: null}],
+  films: Array.from({length: 12}, (_, i) => [3000 + i, 'cat-' + i, 'Catalog Film ' + i, 1970 + i, 90, '/c' + i + '.jpg', [0], [0], [18], [0], 1, 60, 50, 100, [0, 0, 0, 0, 0], '', 'it', i < 9 ? [0, 1] : [1]])};
+CAT.fields.push('themes');
 
 (async () => {
   const b = await chromium.launch(), errs = [];
@@ -83,6 +86,13 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await (await bob.$('.pp-tease')).screenshot({path: path.join(OUT, 'home-popular.png')});
   await bob.click('[data-nav="discover"]'); await bob.waitForSelector('.dx-doors', {timeout: 10000}); await bob.waitForSelector('.pp-tease', {timeout: 8000});
   ok(/Popular on TVC15/.test(await bob.$eval('.pp-tease', e => e.innerText)), 'Discover opens with Popular on TVC15');
+  // Themes: what the films are about; the one in season first
+  const chips = await bob.$$eval('.dx-sec .dx-chip[href^="/discover/theme/"]', as => as.map(a => [a.textContent.replace(/\s+/g, ' ').trim(), a.classList.contains('dx-season')]));
+  ok(chips.length === 2 && /^Halloween 9/.test(chips[0][0]) && chips[0][1] && /^Queer Cinema 12/.test(chips[1][0]), 'Discover: Themes, the one in season first', chips);
+  await bob.click('.dx-chip[href="/discover/theme/queer-cinema"]'); await bob.waitForSelector('.dx-grid li');
+  ok(here(bob) === '/discover/theme/queer-cinema' && await bob.$eval('.dx-h1', e => e.textContent) === 'Queer Cinema' && (await bob.$$('.dx-grid li')).length === 12, 'a theme’s own page', here(bob));
+  await bob.goto(B + '/'); await bob.waitForSelector('.hm-ch', {timeout: 10000});
+  ok(/In season Halloween/.test(await bob.$eval('.hm-chn', e => e.innerText.replace(/\s+/g, ' '))), 'Home: the channel in season', await bob.$eval('.hm-chn', e => e.innerText));
   await bob.screenshot({path: path.join(OUT, 'discover-popular.png')});
 
   // ---- the account menu ----

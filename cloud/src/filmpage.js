@@ -92,12 +92,13 @@ function fxFilmPages(o) {
     if (tiles.length) h += `<div class="fp-sum"><div class="fp-avgs">${tiles.join('')}</div>${allN >= 3 ? `<div class="fp-hist" role="img" aria-label="How everyone rated it, from half a star to five stars: ${hist.join(', ')}">${hist.map((c, i) => `<i style="--h:${c ? Math.max(8, Math.round(c / max * 100)) : 0}%" title="${(i + 1) / 2} ★: ${c}"></i>`).join('')}<span>½</span><span>★★★★★</span></div>` : ''}</div>`;
     // each of them, newest first: what they gave it, when, and the start of their review
     if (watched.length) h += `<ul class="fp-fl">${watched.map(x => {
-      const e = x.e[0], href = '/u/' + esc(x.u) + (e.id ? '#' + esc(e.id) : ''), more = x.e.length - 1;
+      const e = x.e[0], prof = '/u/' + esc(x.u), href = prof + (e.id ? '#' + esc(e.id) : ''), more = x.e.length - 1;
       const marks = (e.r ? `<span class="fp-st">${stars(e.r)}</span>` : '') + (x.e.some(z => z.h) ? '<i class="fx-ico lk" title="Liked"></i>' : '') + (e.rw ? '<i class="fx-ico rw" title="Rewatch"></i>' : '');
       const when = e.w ? U.longDay(e.w) : 'Seen, no date';
-      return `<li><a class="fp-fav" href="${href}" aria-hidden="true" tabindex="-1">${av(x, 'm')}</a><div class="fp-fb">`
-        + `<div class="fp-f1"><a class="fp-fn" href="${href}" dir="auto">${esc(x.n || '@' + x.u)}</a>${marks}</div>`
-        + `<div class="fp-f2">${esc(when)}${more ? `, and ${plural(more, 'time', 'times')} before` : ''}</div>`
+      // their name opens their profile; the date, the stars and the review open this entry
+      return `<li><a class="fp-fav" href="${prof}" aria-hidden="true" tabindex="-1">${av(x, 'm')}</a><div class="fp-fb">`
+        + `<div class="fp-f1"><a class="fp-fn" href="${prof}" dir="auto">${esc(x.n || '@' + x.u)}</a>${marks ? (e.id ? `<a class="fp-fe" href="${href}">${marks}</a>` : marks) : ''}</div>`
+        + (e.id ? `<a class="fp-f2" href="${href}">` : '<div class="fp-f2">') + `${esc(when)}${more ? `, and ${plural(more, 'time', 'times')} before` : ''}` + (e.id ? '</a>' : '</div>')
         + (e.rx ? `<a class="fp-rx" href="${href}" dir="auto">${esc(e.rx)}${e.rx.length >= 240 ? '…' : ''}</a>` : e.sp ? `<a class="fp-rx sp" href="${href}">Their review has spoilers. Read it on their profile.</a>` : '')
         + '</div></li>';
     }).join('')}</ul>`;

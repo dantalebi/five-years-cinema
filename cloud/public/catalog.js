@@ -44,11 +44,14 @@ const fxCat = (() => {
     const groups = arr(j.groups).map((g, i) => ({i, id: okSlug(g.id) ? g.id : 'g' + i, name: String(g.name || ''), kind: g.kind === 'period' ? 'period' : 'movement', from: +g.from || 0, to: +g.to || 0, desc: String(g.desc || '')}));
     const lenses = arr(j.lenses).map((l, i) => ({i, id: okSlug(l.id) ? l.id : 'l' + i, name: String(l.name || ''), door: String(l.door || ''), desc: String(l.desc || '')}));
     const gname = {}; Object.entries(j.genres || {}).forEach(([id, n]) => { gname[+id] = String(n); });
+    // themes (a subject, a setting, a season), when the catalog has them
+    const themes = arr(j.themes).map((t, i) => ({i, id: okSlug(t.id) ? t.id : 't' + i, name: String(t.name || ''), desc: String(t.desc || ''), season: Array.isArray(t.season) && t.season.length === 4 ? t.season.map(Number) : null}));
+    const thI = ixf.themes;
     const films = j.films.map((r, i) => {
       const f = {i, tm: +r[ixf.tmdb] || 0, slug: okSlug(r[ixf.slug]) ? r[ixf.slug] : '', t: String(r[ixf.title] || ''), y: +r[ixf.year] || 0, rt: +r[ixf.runtime] || 0,
         p: okPath(r[ixf.poster]) ? r[ixf.poster] : '', d: arr(r[ixf.dirs]).filter(k => dirs[k] != null), c: arr(r[ixf.countries]).filter(k => countries[k] != null),
         g: arr(r[ixf.genres]).map(Number), m: arr(r[ixf.groups]).filter(k => groups[k]), l: +r[ixf.lenses] || 0, q: Number(r[ixf.quality]), re: Number(r[ixf.reach]), v: +r[ixf.votes] || 0,
-        cn: arr(r[ixf.canon]).map(x => +x || 0), ot: String(r[ixf.original] || ''), lang: String(r[ixf.lang] || '')};
+        cn: arr(r[ixf.canon]).map(x => +x || 0), ot: String(r[ixf.original] || ''), lang: String(r[ixf.lang] || ''), th: thI != null ? arr(r[thI]).filter(k => themes[k]) : []};
       if (!Number.isFinite(f.q)) f.q = -1;
       if (!Number.isFinite(f.re)) f.re = -1;
       f.dec = f.y ? Math.floor(f.y / 10) * 10 : 0;
@@ -67,8 +70,8 @@ const fxCat = (() => {
     });
     const tally = fn => { const m = new Map(); films.forEach(f => fn(f).forEach(v => m.set(v, (m.get(v) || 0) + 1))); return m; };
     const dslug = dirs.map(n => norm(n).replace(/ /g, '-'));
-    return {built: String(j.built || ''), dirs, dslug, countries, cnames: countries.map(cname), groups, lenses, gname, films,
-      n: {lens: tally(f => lenses.filter(l => f.l & (1 << l.i)).map(l => l.i)), group: tally(f => f.m), country: tally(f => f.c), decade: tally(f => f.dec ? [f.dec] : []), genre: tally(f => f.g)}};
+    return {built: String(j.built || ''), dirs, dslug, countries, cnames: countries.map(cname), groups, lenses, themes, gname, films,
+      n: {lens: tally(f => lenses.filter(l => f.l & (1 << l.i)).map(l => l.i)), group: tally(f => f.m), country: tally(f => f.c), decade: tally(f => f.dec ? [f.dec] : []), genre: tally(f => f.g), theme: tally(f => f.th)}};
   }
   // a film in the catalog, by slug, TMDB id, or title and year
   function find(r) {
@@ -77,6 +80,12 @@ const fxCat = (() => {
     return (r.slug && ix.slug.get(r.slug)) || (r.tm && ix.tm.get(+r.tm)) || (r.t ? ix.ny.get(norm(bare(r.t)) + '|' + (+r.y || 0)) : null) || null;
   }
   const dirIndex = s => C ? C.dslug.indexOf(s) : -1;
+  // is a theme in season on a day (YYYY-MM-DD)? A season runs from [month, day] to [month, day]
+  function inSeason(t, day) {
+    if (!t || !t.season) return false;
+    const [m1, d1, m2, d2] = t.season, md = +day.slice(5, 7) * 100 + +day.slice(8, 10), a = m1 * 100 + d1, b = m2 * 100 + d2;
+    return a <= b ? md >= a && md <= b : md >= a || md <= b;
+  }
 
   // ---- what you've seen (diary, plan, Letterboxd import) and what's on your watchlist ----
   // seen(ref) → '' (no), '-' (seen, no date) or the latest date; the entries come with it for a film's page
@@ -114,6 +123,6 @@ const fxCat = (() => {
       + `<span class="dx-ct">${esc(f.t)}</span><span class="dx-cy">${f.y || ''}</span></li>`;
   }
   const attr = () => `<p class="fx-muted dx-attr">Film data and posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>`;
-  return {load, get: () => C, status: () => status, retry: () => { if (status !== 'ready' && status !== 'loading') status = 'idle'; }, find, dirIndex, marks, poster, cell, attr,
+  return {load, get: () => C, status: () => status, retry: () => { if (status !== 'ready' && status !== 'loading') status = 'idle'; }, find, dirIndex, marks, poster, cell, attr, inSeason,
     esc, num, norm, bare, okPath, okSlug, img, hm, longDay, cname, GENRES, POLLS};
 })();

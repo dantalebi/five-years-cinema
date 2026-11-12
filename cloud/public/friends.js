@@ -143,8 +143,8 @@ function fxFriendsTab(CS) {
       return `<li class="fx-actv">${posterBox(e)}<div class="fx-ab">
         <div class="fx-aw"><a class="fx-who" href="/u/${e.u}">${av(e.u, e.n, e.a)}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a> <a class="fx-awhen" href="${href}">${esc(when(e.w))}</a></div>
         ${filmLink(e, 'fx-at')}
-        <div class="fx-fm"><span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}</div>
-        ${e.rx ? `<p class="fx-arx" dir="auto">${esc(e.rx)}${String(e.rx).length >= 280 ? '…' : ''}</p>` : e.rv && e.sp ? `<p class="fx-arx fx-muted">${T.spoil}</p>` : ''}
+        ${okId(e.id) ? `<a class="fx-fm fx-aent" href="${href}">` : '<div class="fx-fm">'}<span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.rw ? '<i class="fx-ico rw"></i>' : ''}${okId(e.id) ? '</a>' : '</div>'}
+        ${e.rx ? `<a class="fx-arx" href="${href}" dir="auto">${esc(e.rx)}${String(e.rx).length >= 280 ? '…' : ''}</a>` : e.rv && e.sp ? `<a class="fx-arx fx-muted" href="${href}">${T.spoil}</a>` : ''}
         ${okId(e.id) ? reactBar(e.u, e.id, e, ix, e.u === me) : ''}</div></li>`;
     }).join('')}</ul>${rows.length > shown ? `<div class="fx-row fx-center"><button type="button" class="fx-link" data-fr-more>${T.more}</button></div>` : ''}`;
   }

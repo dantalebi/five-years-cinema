@@ -48,7 +48,8 @@ function png(w, h) {
 
   // upload a photo, frame it, save it (in Profile)
   await p.click('[data-sset="profile"]'); await p.waitForSelector('.ac-pic'); await p.waitForTimeout(300);
-  await p.setInputFiles('input[data-ac-avfile]', pic); await p.waitForSelector('.av-crop canvas');
+  // (a redraw from the sync can replace the file input just as the file is picked: pick it again if so)
+  for (let t = 0; t < 3 && !(await p.$('.av-crop canvas')); t++) { await p.setInputFiles('input[data-ac-avfile]', pic); await p.waitForSelector('.av-crop canvas', {timeout: 8000}).catch(() => {}); }
   await p.$eval('[data-avzoom]', e => { e.value = '1.6'; e.dispatchEvent(new Event('input', {bubbles: true})); });
   const box = await p.$eval('.av-crop canvas', e => { const r = e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; });
   await p.mouse.move(box.x, box.y); await p.mouse.down(); await p.mouse.move(box.x + 40, box.y + 10); await p.mouse.up();

@@ -29,16 +29,17 @@ function fxDiscover(o) {
   }
 
   // ---- addresses: the list on screen ↔ /discover/<way in>/<which>?<more filters>&sort=… ----
-  const DIMS = ['lens', 'group', 'country', 'genre', 'decade', 'len'];
+  const DIMS = ['lens', 'group', 'theme', 'country', 'genre', 'decade', 'len'];
   const gslug = g => norm(C.gname[g] || '').replace(/ /g, '-');
-  const PARAM = {lens: 'collection', group: 'movement', country: 'country', genre: 'genre', decade: 'decade', len: 'length'};
+  const PARAM = {lens: 'collection', group: 'movement', theme: 'theme', country: 'country', genre: 'genre', decade: 'decade', len: 'length'};
   function enc(dim, v) {
-    return dim === 'lens' ? C.lenses[v].id : dim === 'group' ? C.groups[v].id : dim === 'country' ? C.countries[v].toLowerCase() : dim === 'genre' ? gslug(v) : dim === 'decade' ? v + 's' : v;
+    return dim === 'lens' ? C.lenses[v].id : dim === 'group' ? C.groups[v].id : dim === 'theme' ? C.themes[v].id : dim === 'country' ? C.countries[v].toLowerCase() : dim === 'genre' ? gslug(v) : dim === 'decade' ? v + 's' : v;
   }
   function dec(dim, s) {
     s = String(s || '').toLowerCase();
     if (dim === 'lens') { const l = C.lenses.find(x => x.id === s); return l ? l.i : null; }
     if (dim === 'group') { const g = C.groups.find(x => x.id === s); return g ? g.i : null; }
+    if (dim === 'theme') { const t = (C.themes || []).find(x => x.id === s); return t ? t.i : null; }
     if (dim === 'country') { const k = C.countries.findIndex(c => c.toLowerCase() === s); return k >= 0 ? k : null; }
     if (dim === 'genre') { const g = Object.keys(C.gname).find(k => gslug(+k) === s); return g ? +g : null; }
     if (dim === 'decade') { const m = s.match(/^(\d{3}0)s?$/); return m ? +m[1] : null; }
@@ -70,7 +71,7 @@ function fxDiscover(o) {
     if (!parts.length) { st.page = st.q ? 'browse' : 'home'; }
     else {
       st.page = 'browse';
-      const way = {collection: 'lens', movement: 'group', era: 'group', country: 'country', genre: 'genre', decade: 'decade', length: 'len'}[parts[0]];
+      const way = {collection: 'lens', movement: 'group', era: 'group', theme: 'theme', country: 'country', genre: 'genre', decade: 'decade', length: 'len'}[parts[0]];
       if (way && parts[1] != null) { const v = dec(way, parts[1]); if (v != null) { st.f[way] = v; st.primary = way; } }
     }
     DIMS.forEach(d => { if (d === st.primary) return; const raw = params.get(PARAM[d]); if (raw != null) { const v = dec(d, raw); if (v != null) st.f[d] = v; } });
@@ -86,13 +87,14 @@ function fxDiscover(o) {
     const x = st.f;
     if (skip !== 'lens' && x.lens != null && !(f.l & (1 << x.lens))) return false;
     if (skip !== 'group' && x.group != null && !f.m.includes(x.group)) return false;
+    if (skip !== 'theme' && x.theme != null && !(f.th || []).includes(x.theme)) return false;
     if (skip !== 'country' && x.country != null && !f.c.includes(x.country)) return false;
     if (skip !== 'genre' && x.genre != null && !f.g.includes(x.genre)) return false;
     if (skip !== 'decade' && x.decade != null && f.dec !== x.decade) return false;
     if (skip !== 'len' && x.len != null) { const L = LENGTHS.find(l => l[0] === x.len); if (L && !L[2](f.rt)) return false; }
     return true;
   }
-  const vals = (f, dim) => dim === 'lens' ? C.lenses.filter(l => f.l & (1 << l.i)).map(l => l.i) : dim === 'group' ? f.m : dim === 'country' ? f.c : dim === 'genre' ? f.g
+  const vals = (f, dim) => dim === 'lens' ? C.lenses.filter(l => f.l & (1 << l.i)).map(l => l.i) : dim === 'group' ? f.m : dim === 'theme' ? (f.th || []) : dim === 'country' ? f.c : dim === 'genre' ? f.g
     : dim === 'decade' ? (f.dec ? [f.dec] : []) : LENGTHS.filter(l => l[2](f.rt)).map(l => l[0]);
   const rnd = (i, s) => { let h = (i + 1) * 2654435761 ^ s * 40503; h = Math.imul(h ^ h >>> 15, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); return (h ^ h >>> 16) >>> 0; };
   const sortTitle = f => f.t.replace(/^(the|a|an)\s+/i, '');
@@ -119,7 +121,7 @@ function fxDiscover(o) {
   }
 
   // ---- views ----
-  const label = (dim, v) => dim === 'lens' ? (C.lenses[v] || {}).name : dim === 'group' ? (C.groups[v] || {}).name : dim === 'country' ? C.cnames[v] : dim === 'genre' ? C.gname[v]
+  const label = (dim, v) => dim === 'lens' ? (C.lenses[v] || {}).name : dim === 'group' ? (C.groups[v] || {}).name : dim === 'theme' ? ((C.themes || [])[v] || {}).name : dim === 'country' ? C.cnames[v] : dim === 'genre' ? C.gname[v]
     : dim === 'decade' ? v + 's' : (LENGTHS.find(l => l[0] === v) || [])[1];
   const filmsN = n => num(n) + (n === 1 ? ' film' : ' films');
   const link = (href, body, cls) => `<a${cls ? ` class="${cls}"` : ''} href="${esc(href)}" data-app>${body}</a>`;
@@ -141,6 +143,10 @@ function fxDiscover(o) {
     const n = C.n;
     let h = (o && o.top ? o.top() : '') + `<section class="fx-card dx-sec"><h2>Where to start</h2><ul class="dx-doors">` + C.lenses.filter(l => n.lens.get(l.i)).map(l =>
       `<li>${link('/discover/collection/' + l.id, `<span class="dx-door">${esc(l.door)}</span><b>${esc(l.name)}</b><span class="dx-dd">${esc(l.desc)}</span><span class="dx-n">${filmsN(n.lens.get(l.i))}</span>`)}</li>`).join('') + '</ul></section>';
+    // themes: what films are about; one in season comes first
+    const today = new Date().toISOString().slice(0, 10), ths = (C.themes || []).filter(t => (n.theme.get(t.i) || 0) >= 8)
+      .sort((a, b) => U.inSeason(b, today) - U.inSeason(a, today) || a.name.localeCompare(b.name, 'en'));
+    if (ths.length) h += `<section class="fx-card dx-sec"><h2>Themes</h2><p class="fx-muted">What the films are about: a subject, a place, a season.</p><div class="dx-chips">${ths.map(t => link('/discover/theme/' + t.id, `${esc(t.name)} <span>${num(n.theme.get(t.i))}</span>`, 'dx-chip' + (U.inSeason(t, today) ? ' dx-season' : ''))).join('')}</div></section>`;
     const row = g => `<li>${link(gurl(g), `<b>${esc(g.name)}</b><span class="dx-yrs">${g.from}–${g.to >= new Date().getFullYear() ? 'now' : g.to}</span><span class="dx-n">${num(n.group.get(g.i))}</span>`)}</li>`;
     const movs = C.groups.filter(g => g.kind === 'movement' && n.group.get(g.i)).sort((a, b) => a.from - b.from || a.to - b.to);
     h += `<section class="fx-card dx-sec"><h2>Movements</h2><p class="fx-muted">Schools, waves and avant-gardes, in the order they began. Each one includes its lesser-known films.</p>`;
@@ -167,6 +173,7 @@ function fxDiscover(o) {
     let eye = 'The catalog', title = st.q && !pr ? 'Search' : 'All films', desc = '';
     if (pr === 'group') { const g = C.groups[st.f.group]; eye = (g.kind === 'period' ? 'Era' : 'Movement') + ', ' + g.from + '–' + (g.to >= new Date().getFullYear() ? 'now' : g.to); title = g.name; desc = g.desc; }
     else if (pr === 'lens') { const l = C.lenses[st.f.lens]; eye = l.door || 'Collection'; title = l.name; desc = l.desc; }
+    else if (pr === 'theme') { const t = C.themes[st.f.theme]; eye = 'Theme'; title = t.name; desc = t.desc; }
     else if (pr === 'country') { eye = 'National cinema'; title = 'Cinema of ' + C.cnames[st.f.country]; }
     else if (pr === 'decade') { eye = 'Decade'; title = 'The ' + st.f.decade + 's'; }
     else if (pr === 'genre') { eye = 'Genre'; title = C.gname[st.f.genre]; }
@@ -203,6 +210,7 @@ function fxDiscover(o) {
     let h = '<div class="dx-panel">';
     h += sel('lens', ['Collection', 'Any collection'], C.lenses.map(l => [l.i, l.name]));
     h += sel('group', ['Movement or era', 'Any movement or era'], op => og('Movements', groups('movement').map(op).join('')) + og('Eras and golden ages', groups('period').map(op).join('')));
+    if ((C.themes || []).length) h += sel('theme', ['Theme', 'Any theme'], C.themes.map(t => [t.i, t.name]).sort((a, b) => a[1].localeCompare(b[1], 'en')));
     h += sel('country', ['Country', 'Any country'], C.countries.map((c, i) => [i, C.cnames[i]]).sort((a, b) => a[1].localeCompare(b[1], 'en')));
     h += sel('genre', ['Genre', 'Any genre'], Object.keys(C.gname).map(Number).filter(g => g !== 10770).map(g => [g, C.gname[g]]).sort((a, b) => a[1].localeCompare(b[1], 'en')));
     h += sel('decade', ['Decade', 'Any decade'], [...C.n.decade.keys()].sort((a, b) => b - a).map(d => [d, d + 's']));

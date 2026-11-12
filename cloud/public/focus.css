@@ -1623,3 +1623,35 @@ a.fx-pg:active{transform:scale(.97)}
 .pp-when{margin-inline-start:6px; font-size:.78em; font-weight:500; color:var(--muted)}
 .pp-row .dx-ct{font-size:12px}
 .pp-tease .dx-row{margin-top:10px}
+
+/* Stats' headline numbers: each one as large as its column allows (at most 31px), narrower type from four digits up */
+.fx-big div{container-type:inline-size; min-width:0; width:100%}
+.fx[dir="ltr"] .fx-big b{--k:.74; font-size:min(31px, calc(100cqi / (var(--w, 3) * var(--k)))); white-space:nowrap}
+.fx-big b[data-n="1"], .fx-big b[data-n="2"]{--w:2.4}
+.fx-big b[data-n="3"]{--w:3}
+.fx-big b[data-n="4"]{--w:4}
+.fx-big b[data-n="5"]{--w:5}
+.fx-big b[data-n="6"]{--w:6}
+.fx-big b[data-n="7"], .fx-big b[data-n="8"]{--w:7.5}
+.fx[dir="ltr"] .fx-big b[data-n="5"], .fx[dir="ltr"] .fx-big b[data-n="6"], .fx[dir="ltr"] .fx-big b[data-n="7"], .fx[dir="ltr"] .fx-big b[data-n="8"]{--k:.6; font-stretch:100%; letter-spacing:-.03em}
+.fx-big div{grid-template-rows:32px auto; align-items:start}
+.fx-big b{align-self:end}
+
+/* one rule everywhere: a name opens the profile, a poster or title the film, the date, stars or review the diary entry */
+.fx .fx-ewho{color:var(--ink); font-weight:700; text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--osd) 70%, transparent); text-decoration-thickness:2px; text-underline-offset:3px}
+.fx .fx-ewho:hover{text-decoration-color:var(--osd)}
+.fx-eposl{display:block; border-radius:6px}
+.fx-eposl:hover .fx-epos{box-shadow:0 0 0 2px var(--osd)}
+.fx .hm-fw a.hm-fwhen{flex:none; font-size:12px; color:var(--muted); text-decoration:none}
+.fx a.hm-fm, .fx a.fx-aent, .fx a.fp-fe, .fx a.fp-f2{color:inherit; text-decoration:none}
+.fx a.hm-fm{width:fit-content}
+.fx a.fp-fe{display:inline-flex; align-items:center; gap:4px 8px}
+.fx a.fp-f2{display:block; width:fit-content}
+.fx a.fx-arx{color:var(--ink); text-decoration:none}
+@media (hover:hover){
+  .fx .hm-fw a.hm-fwhen:hover, .fx a.fp-f2:hover{color:var(--ink); text-decoration:underline; text-decoration-color:var(--osd)}
+  .fx a.fx-arx:hover{color:color-mix(in srgb, var(--ink) 82%, var(--osd))}
+}
+/* a theme in season (Halloween in October, Christmas in December): the first chip, outlined in the channel's green */
+.dx-chip.dx-season{box-shadow:inset 0 0 0 1.5px var(--osd); font-weight:650}
+.dx-chip.dx-season span{color:var(--osd)}

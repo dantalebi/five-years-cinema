@@ -1,11 +1,12 @@
 // Builds the Discover catalog: the seed's films, matched on TMDB (poster, directors, countries, genres, keywords),
-// plus the rest of each movement's films by its core directors, then sorted into movements, periods and lenses.
+// plus the rest of each movement's and period's films by its core directors, and the best-rated films of national
+// cinemas the seed barely reaches; then sorted into movements, periods, lenses and themes.
 //   TMDB_TOKEN=… node catalog/build.mjs        (TMDB_API points it at a test server; LIMIT=n for a partial run)
 // What TMDB said is kept in tmdb-cache.json, so a later run only asks about what's new. Output: dist/catalog.json,
 // also copied to ../public/catalog/catalog.json for the site.
 import fs from 'node:fs';
 import path from 'node:path';
-import {MOVEMENTS, PERIODS, CONTEMPLATIVE, AVANT_GARDE, AVANT_KEYS, LENSES} from './taxonomy.mjs';
+import {MOVEMENTS, PERIODS, CONTEMPLATIVE, AVANT_GARDE, AVANT_KEYS, LENSES, WEST, WORLD, THEMES} from './taxonomy.mjs';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const API = process.env.TMDB_API || 'https://api.themoviedb.org/3', TOKEN = process.env.TMDB_TOKEN || '';
@@ -13,11 +14,12 @@ const LIMIT = +process.env.LIMIT || Infinity, MISS_DAYS = 45, NOW = Date.now();
 const seed = JSON.parse(fs.readFileSync(process.env.CATALOG_SEED || path.join(HERE, 'seed.json'), 'utf8'));
 const CACHE_F = process.env.CATALOG_CACHE || path.join(HERE, 'tmdb-cache.json');
 const cache = fs.existsSync(CACHE_F) ? JSON.parse(fs.readFileSync(CACHE_F, 'utf8')) : {};
-for (const k of ['slug', 'movie', 'tv', 'person', 'credits']) cache[k] = cache[k] || {};
+for (const k of ['slug', 'movie', 'tv', 'person', 'credits', 'world']) cache[k] = cache[k] || {};
 const save = () => fs.writeFileSync(CACHE_F, JSON.stringify(cache));
 
 const norm = s => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
-const KEYS = new Set(AVANT_KEYS.concat(...MOVEMENTS.map(m => m.keys || []), ['short film', 'neo-noir']));
+// keywords are kept whole (themes read them), lower-cased, at most 60 a film; field 12 marks an entry that has them all
+const kwOf = list => (list || []).map(k => String(k.name || '').toLowerCase().trim()).filter(Boolean).slice(0, 60);
 let calls = 0, fails = 0;
 const FAILED = undefined;  // a request that never got an answer (null: TMDB answered that there's no such thing)
 async function get(p, tries = 4) {
@@ -50,10 +52,10 @@ async function details(id) {
   if (!j) return null;
   const y = +(String(j.release_date || '').slice(0, 4)) || 0;
   const dirs = ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name).slice(0, 4);
-  const kw = ((j.keywords && j.keywords.keywords) || []).map(k => String(k.name).toLowerCase()).filter(k => KEYS.has(k));
+  const kw = kwOf(j.keywords && j.keywords.keywords);
   cache.movie[id] = [j.title || '', j.original_title && j.original_title !== j.title ? j.original_title : '', y, j.runtime || 0, j.poster_path || '',
     (j.genres || []).map(g => g.id), (j.production_countries || []).map(c => c.iso_3166_1).slice(0, 4), j.original_language || '', dirs, kw,
-    j.vote_count || 0, Math.round((j.vote_average || 0) * 10)];
+    j.vote_count || 0, Math.round((j.vote_average || 0) * 10), 1];
   return cache.movie[id];
 }
 // does a TMDB director list agree with the director Letterboxd gives? (full name, or surname and first initial)
@@ -108,13 +110,30 @@ async function tvDetails(id) {
   if (!j) return null;
   const y = +(String(j.first_air_date || '').slice(0, 4)) || 0;
   const dirs = [...new Set([].concat((j.created_by || []).map(c => c.name), ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name)))].slice(0, 4);
-  const kw = ((j.keywords && j.keywords.results) || []).map(k => String(k.name).toLowerCase()).filter(k => KEYS.has(k));
+  const kw = kwOf(j.keywords && j.keywords.results);
   const ep = (j.episode_run_time || [])[0] || 0;
   cache.tv[id] = [j.name || '', j.original_name && j.original_name !== j.name ? j.original_name : '', y, Math.min(ep * (j.number_of_episodes || 1), 2000), j.poster_path || '',
-    (j.genres || []).map(g => g.id), (j.origin_country || []).slice(0, 4), j.original_language || '', dirs, kw, j.vote_count || 0, Math.round((j.vote_average || 0) * 10)];
+    (j.genres || []).map(g => g.id), (j.origin_country || []).slice(0, 4), j.original_language || '', dirs, kw, j.vote_count || 0, Math.round((j.vote_average || 0) * 10), 1];
   return cache.tv[id];
 }
 const info = id => id > 0 ? cache.movie[id] : id < 0 ? cache.tv[-id] : null;
+// an entry fetched before keywords were kept whole: its keywords, asked for on their own
+async function fullKeywords(id) {
+  const d = info(id); if (!d || d[12]) return;
+  const j = await get(id > 0 ? `/movie/${id}/keywords` : `/tv/${-id}/keywords`);
+  if (j === FAILED) return;
+  d[9] = kwOf(j && (j.keywords || j.results)); d[12] = 1;
+}
+// movements and periods together, in the catalog's order
+const GROUPS = MOVEMENTS.map(m => Object.assign({kind: 'movement'}, m)).concat(PERIODS.map(p => Object.assign({kind: 'period'}, p)));
+// does a film belong to a group, by its year, countries, genres, directors and keywords?
+function inGroup(g, year, cs, gs, dn, kws) {
+  if (!year || year < g.from || year > g.to) return false;
+  if (g.countries && !cs.some(c => g.countries.includes(c))) return false;
+  if (g.genres && !gs.some(x => g.genres.includes(x))) return false;
+  if (g.kind === 'period') return true;
+  return dn.some(x => g.dset.has(x)) || (g.keys || []).some(k => kws.has(k));
+}
 
 async function main() {
   if (!TOKEN && !process.env.TMDB_API) { console.error('TMDB_TOKEN is not set: add it under Settings → Secrets and variables → Actions.'); process.exit(2); }
@@ -140,7 +159,7 @@ async function main() {
   films.forEach(f => { const id = (cache.slug[f[0]] || [0])[0]; if (id) byId.set(id, f); });
   // 2. the rest of each movement, and of the two taste lenses, from their directors' filmographies
   const names = new Set();
-  MOVEMENTS.forEach(m => (m.dirs || []).forEach(d => names.add(d)));
+  GROUPS.forEach(m => (m.dirs || []).forEach(d => names.add(d)));
   if (LIMIT === Infinity) { CONTEMPLATIVE.forEach(d => names.add(d)); AVANT_GARDE.forEach(d => names.add(d)); }
   const people = [...names].filter(n => cache.person[n] === undefined);
   console.log(`looking up ${people.length} directors…`);
@@ -158,38 +177,61 @@ async function main() {
     cache.credits[id] = ((j && j.crew) || []).filter(c => c.job === 'Director').map(c => [c.id, +(String(c.release_date || '').slice(0, 4)) || 0, c.vote_count || 0]);
   });
   save();
-  const wantExtra = new Map();  // TMDB id → why it's wanted
+  const wantExtra = new Map();  // TMDB id → why it's wanted: a group's index (kept only if it really belongs), or c, a, w
+  const want = (id, why) => { if (byId.has(id)) return; if (!wantExtra.has(id)) wantExtra.set(id, new Set()); wantExtra.get(id).add(why); };
   const nn = n => norm(n);
-  MOVEMENTS.forEach(m => (m.dirs || []).forEach(d => (cache.credits[cache.person[d]] || []).forEach(([id, y, vc]) => { if (y >= m.from && y <= m.to && vc >= 3 && !byId.has(id)) wantExtra.set(id, 'm'); })));
+  GROUPS.forEach((m, gi) => (m.dirs || []).forEach(d => (cache.credits[cache.person[d]] || []).forEach(([id, y, vc]) => { if (y >= m.from && y <= m.to && vc >= 3) want(id, gi); })));
   if (LIMIT === Infinity) {
-    CONTEMPLATIVE.forEach(d => (cache.credits[cache.person[d]] || []).forEach(([id, y, vc]) => { if (y && vc >= 15 && !byId.has(id)) wantExtra.set(id, 'c'); }));
-    AVANT_GARDE.forEach(d => (cache.credits[cache.person[d]] || []).filter(c => c[1]).sort((a, b) => b[2] - a[2]).slice(0, 25).forEach(([id, y, vc]) => { if (vc >= 3 && !byId.has(id)) wantExtra.set(id, 'a'); }));
+    CONTEMPLATIVE.forEach(d => (cache.credits[cache.person[d]] || []).forEach(([id, y, vc]) => { if (y && vc >= 15) want(id, 'c'); }));
+    AVANT_GARDE.forEach(d => (cache.credits[cache.person[d]] || []).filter(c => c[1]).sort((a, b) => b[2] - a[2]).slice(0, 25).forEach(([id, y, vc]) => { if (vc >= 3) want(id, 'a'); }));
   }
+  // national cinemas the seed barely reaches: each one's best-rated feature films on TMDB (asked again once a month),
+  // ranked with their votes weighed in, so a few enthusiastic ratings can't carry a film
+  const worldTodo = WORLD.filter(([cc]) => !cache.world[cc] || NOW - cache.world[cc][0] > 30 * 864e5);
+  console.log(`asking TMDB about ${worldTodo.length} national cinemas…`);
+  await pool(worldTodo, 4, async ([cc, n, minV]) => {
+    const got = [];
+    for (let page = 1; page <= 3; page++) {
+      const j = await get(`/discover/movie?with_origin_country=${cc}&sort_by=vote_average.desc&vote_count.gte=${minV}&with_runtime.gte=60&without_genres=10770,10402&include_adult=false&page=${page}`);
+      if (j === FAILED) return;
+      ((j && j.results) || []).forEach(r => got.push([r.id, r.vote_average || 0, r.vote_count || 0]));
+      if (!j || page >= (j.total_pages || 1)) break;
+    }
+    const m = minV * 3, C = 6.4, score = ([, R, v]) => (v * R + m * C) / (v + m);
+    cache.world[cc] = [NOW, got.filter(x => x[1] >= 6.8).sort((a, b) => score(b) - score(a)).slice(0, n).map(x => x[0])];
+  });
+  save();
+  const fromWorld = new Set();
+  WORLD.forEach(([cc]) => ((cache.world[cc] || [])[1] || []).forEach(id => { fromWorld.add(id); want(id, 'w'); }));
   const extra = [...wantExtra.keys()].filter(id => !cache.movie[id]);
-  console.log(`fetching ${extra.length} more films for movements and lenses…`);
+  console.log(`fetching ${extra.length} more films for movements, periods, lenses and world cinema…`);
   await pool(extra, 6, async id => { await details(id); });
+  save();
+  // every film in the catalog with all of its keywords (the themes need them)
+  const inCat = [...byId.keys()].concat([...wantExtra.keys()]).filter(id => { const d = info(id); return d && !d[12]; });
+  console.log(`keywords for ${inCat.length} films fetched before they were kept…`);
+  await pool(inCat, 6, async id => { await fullKeywords(id); });
   save();
 
   // 3. the catalog
   const dirIx = new Map(), coIx = new Map(), dirs = [], cos = [];
   const ix = (map, arr, v) => { if (!map.has(v)) { map.set(v, arr.length); arr.push(v); } return map.get(v); };
-  const C = new Set(CONTEMPLATIVE.map(nn)), A = new Set(AVANT_GARDE.map(nn)), AK = new Set(AVANT_KEYS);
-  const groups = MOVEMENTS.map(m => Object.assign({kind: 'movement', dset: new Set((m.dirs || []).map(nn))}, m)).concat(PERIODS.map(p => Object.assign({kind: 'period'}, p)));
+  const C = new Set(CONTEMPLATIVE.map(nn)), A = new Set(AVANT_GARDE.map(nn)), AK = new Set(AVANT_KEYS), W = new Set(WEST);
+  const groups = GROUPS.map(g => Object.assign({dset: new Set((g.dirs || []).map(nn))}, g));
   const rows = [], seen = new Set();
   const add = (id, sd) => {
     if (id && seen.has(id)) return; if (id) seen.add(id);
     const d = info(id);
-    const [t, ot, y, rt, p, gs, cs, lang, ds, kw, vc] = d || [sd[1], '', sd[2], 0, '', [], [], '', sd[8] || [], [], 0];
+    const [t, ot, y, rt, p, gs, cs, lang, ds, kw, vc, tr] = d || [sd[1], '', sd[2], 0, '', [], [], '', sd[8] || [], [], 0, 0];
     const year = y || (sd ? sd[2] : 0), canon = sd ? sd[5] : [0, 0, 0, 0, 0], q = sd ? sd[3] : -1;
     const dn = ds.map(nn), kws = new Set(kw);
     const movs = [];
-    groups.forEach((g, gi) => {
-      if (!year || year < g.from || year > g.to) return;
-      if (g.countries && !cs.some(c => g.countries.includes(c))) return;
-      if (g.genres && !gs.some(x => g.genres.includes(x))) return;
-      if (g.kind === 'period') { movs.push(gi); return; }
-      if (dn.some(x => g.dset.has(x)) || (g.keys || []).some(k => kws.has(k))) movs.push(gi);
-    });
+    groups.forEach((g, gi) => { if (inGroup(g, year, cs, gs, dn, kws)) movs.push(gi); });
+    // a film wanted for a movement or period it turns out not to belong to (a core director's film made elsewhere,
+    // or in another genre) stays out
+    if (!sd) { const why = wantExtra.get(id) || new Set(); if (![...why].some(w => typeof w === 'string' || movs.includes(w))) { seen.delete(id); return; } }
+    const themes = [];
+    THEMES.forEach((th, ti) => { if (th.keys.some(k => kws.has(k)) && (!th.genres || gs.some(x => th.genres.includes(x)))) themes.push(ti); });
     const isCanon = canon[0] || canon[1] || (canon[2] && canon[2] <= 1000) || (canon[3] && canon[3] <= 250);
     let lens = 0;
     const set = k => { lens |= 1 << LENSES.findIndex(l => l.id === k); };
@@ -198,21 +240,27 @@ async function main() {
     if (dn.some(x => C.has(x))) set('contemplative');
     if (dn.some(x => A.has(x)) || kw.some(k => AK.has(k))) set('avant-garde');
     if (q >= 70 && vc < 1500 && !isCanon) set('gems');
+    // films the panel hasn't rated: well rated on TMDB by a small, steady audience, and in a movement, period or
+    // national cinema the catalog went looking for
+    if (q < 0 && !isCanon && vc >= 25 && vc < 500 && (tr || 0) >= 74 && (movs.length || fromWorld.has(id))) set('gems');
+    if (cs.length && !W.has(cs[0]) && (isCanon || q >= 55 || fromWorld.has(id) || ((tr || 0) >= 70 && vc >= 25))) set('world');
     if (year >= 2000 && (canon[3] || q >= 75)) set('c21');
     if (gs.includes(99)) set('documentary');
     if (gs.includes(16)) set('animation');
     rows.push([id || 0, sd ? sd[0] : '', t || (sd && sd[1]) || '', year, rt, p, ds.map(n => ix(dirIx, dirs, n)), cs.map(c => ix(coIx, cos, c)), gs, movs, lens,
-      q, sd ? sd[4] : -1, vc, canon, ot, lang]);
+      q, sd ? sd[4] : -1, vc, canon, ot, lang, themes]);
   };
   // a seed film TMDB doesn't know stays only if it's in the canon (shown without a poster); the rest are left out
   films.forEach(f => { const id = (cache.slug[f[0]] || [0])[0]; if (info(id) || f[5].some(Boolean)) add(info(id) ? id : 0, f); });
   wantExtra.forEach((why, id) => { if (cache.movie[id] && cache.movie[id][2]) add(id, null); });
+  // a theme needs enough films to be worth a page
+  const themeN = THEMES.map((th, ti) => rows.filter(r => r[17].includes(ti)).length);
   const GEN = {28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror',
     10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Science Fiction', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'};
-  const out = {v: 1, built: new Date().toISOString().slice(0, 10), fields: ['tmdb', 'slug', 'title', 'year', 'runtime', 'poster', 'dirs', 'countries', 'genres', 'groups', 'lenses', 'quality', 'reach', 'votes', 'canon', 'original', 'lang'],
+  const out = {v: 1, built: new Date().toISOString().slice(0, 10), fields: ['tmdb', 'slug', 'title', 'year', 'runtime', 'poster', 'dirs', 'countries', 'genres', 'groups', 'lenses', 'quality', 'reach', 'votes', 'canon', 'original', 'lang', 'themes'],
     canon: seed.canon, dirs, countries: cos, genres: GEN,
     groups: groups.map(g => ({id: g.id, name: g.name, kind: g.kind, from: g.from, to: g.to, desc: g.desc})),
-    lenses: LENSES, films: rows};
+    lenses: LENSES, themes: THEMES.map(th => ({id: th.id, name: th.name, desc: th.desc, season: th.season || null})), films: rows};
   const txt = JSON.stringify(out);
   const outs = process.env.CATALOG_OUT ? [process.env.CATALOG_OUT] : [path.join(HERE, 'dist'), path.join(HERE, '..', 'public', 'catalog')];
   outs.forEach(dir => { fs.mkdirSync(dir, {recursive: true}); fs.writeFileSync(path.join(dir, 'catalog.json'), txt); });
@@ -220,5 +268,6 @@ async function main() {
   console.log(`catalog: ${rows.length} films (${matched} on TMDB, ${rows.length - films.length} added from movements and lenses) · ${dirs.length} directors · ${(txt.length / 1e6).toFixed(2)} MB · ${calls} calls, ${fails} failed`);
   groups.forEach((g, gi) => console.log(`  ${g.name}: ${rows.filter(r => r[9].includes(gi)).length}`));
   LENSES.forEach((l, li) => console.log(`  [${l.name}]: ${rows.filter(r => r[10] & (1 << li)).length}`));
+  THEMES.forEach((th, ti) => console.log(`  {${th.name}}: ${themeN[ti]}`));
 }
 main().catch(e => { console.error(e); save(); process.exit(1); });

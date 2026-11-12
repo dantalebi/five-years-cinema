@@ -594,6 +594,10 @@
       // someone's profile as they published it; yours, as it is on this device
       source: own ? null : '/api/u/' + name, data: own ? ownData() : null,
       // the tab's address follows the tab (Back still leaves the profile in one step)
+      profileHref: '/u/' + name,
+      // inside the app an entry is a screen of its own: Back returns to wherever you were (the feed, the film, the diary)
+      openEntry: inApp ? eid => fxNav.open(location.pathname + '#' + eid) : null,
+      back: inApp ? () => fxNav.back('/u/' + name) : null, canBack: inApp ? () => fxNav.depth() > 0 : null,
       tab: tab || '', onTab: t => { const u = tabPath(name, t); if (inApp) fxNav.replace(u); else if (u !== location.pathname) history.replaceState(history.state, '', u); },
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
@@ -662,7 +666,7 @@
           // the profile's own buttons are its own: the app around it doesn't act on them too
           el.addEventListener('click', e => { if (e.target.closest('button')) e.stopPropagation(); });
           PFi = makeProfile(n, eid || '', el, true, tab);
-        } else { curPF = PFi; if (!sub) PFi.setTab(tab || 'now'); }
+        } else { curPF = PFi; if (!sub) { PFi.setEntry(eid || ''); PFi.setTab(tab || 'now'); } }
       },
       view() {
         if (sub === 'followers' || sub === 'following') return peopleView(name, sub, true);

@@ -16,7 +16,7 @@ function fxProfile(root, id, focusId, opts) {
       noFilms: 'No films here yet.', noWl: 'Nothing on the watchlist.', showMore: 'Show more', ofN: (a, b) => a + ' of ' + b, wlN: n => n + (n === 1 ? ' film' : ' films') + ' to watch', seenByYou: 'You’ve seen it', updated: a => 'Updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ', ' + rt : '') + (n ? ', ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => Number(n).toLocaleString('en-US') + (n === 1 ? ' hour' : ' hours'), avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
-      allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show it anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
+      allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show it anyway', readReview: 'Read review', open: 'Open entry', back: 'Back', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
       big: {films: 'Films', hours: 'Hours', dirs: 'Directors', countries: 'Countries', multi: 'Double-feature days'},
       most: 'Most watched', best: 'Highest rated', gcl: 'Genres, countries & languages', genres: 'Genres', countries: 'Countries', languages: 'Languages',
       dirsH: 'Directors', cast: 'Cast', few: 'Not enough ratings yet.',
@@ -30,7 +30,7 @@ function fxProfile(root, id, focusId, opts) {
       noFilms: 'هنوز فیلمی نیست.', noWl: 'واچ‌لیست خالیه.', showMore: 'بیشتر', ofN: (a, b) => a + ' از ' + b, wlN: n => n + ' فیلم برای دیدن', seenByYou: 'دیدی‌ش', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
-      discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', tmatch: 'هم‌سلیقگی', inCommon: n => n + ' فیلم مشترک', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو ممکنه داستان رو لو بده.', reveal: 'با این حال نشونم بده', readReview: 'خوندن ریویو', open: 'باز کردن', backTo: n => '→ ' + n, reviewBy: n => 'ریویوی ' + n, entryBy: n => 'از دفتر ' + n, entry: 'از دفتر', watchedOn: 'دیده‌شده', rewatchedOn: 'دوباره دیده‌شده', spoilerTag: 'اسپویل', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
+      discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', tmatch: 'هم‌سلیقگی', inCommon: n => n + ' فیلم مشترک', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو ممکنه داستان رو لو بده.', reveal: 'با این حال نشونم بده', readReview: 'خوندن ریویو', open: 'باز کردن', back: 'برگشت', backTo: n => '→ ' + n, reviewBy: n => 'ریویوی ' + n, entryBy: n => 'از دفتر ' + n, entry: 'از دفتر', watchedOn: 'دیده‌شده', rewatchedOn: 'دوباره دیده‌شده', spoilerTag: 'اسپویل', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
       big: {films: 'فیلم', hours: 'ساعت', dirs: 'کارگردان', countries: 'کشور', multi: 'روزِ چندفیلمی'},
       most: 'بیشترین', best: 'بالاترین امتیاز', gcl: 'ژانر، کشور و زبان', genres: 'ژانرها', countries: 'کشورها', languages: 'زبان‌ها',
       dirsH: 'کارگردان‌ها', cast: 'بازیگرها', few: 'هنوز فیلم امتیازدارِ کافی این‌جا نیست.',
@@ -146,11 +146,14 @@ function fxProfile(root, id, focusId, opts) {
     const t = T(), name = String(data.name || '').trim(), tags = tagsOf(e);
     const longDate = day.test(e.w) ? fmt({weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'}).format(new Date(e.w + 'T12:00:00')) : '';
     const big = withP ? `<span class="fx-pos fx-epos${okPoster(e.p) ? '' : ' none'}" aria-hidden="true">${okPoster(e.p) ? `<img alt="" src="${e.p.replace(/\/w\d+\//, '/w342/')}">` : ''}<span class="fx-pt" dir="ltr">${esc(e.t)}</span></span>` : '';
-    const eye = e.rv ? (name ? t.reviewBy(name) : t.tReviews) : (name ? t.entryBy(name) : t.entry);
+    // whose it is, their name opening their profile
+    const who = opts.profileHref ? `<a class="fx-ewho" href="${esc(opts.profileHref)}" dir="auto">${esc(name)}</a>` : `<bdi>${esc(name)}</bdi>`;
+    const eye = e.rv ? (name ? esc(t.reviewBy('\u0001')).replace('\u0001', who) : esc(t.tReviews)) : (name ? esc(t.entryBy('\u0001')).replace('\u0001', who) : esc(t.entry));
+    const sf = siteFilm(e), poster = big && sf ? `<a class="fx-eposl" href="${esc(sf)}" tabindex="-1" aria-hidden="true">${big}</a>` : big;
     const rv = !e.rv ? '' : (e.sp && !open['sp:' + e.id]) ? `<div class="fx-spgate"><p>${t.spoiler}</p><button type="button" class="fx-btn" data-spoil="${esc(e.id)}">${t.reveal}</button></div>` : `<div class="fx-rvfull" dir="auto">${esc(e.rv)}</div>`;
     const rating = e.r || e.h ? `<div class="fx-erate" dir="ltr">${e.r ? `<span class="fx-stars big" style="--r:${+e.r}" aria-label="${stars(e.r)}"></span>` : ''}${e.h ? '<span class="fx-heart big on" aria-hidden="true"></span>' : ''}</div>` : '';
     return `<article class="fx-entry">
-      <div class="fx-efilm">${big}<div class="fx-b"><div class="fx-eye">${esc(eye)}</div>${titleOf(e, true)}${subOf(e)}</div></div>
+      <div class="fx-efilm">${poster}<div class="fx-b"><div class="fx-eye">${eye}</div>${titleOf(e, true)}${subOf(e)}</div></div>
       ${rating}
       <div class="fx-ewhen">${e.rw ? `<i class="fx-ico rw" aria-hidden="true"></i>${t.rewatchedOn}` : t.watchedOn} ${esc(longDate)}${e.ww ? `, <span class="fx-ww">${esc(t.withShort(String(e.ww).slice(0, 80)))}</span>` : ''}</div>
       ${rv}
@@ -264,7 +267,8 @@ function fxProfile(root, id, focusId, opts) {
       [num(new Set(films.flatMap(dirsOf)).size), t.big.dirs]];
     if (hasMeta) big.push([num(new Set(films.flatMap(f => f.c || [])).size), t.big.countries]);
     big.push([num(Object.values(days).filter(n => n > 1).length), t.big.multi]);
-    let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b>${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
+    // each number sized to its own column, so four-digit ones (1,304 films) never run into their neighbours on a phone
+    let h = `<section class="fx-big" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">${big.map(([n, l]) => `<div><b data-n="${Math.min(8, String(n).length)}">${n}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
     if (typeof fxCalendar === 'function') h += `<section class="fx-card"><h2>${t.cal}</h2>${fxCalendar((data.diary || []).map(e => e.w).filter(w => day.test(w)), year, lang, (n => new Date(n.getTime() - n.getTimezoneOffset() * 6e4).toISOString().slice(0, 10))(new Date()), FX_CAL_L[lang], jal())}</section>`;
     const hist = Array(11).fill(0); d.concat(extra).forEach(e => { if (e.r) hist[e.r]++; });
     const hm = Math.max(1, ...hist);
@@ -303,7 +307,7 @@ function fxProfile(root, id, focusId, opts) {
     if (e) {
       const name = String(data.name || '').trim() || t.title;
       document.title = (e.t || '') + ' – ' + name;
-      root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc(t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
+      root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc((opts.canBack ? opts.canBack() : pushed) ? '← ' + t.back : t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }
     // a tab this profile doesn't have (an address for a diary that's private, say): This week instead
@@ -322,7 +326,8 @@ function fxProfile(root, id, focusId, opts) {
     const m = opts.clean ? location.hash.match(/^#([a-z0-9-]{1,120})$/i) : location.hash.match(/^#[0-9a-f]{20,40}\/([a-z0-9-]{1,120})$/i);
     return m && m[1] !== 'signin' ? m[1] : '';
   }
-  function openEntry(eid) { listScroll = window.scrollY; pushed = true; location.hash = hashFor(eid) || '#'; }
+  // an entry opens as a step of its own: Back returns to the same place. A site with its own addresses does the stepping (opts.openEntry)
+  function openEntry(eid) { listScroll = window.scrollY; if (opts.openEntry) { opts.openEntry(eid); return; } pushed = true; location.hash = hashFor(eid) || '#'; }
   function onHash() {
     const eid = entryFromHash();
     if (eid === cur) return;
@@ -343,6 +348,7 @@ function fxProfile(root, id, focusId, opts) {
     if (opts.onButton && opts.onButton(b, render)) return;
     if (b.dataset.entry) { openEntry(b.dataset.entry); return; }
     if (b.hasAttribute('data-back')) {
+      if (opts.back) { opts.back(); return; }
       if (pushed) { pushed = false; history.back(); return; }
       history.replaceState(null, '', location.href.replace(/#.*$/, '') + hashFor('')); cur = ''; if (tab === 'now') tab = 'diary'; render(); window.scrollTo(0, 0); return;
     }
@@ -397,7 +403,9 @@ function fxProfile(root, id, focusId, opts) {
   load();
   const timer = opts.data ? 0 : setInterval(() => { if (document.visibilityState === 'visible') load(); }, 300000);
   return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data, tab: () => tab,
-    setTab: t => { if (t && t !== tab) { tab = t; if (data && !cur) render(); } }};
+    setTab: t => { if (t && t !== tab) { tab = t; if (data && !cur) render(); } },
+    // the entry the address names ('' for none), when the site changed the address itself
+    setEntry: eid => { eid = eid || ''; if (eid === cur) return; cur = eid; if (data && cur && !data.diary.some(x => x.id === cur)) cur = ''; if (data) render(); }};
 }
 // share.html#<gist id>[/<entry>] — the original address, still valid for links already shared
 if (document.documentElement.dataset.page === 'share') {

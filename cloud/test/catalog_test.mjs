@@ -9,7 +9,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
 const hash = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 900000, 7) + 1000;
 // a few films the stand-in knows properly; everything else gets a made-up director
 const KNOWN = {
-  'breathless|1960': {d: 'Jean-Luc Godard', c: 'FR', g: [18, 80]},
+  'breathless|1960': {d: 'Jean-Luc Godard', c: 'FR', g: [18, 80], kw: ['paris, france', 'jazz']},
   'the 400 blows|1959': {d: 'François Truffaut', c: 'FR', g: [18]},
   'meshes of the afternoon|1943': {d: 'Maya Deren', c: 'US', g: [], kw: ['experimental film']},
   'mirror|1975': {d: 'Andrei Tarkovsky', c: 'SU', g: [18]},
@@ -42,10 +42,16 @@ const srv = http.createServer((req, res) => {
     return send({results: y ? [{id, title: q, original_title: q, release_date: y + '-05-01', vote_count: hash(q) % 9000}] : []});
   }
   let m;
+  // national cinemas: Senegal has one film worth having (and one that isn't rated well enough); nowhere else has any
+  if (u.pathname === '/discover/movie') {
+    return send(u.searchParams.get('with_origin_country') === 'SN' ? {total_pages: 1, results: [{id: 777001, vote_average: 7.9, vote_count: 40}, {id: 777002, vote_average: 6.1, vote_count: 900}]} : {total_pages: 1, results: []});
+  }
+  // keywords on their own, for a film cached before keywords were kept whole
+  if ((m = u.pathname.match(/^\/movie\/(\d+)\/keywords$/))) return send({id: +m[1], keywords: +m[1] === 777001 ? [{name: 'road movie'}, {name: 'dakar, senegal'}] : []});
   if ((m = u.pathname.match(/^\/movie\/(\d+)$/))) {
     const id = +m[1], t = SPECIAL[id] || titles.get(id) || extra.get(id) || {t: 'Film ' + id, y: 1965}, k = KNOWN[t.t.toLowerCase() + '|' + t.y] || {};
     return send({id, title: t.t, release_date: t.y + '-05-01', runtime: 95, poster_path: '/p' + id + '.jpg', genres: (k.g || [18]).map(x => ({id: x})),
-      production_countries: [{iso_3166_1: k.c || 'IT'}], original_language: 'en', vote_count: hash(t.t) % 9000, vote_average: 7.4,
+      production_countries: [{iso_3166_1: k.c || (t.d === 'Mikio Naruse' ? 'JP' : 'IT')}], original_language: 'en', vote_count: hash(t.t) % 9000, vote_average: 7.4,
       credits: {crew: [{job: 'Director', name: k.d || t.d || 'Some Director ' + (id % 50)}]}, keywords: {keywords: (k.kw || []).map(n => ({name: n}))}});
   }
   if (u.pathname === '/search/person') { people.set(hash('p' + q), q); return send({results: [{id: hash('p' + q), name: q, known_for_department: 'Directing', popularity: 5}]}); }
@@ -59,6 +65,8 @@ const srv = http.createServer((req, res) => {
 await new Promise(r => srv.listen(0, r));
 const port = srv.address().port, tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cat-'));
 const env = Object.assign({}, process.env, {TMDB_API: 'http://localhost:' + port, TMDB_TOKEN: 'test', LIMIT: '300', CATALOG_CACHE: path.join(tmp, 'cache.json'), CATALOG_OUT: tmp});
+// Touki Bouki, cached the old way (its keywords cut down to the few the build used to keep)
+fs.writeFileSync(env.CATALOG_CACHE, JSON.stringify({movie: {777001: ['Touki Bouki', '', 1973, 85, '/tb.jpg', [18], ['SN'], 'wo', ['Djibril Diop Mambéty'], [], 40, 79]}}));
 // a seed with the known films up front
 const seedPath = new URL('../catalog/seed.json', import.meta.url).pathname, seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
 const pick = ['breathless', 'the-400-blows', 'meshes-of-the-afternoon', 'mirror', 'double-indemnity', 'night-2014', 'shadows-1958', 'dekalog'];
@@ -88,6 +96,17 @@ const msh = row('meshes-of-the-afternoon'); if (msh) ok(msh[9].includes(gi('amer
 const mir = row('mirror'); if (mir) ok(mir[10] & (1 << li('contemplative')), 'Mirror: contemplative');
 ok(cat.films.some(r => !r[1] && r[9].length), 'lesser-known films added from movement directors');
 ok(F.length === cat.films[0].length, 'every row has every field');
+// themes, from keywords; national cinemas; groups that only take what belongs
+const ti = id => cat.themes.findIndex(t => t.id === id), th = r => r[F.indexOf('themes')];
+if (b) ok(th(b).includes(ti('paris')) && th(b).includes(ti('music')), 'Breathless: Paris, and musicians (jazz)', th(b));
+const tb = cat.films.find(r => r[0] === 777001);
+ok(tb && (tb[10] & (1 << li('world'))) && (tb[10] & (1 << li('gems'))), 'Touki Bouki, from Senegal’s best rated: World Cinema, and a hidden gem', tb && tb.slice(0, 4));
+ok(tb && th(tb).includes(ti('road-movies')), 'its keywords fetched whole: a road movie', tb && th(tb));
+ok(tb && tb[9].includes(gi('african-cinema-pioneers')), 'and Pioneers of African Cinema, through its director');
+ok(!cat.films.some(r => r[0] === 777002), 'a film rated too low to count is left out');
+ok(!cat.films.some(r => r[6].some(k => cat.dirs[k] === 'Mario Bava')), 'a Giallo director’s dramas aren’t added (the movement takes horror and thrillers)');
+ok(cat.films.some(r => !r[1] && r[9].includes(gi('golden-age-japan')) && cat.dirs[r[6][0]] === 'Mikio Naruse'), 'a period’s directors bring in their other films of those years (Naruse’s)');
+ok(cat.themes.some(t => t.id === 'halloween' && t.season), 'Halloween has its season');
 ok(!JSON.stringify(cat).match(/alexeysmolin|unitedinflames|talebi/), 'no panel account names in the catalog');
 srv.close();
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);
