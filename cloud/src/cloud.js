@@ -243,10 +243,13 @@
     try { D = await planData(); } catch (e) { kind = ''; Store.set('cfg:plan', null); onboard(); return; }
     window.D = D;
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
-    // the site opens on Friends (unless you chose This week), and Friends comes first in the bar
+    // the site opens on Friends (unless you chose This week), and Friends comes first in the bar; the plan map opens from This Week
+    const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: FR ? [FR] : [], tabsFirst: !!FR, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice});
+      tabs: [FR, PM].filter(Boolean), tabsFirst: !!FR, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice,
+      fullView: PM ? 'plan' : ''});
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger((t, y, md) => FX && FX.logFilm(t, y, md)); }
+    if (PM) PM.attach(root, () => FX && FX.render());
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {

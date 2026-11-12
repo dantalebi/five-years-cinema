@@ -21,7 +21,7 @@ const FX_STR = {
     st: {ok: 'Downloaded', dl: 'Downloading', need: 'Not downloaded'}, min: n => n + ' min', firstBy: d => 'Your first ' + d, marathon: (k, n) => 'Part ' + k + ' of ' + n,
     friends: 'Friends', friendsTitle: n => 'Average rating from ' + n + ' friends', howWas: 'Rate & review', liked: 'Like', stars: n => n + ' stars', reviewed: 'Review',
     review: 'Add a review', editReview: 'Edit review', reviewPh: 'Add a review…',
-    settings: 'Settings', full: 'Five-year plan', diaryLink: 'Diary', back: '← This week', end: 'The End', endP: 'Five years, every film. What comes next is up to you.',
+    settings: 'Settings', full: 'Five-Year Plan', planLink: (w, n) => 'Week ' + w + ' of ' + n + ' · See the whole plan →', diaryLink: 'Diary', back: '← This week', end: 'The End', endP: 'Five years, every film. What comes next is up to you.',
     add: '+ Add a film', addH: 'Add a film', replace: 'Replace', replaceH: t => 'Replace ' + t, insteadOf: t => 'Instead of ' + t, added: 'Added',
     remove: 'Remove', cancel: 'Cancel', addPh: 'Search films…', addAsIs: t => 'Add “' + t + '”', noMatch: 'Not in your plan, but you can still add it.',
     diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ' · ' + h + (avg ? ' · ★ ' + avg + ' average' : ''),
@@ -553,12 +553,12 @@ function mountFocus(root, D, S, opts) {
   }
   function foot() {
     const t = T();
-    if (!opts.openFull) return '';
+    if (!opts.openFull && !opts.fullView) return '';
     return `<footer class="fx-foot"><button type="button" class="fx-link" data-full>${t.full} →</button></footer>`;
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
-    const extra = (opts.tabs || []).map(x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '')).join('');
+    const extra = (opts.tabs || []).filter(x => !x.hidden).map(x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '')).join('');
     const plus = opts.quickLog ? `<button type="button" class="fx-tplus" data-qlog aria-label="${esc(t.logFilm.replace(/^\+\s*/, ''))}" title="${esc(t.logFilm.replace(/^\+\s*/, ''))}"><i aria-hidden="true"></i></button>` : '';
     return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
@@ -655,7 +655,7 @@ function mountFocus(root, D, S, opts) {
     const th = m.th ? (L() === 'fa' ? m.th : FX_TH_EN[m.th] || m.th) : '';
     const rt = list.reduce((a, it) => { const i = it.free ? (seen()[it.k] && !String(seen()[it.k]).startsWith('k:') ? null : sugFor(w, it.n)) : it.i; return a + (i != null && !seen()['sk:' + it.k] ? F[i][3] || 0 : 0); }, 0);
     const eye = list.length ? `<div class="fx-eye">${esc(t.eyebrow(fa(list.filter(itemSeen).length), fa(list.filter(it => !seen()['sk:' + it.k]).length), rt ? (L() === 'fa' ? t.hm(rt).replace(/\d+/g, d => fa(d)) : t.hm(rt)) : ''))}</div>` : '';
-    h += `<header class="fx-head">${eye}<div class="fx-hrow"><h1 class="fx-h1">${finished ? t.weekDone : t.thisWeek}</h1>${th && !m.free ? `<span class="fx-th">${esc(t.surprise(th))}</span>` : ''}</div>${m.free && !list.length ? '' : dots(list)}</header>`;
+    h += `<header class="fx-head">${eye}<div class="fx-hrow"><h1 class="fx-h1">${finished ? t.weekDone : t.thisWeek}</h1>${th && !m.free ? `<span class="fx-th">${esc(t.surprise(th))}</span>` : ''}</div>${m.free && !list.length ? '' : dots(list)}${opts.fullView && !LS && t.planLink ? `<button type="button" class="fx-link fx-planlink" data-full>${esc(t.planLink(fa(w), fa(NW)))}</button>` : ''}</header>`;
     if (finished) h += `<div class="fx-next"><span>${t.whenReady}</span><button type="button" class="fx-btn primary" data-advance>${t.showNext}</button></div>`;
     if (m.free) {
       const i = sugFor(w, 0), k = 'free:' + w + ':0';
@@ -1261,7 +1261,12 @@ function mountFocus(root, D, S, opts) {
       else if (u.startsWith('v:')) { S.set(u, null); S.set('r:' + u.slice(2), null); S.set('l:' + u.slice(2), null); }
       else setFilm(u, false);
     }
-    else if (t.hasAttribute('data-full')) { opts.openFull && opts.openFull(shown); return; }
+    else if (t.hasAttribute('data-full')) {
+      // the whole plan: a view of its own (the map) where there is one, else whatever opens it
+      const fv = opts.fullView && (opts.tabs || []).find(x => x.id === opts.fullView);
+      if (fv) { view = fv.id; if (fv.opened) fv.opened(); render(); window.scrollTo(0, 0); return; }
+      opts.openFull && opts.openFull(shown); return;
+    }
     else if (t.hasAttribute('data-settings')) { view = 'settings'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     else if (t.hasAttribute('data-back')) { view = 'week'; note = {}; picker = null; render(); window.scrollTo(0, 0); return; }
     else if (t.hasAttribute('data-lang')) { S.set('cfg:lang', t.dataset.lang === 'fa' ? 'fa' : 'en'); }
