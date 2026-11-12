@@ -323,6 +323,51 @@ function fxEntryId(k) {
   let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return 'c' + h.toString(36);
 }
+// an entry's id on the profile: an entry moved off a plan keeps the one it had (eid:<key>), so links and friends'
+// comments still find it
+function fxEid(seen, k) { const o = seen && seen['eid:' + k]; return typeof o === 'string' && /^[a-z0-9-]{1,120}$/.test(o) ? o : fxEntryId(k); }
+// A plan about to be replaced: everything in the diary that leans on it (films ticked in it, Letterboxd entries and
+// films marked seen that were matched to its films, films added to its weeks) is rewritten to stand on its own, with
+// its date, rating, like, review and id; the plan's own bookkeeping (skips, swaps, rest weeks) goes. Nothing in the
+// diary changes. poster(planKey) → the film's TMDB poster path, if known. Returns [[key, value or null]] to set.
+function fxUnlink(D, seen, poster) {
+  const F = (D && D.F) || [], KI = D && D.F ? fxKeyIdx(D) : {}, out = [], day = /^\d{4}-\d\d-\d\d$/, ATTR = ['r:', 'l:', 'rv:', 'rw:', 'sp:', 'ww:', 'tg:'];
+  const has = k => seen[k] !== undefined && seen[k] !== null && seen[k] !== '';
+  const set = (k, v) => { if (v === null ? has(k) : seen[k] !== v) out.push([k, v]); };
+  const title = i => F[i][0] + (F[i][1] ? ' (' + F[i][1] + ')' : '');
+  const md = i => { const o = {tm: +F[i][16] || 0, t: F[i][0], y: +F[i][1] || 0}; if (F[i][2]) o.d = F[i][2]; if (F[i][3]) o.m = +F[i][3]; const p = poster ? poster(F[i][8]) : ''; if (p && /^\/[A-Za-z0-9._-]+$/.test(p)) o.p = p; return JSON.stringify(o); };
+  const move = (from, to) => ATTR.forEach(a => { if (has(a + from)) { set(a + to, seen[a + from]); set(a + from, null); } });
+  // a key of its own for each entry, the same every time (two devices doing this at once agree)
+  const slot = (base, want) => { let k = base, n = 1; while (has(k) && seen[k] !== want) k = base + '-' + (++n); return k; };
+  F.forEach((f, i) => {
+    const K = f[8], v = seen[K];
+    if (!has(K) || typeof v !== 'string') return;
+    const t = 't:' + title(i), dated = day.test(v), nk = slot((dated ? 'log:' : 'wx:') + String(K).replace(/[^A-Za-z0-9-]+/g, '-'), t);
+    set(nk, t); if (!has('md:' + nk)) set('md:' + nk, md(i)); move(K, nk);
+    if (dated) { set('v:' + nk, v); set('eid:' + nk, fxEntryId(K)); }
+    if (has('ps:' + K)) set('ps:tx:' + title(i), seen['ps:' + K]);
+    set(K, null);
+  });
+  for (const k in seen) {
+    const v = seen[k];
+    if (/^(sk|wk|rp):/.test(k)) { set(k, null); continue; }
+    if (typeof v !== 'string' || !v) continue;
+    if (v.startsWith('k:') && (k.startsWith('log:') || k.startsWith('wx:'))) {
+      const i = KI[v.slice(2)];
+      if (i !== undefined) { set(k, 't:' + title(i)); if (!has('md:' + k)) set('md:' + k, md(i)); }
+    } else if (k.startsWith('add:') || k.startsWith('free:')) {
+      // a film of the plan placed in a week was ticked above; anything else that was watched becomes an entry
+      const d = seen['v:' + k];
+      if (!v.startsWith('k:') && day.test(d || '')) {
+        const t = v.startsWith('t:') ? v : 't:' + v, nk = slot('log:' + k.replace(/:/g, '-'), t);
+        set(nk, t); set('v:' + nk, d); set('eid:' + nk, fxEntryId(k)); move(k, nk);
+        if (has('md:' + k)) { if (!has('md:' + nk)) set('md:' + nk, seen['md:' + k]); set('md:' + k, null); }
+      }
+      set(k, null); set('v:' + k, null); set('rp:' + k, null);
+    }
+  }
+  return out;
+}
 // what the public page may show: the current programme (title, year, director, runtime, poster, log date) and,
 // if enabled, the diary with ratings, likes and reviews. Never lanes, acquisition status, series, skips, the schedule or settings.
 function fxShare(D, seen, posterUrl) {
@@ -370,7 +415,7 @@ function fxShare(D, seen, posterUrl) {
     const md = e.md || {};
     const base = e.i != null ? film(e.i, e.date) : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0, p: ovp('tx:' + e.t) || fxTmdbImg(md.p) || pos('tx:' + e.t), l: '', tm: md.tm || 0, w: e.date};
     const mx = fxMeta(seen, fxMetaKey(D, e));
-    return Object.assign(base, {id: fxEntryId(e.k), r: e.r || 0, h: e.l ? 1 : 0, rv: String(e.rv || '').slice(0, 20000), sp: e.sp ? 1 : 0, rw: e.rw ? 1 : 0,
+    return Object.assign(base, {id: fxEid(seen, e.k), r: e.r || 0, h: e.l ? 1 : 0, rv: String(e.rv || '').slice(0, 20000), sp: e.sp ? 1 : 0, rw: e.rw ? 1 : 0,
       ww: String(e.ww || '').slice(0, 80), tg: String(e.tg || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8)},
       mx ? {g: (mx.g || []).slice(0, 5), c: (mx.c || []).slice(0, 4), lg: mx.l || '', ca: (mx.a || []).slice(0, 6)} : {});
   });
@@ -726,7 +771,7 @@ function mountFocus(root, D, S, opts) {
     const t = T(), r = e.r, i = e.i;
     const stars = r ? '★'.repeat(Math.floor(r / 2)) + (r % 2 ? '½' : '') : '';
     const head = (i != null ? F[i][0] + ' (' + F[i][1] + ') — ' + dirName(i) : e.t + (e.md && e.md.d ? ' — ' + e.md.d : ''));
-    const sid = seen()['cfg:share'], url = sid && ST && ST.shareUrl && e.k ? ST.shareUrl(sid, fxEntryId(e.k)) : '';
+    const sid = seen()['cfg:share'], url = sid && ST && ST.shareUrl && e.k ? ST.shareUrl(sid, fxEid(seen(), e.k)) : '';
     return [head, [stars, e.l ? '♥' : '', e.rw ? '↻' : '', e.ww ? T().withShort(e.ww) : ''].filter(Boolean).join(' '), e.rv ? (e.sp ? '⚠️ ' + T().spoilers + '\n\n' : '') + e.rv : '', url].filter(Boolean).join('\n\n');
   }
   function renderDiary() {

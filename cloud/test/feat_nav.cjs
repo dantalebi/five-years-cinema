@@ -15,7 +15,7 @@ const here = p => p.url().replace(B, '');
   await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'nina'); await p.fill('input[name=n]', 'Nina'); await p.fill('input[name=p]', 'pass for nina');
   await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
-  await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
+  await p.evaluate(async () => { await CloudSync.savePlan(await (await fetch('/sample-plan.json')).json()); Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'own'); }); await p.waitForSelector('.fx-tabbar');
   ok(here(p) === '/', 'starts at /', here(p));
 
   // This Week → a film's page → its director → Back, Back

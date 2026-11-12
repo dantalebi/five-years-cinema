@@ -30,7 +30,7 @@ function png(w, h) {
     await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u[0].toUpperCase() + u.slice(1)); await p.fill('input[name=p]', 'pass for ' + u);
     await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]');
-    await p.waitForSelector('[data-ostart="list"]', {timeout: 15000}); await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
+    await p.waitForSelector('[data-ostart="list"]', {timeout: 15000}); await p.evaluate(async () => { await CloudSync.savePlan(await (await fetch('/sample-plan.json')).json()); Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'own'); }); await p.waitForSelector('.fx-tabbar');
   };
   const p = await ctx(); await signup(p, 'vera');
 

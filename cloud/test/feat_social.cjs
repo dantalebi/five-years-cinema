@@ -11,7 +11,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
     await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
     await p.click('[data-amode="up"]'); await p.fill('input[name=u]', u); await p.fill('input[name=n]', u.toUpperCase()); await p.fill('input[name=p]', 'pass for ' + u);
     await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
-    await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
+    await p.evaluate(async () => { await CloudSync.savePlan(await (await fetch('/sample-plan.json')).json()); Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'own'); }); await p.waitForSelector('.fx-tabbar');
     await p.evaluate(films => films.forEach(([t, y, d, r], i) => { Store.set('log:f' + i, 't:' + t + ' (' + y + ')'); Store.set('v:log:f' + i, d); Store.set('r:log:f' + i, r); Store.set('md:log:f' + i, JSON.stringify({tm: 5000 + i * 7 + t.length, t, y})); if (i === 0) Store.set('rv:log:f' + i, 'A review that friends should see in the feed.'); }), films);
     await p.waitForTimeout(2200); await p.evaluate(() => CloudSync.run()); await p.waitForTimeout(800);
     return p;

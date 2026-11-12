@@ -50,7 +50,7 @@ function fxFriendsTab(CS) {
   // your own entries, by the id the profile gives them, so notifications can name the film
   function myEntries() {
     const out = {};
-    try { fxDiary(window.D, S()).forEach(e => { out[fxEntryId(e.k)] = {t: bare(e.t), y: e.y}; }); } catch (e) {}
+    try { const s = S(); fxDiary(window.D, s).forEach(e => { out[fxEid(s, e.k)] = {t: bare(e.t), y: e.y}; }); } catch (e) {}
     return out;
   }
 

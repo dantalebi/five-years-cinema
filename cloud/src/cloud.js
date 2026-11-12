@@ -382,8 +382,10 @@
     return PB;
   }
   async function savePlanAndStart(D) {
+    const old = kind && window.D && window.D !== D ? window.D : null;
     const ok = await CloudSync.savePlan(D);
     if (!ok) return false;
+    if (old) unlinkPlan(old);  // a new plan in place of another: the diary keeps everything logged through the old one
     (D.posters || []).forEach(([k, p]) => { if (p) Posters.put(k, p); });
     Store.set('cfg:since', today());
     history.replaceState(Object.assign({}, history.state), '', '/week');
@@ -397,6 +399,16 @@
     kind = Store.data['cfg:plan'];
     let D;
     try { D = await planData(); } catch (e) { kind = ''; Store.set('cfg:plan', null); onboard(); return; }
+    // "Five Years of Cinema" was one person's plan and isn't offered anymore: whoever still follows it moves off it
+    // (their diary rewritten so nothing in it depends on the plan) and chooses a plan of their own. The plan's file
+    // stays on the site until then, since the move needs it.
+    if (kind === 'sample') {
+      // everything this account has must be here first (a new device gets it from the site page by page)
+      try { await CloudSync.run(); } catch (e) {}
+      for (let t = 0; t < 100 && CloudSync.status && CloudSync.status().state === 'busy'; t++) await new Promise(r => setTimeout(r, 200));
+      if (Store.data['cfg:plan'] !== 'sample') { kind = ''; if (Store.data['cfg:plan']) start(); else onboard(); return; }
+      unlinkPlan(D); Store.set('cfg:since', null); Store.set('cfg:plan', null); kind = ''; onboard('', '', 'retired'); return;
+    }
     window.D = D;
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
     // the site opens on Friends (unless you chose This week), and Friends comes first in the bar; the plan map opens from This Week
@@ -447,7 +459,15 @@
     const gen = typeof fxPlanner === 'function' ? `<section class="fx-card"><h2>Build a new plan</h2><p class="fx-muted">A schedule made from the Discover catalog, with your choice of length, pace and balance. It leaves out everything you’ve logged, so it’s worth rebuilding after you bring in your Letterboxd history.</p><div class="fx-row"><a class="fx-btn" href="/plan/new" data-app>Build a new plan</a></div></section>` : '';
     return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${act ? '' : ' primary'}" data-home="week">Home</button><button type="button" class="fx-btn${act ? ' primary' : ''}" data-home="friends">Activity</button></div></section>`;
   }
-  function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
+  function reset() { unlinkPlan(window.D); Store.set('cfg:since', null); Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
+  // before a plan goes: the diary entries that lean on it are rewritten to stand on their own (focus.js, fxUnlink)
+  function unlinkPlan(D) {
+    if (!D || !Array.isArray(D.F) || typeof fxUnlink !== 'function') return 0;
+    const path = k => { const m = String(Posters.src(k) || '').match(/\/t\/p\/(?:w\d+|original)(\/[A-Za-z0-9._-]+)$/); return m ? m[1] : ''; };
+    const sets = fxUnlink(D, Store.data, path);
+    sets.forEach(([k, v]) => Store.set(k, v));
+    return sets.length;
+  }
   let rt = null;
   function planChanged() {
     clearTimeout(rt);
@@ -462,10 +482,11 @@
   function choose(k) { Store.set('cfg:plan', k); if (!Store.data['cfg:since']) Store.set('cfg:since', today()); start(); window.scrollTo(0, 0); }
 
   // ---- first time in: how to fill the weeks, or bring everything over from the old site ----
-  function onboard(note, cls) {
+  function onboard(note, cls, intro) {
     fresh();
     const t = T(), pw = FXL.perWeek(Store.data), me = CloudSync.me();
     shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
+      ${intro === 'retired' ? `<section class="fx-card ob-retired"><h2>Time for a plan of your own</h2><p>“Five Years of Cinema” was one person’s plan, and TVC15 doesn’t offer it anymore. Your diary, ratings, reviews and likes are all still here. Choose how you’d like to fill your weeks from now on.</p></section>` : ''}
       ${t.h0 && typeof fxPlanner === 'function' ? `<section class="fx-card fx-opt"><h2>${t.h0}</h2><p>${t.p0}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-obuild>${t.b0}</button></div></section>` : ''}
       <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="list">${t.b1}</button></div></section>
       <section class="fx-card fx-opt"><h2>${t.h2}</h2><p>${t.p2}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b2}<input type="file" accept=".csv,text/csv" data-oimport multiple></label></div><p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p></section>

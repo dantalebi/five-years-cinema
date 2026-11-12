@@ -46,7 +46,7 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
   await p.goto(B + '/'); await p.waitForSelector('form[data-auth]');
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'dora'); await p.fill('input[name=n]', 'Dora'); await p.fill('input[name=p]', 'pass for dora');
   await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
-  await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar');
+  await p.evaluate(async () => { await CloudSync.savePlan(await (await fetch('/sample-plan.json')).json()); Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'own'); }); await p.waitForSelector('.fx-tabbar');
   // she has seen Mirror (logged with its TMDB id) and has Stalker on her watchlist
   await p.evaluate(() => {
     Store.set('log:m1', 't:Mirror (1975)'); Store.set('v:log:m1', '2026-03-04'); Store.set('md:log:m1', JSON.stringify({tm: 103, t: 'Mirror', y: 1975}));

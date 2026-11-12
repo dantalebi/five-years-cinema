@@ -16,7 +16,7 @@ const here = p => p.url().replace(B, '');
     await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('.ac-keybig', {timeout: 15000});
     const key = await p.$eval('.ac-keybig', e => e.textContent);
     await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="list"]', {timeout: 15000});
-    if (keep !== false) { await p.evaluate(() => { Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'sample'); }); await p.waitForSelector('.fx-tabbar'); }
+    if (keep !== false) { await p.evaluate(async () => { await CloudSync.savePlan(await (await fetch('/sample-plan.json')).json()); Store.set('cfg:since', new Date().toISOString().slice(0, 10)); Store.set('cfg:plan', 'own'); }); await p.waitForSelector('.fx-tabbar'); }
     return key;
   };
   const signin = async (p, u, pw) => {
