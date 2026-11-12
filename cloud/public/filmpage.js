@@ -2,7 +2,8 @@
 // polls); any other film is looked up on TMDB. Your own history with the film sits on its page: the times you logged
 // it (each opens its entry), whether it's in your plan, what people you follow thought; Letterboxd is one link away.
 // A director's page: photo, a short biography and every film they directed, with how many you've seen.
-// fxFilmPages({wl, friendsOn, planWeek, openEntry}) → {film, director}: two tabs for mountFocus that aren't in the bar;
+// fxFilmPages({wl, friendsOn, ratings, planWeek, openEntry}) → {film, director}: two tabs for mountFocus that aren't in the bar;
+// ratings(keys) asks the site what the people you follow made of a film (friendsOn, the recent feed, if it can't).
 // openFilm(ref) / openDirector(slug) load what the page needs; setLogger(fn) is what "Log" calls.
 function fxFilmPages(o) {
   const U = fxCat, esc = U.esc, num = U.num, img = U.img;
@@ -31,7 +32,7 @@ function fxFilmPages(o) {
     return i >= 0 ? {i, row: D.F[i]} : null;
   }
   async function openFilm(ref) {
-    const me = fp = {ref, f: null, x: null, pl: null, state: 'loading', friends: null};
+    const me = fp = {ref, f: null, x: null, pl: null, state: 'loading', friends: null, soc: null};
     try { await U.load(); } catch (e) {}
     if (fp !== me) return;
     me.f = U.find(ref);
@@ -53,8 +54,55 @@ function fxFilmPages(o) {
       me.state = 'ready';
       if (!ref.slug && !(+ref.tm) && (me.f || tm)) fxNav.replace(fxNav.film(me.f || {tm}));
     }
-    if (o.friendsOn) o.friendsOn(film(), list => { if (fp === me) { me.friends = list; if (redraw) redraw(); } });
+    if (me.state === 'ready' && o.ratings) {
+      const F = film();
+      o.ratings(filmKeys(F)).then(j => {
+        if (fp !== me) return;
+        if (j && Array.isArray(j.friends)) { me.soc = j; if (redraw) redraw(); }
+        else if (o.friendsOn) o.friendsOn(F, list => { if (fp === me) { me.friends = list; if (redraw) redraw(); } });
+      });
+    } else if (o.friendsOn) o.friendsOn(film(), list => { if (fp === me) { me.friends = list; if (redraw) redraw(); } });
     if (redraw) redraw();
+  }
+  // a film's keys as the site indexes everyone's films (functions/api: fkeys): its TMDB id, its title and year
+  const fnorm = t => String(t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 120);
+  function filmKeys(F) {
+    const k = [];
+    if (+F.tm > 0) k.push('m' + F.tm); else if (+F.tm < 0) k.push('t' + (-F.tm));
+    [F.t, F.ot].forEach(t => { const n = fnorm(t); if (n && !k.includes('n' + n + '|' + (+F.y || ''))) k.push('n' + n + '|' + (+F.y || '')); });
+    return k.slice(0, 3);
+  }
+  // ---- the people you follow and this film: their own section ----
+  const avg = list => { const r = list.filter(x => x > 0); return r.length ? r.reduce((a, b) => a + b, 0) / r.length / 2 : 0; };
+  const one = x => (Math.round(x * 10) / 10).toFixed(1);
+  function socialHtml() {
+    const S = fp.soc; if (!S) return '';
+    const fr = S.friends || [], watched = fr.filter(x => x.e.length), want = fr.filter(x => x.wl), all = S.all || {n: 0, hist: []};
+    if (!watched.length && !want.length && !all.n) return '';
+    const fRates = watched.map(x => (x.e.find(e => e.r) || {}).r || 0), fAvg = avg(fRates), fLiked = watched.filter(x => x.e.some(e => e.h)).length;
+    const hist = (all.hist || []).slice(1, 11), max = Math.max(1, ...hist), allAvg = hist.reduce((a, c, i) => a + c * (i + 1), 0) / Math.max(1, hist.reduce((a, c) => a + c, 0)) / 2;
+    const av = (x, size) => typeof fxAvatar === 'function' ? fxAvatar(x.u, x.n, x.a, size) : '';
+    let h = `<section class="fx-card fp-soc"><div class="fp-soch"><h2>Friends</h2>${watched.length ? `<span class="fx-muted">${watched.length === 1 ? 'One of the people you follow has' : num(watched.length) + ' of the people you follow have'} seen it${fLiked ? `, ${fLiked === watched.length && fLiked > 1 ? 'all' : num(fLiked)} liked it` : ''}</span>` : ''}</div>`;
+    // the numbers: the people you follow, everyone on the site, and how everyone's ratings fall
+    const tiles = [];
+    if (fAvg) tiles.push(`<div class="fp-avg"><b>${one(fAvg)}</b><span><span class="fp-st">${stars(Math.round(fAvg * 2))}</span>Friends, ${plural(fRates.filter(Boolean).length, 'rating', 'ratings')}</span></div>`);
+    const allN = hist.reduce((a, c) => a + c, 0);
+    if (allN > fRates.filter(Boolean).length) tiles.push(`<div class="fp-avg fp-avg2"><b>${one(allAvg)}</b><span><span class="fp-st">${stars(Math.round(allAvg * 2))}</span>Everyone on ${esc((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15')}, ${plural(hist.reduce((a, c) => a + c, 0), 'rating', 'ratings')}</span></div>`);
+    if (tiles.length) h += `<div class="fp-sum"><div class="fp-avgs">${tiles.join('')}</div>${allN >= 3 ? `<div class="fp-hist" role="img" aria-label="How everyone rated it, from half a star to five stars: ${hist.join(', ')}">${hist.map((c, i) => `<i style="--h:${c ? Math.max(8, Math.round(c / max * 100)) : 0}%" title="${(i + 1) / 2} ★: ${c}"></i>`).join('')}<span>½</span><span>★★★★★</span></div>` : ''}</div>`;
+    // each of them, newest first: what they gave it, when, and the start of their review
+    if (watched.length) h += `<ul class="fp-fl">${watched.map(x => {
+      const e = x.e[0], href = '/u/' + esc(x.u) + (e.id ? '#' + esc(e.id) : ''), more = x.e.length - 1;
+      const marks = (e.r ? `<span class="fp-st">${stars(e.r)}</span>` : '') + (x.e.some(z => z.h) ? '<i class="fx-ico lk" title="Liked"></i>' : '') + (e.rw ? '<i class="fx-ico rw" title="Rewatch"></i>' : '');
+      const when = e.w ? U.longDay(e.w) : 'Seen, no date';
+      return `<li><a class="fp-fav" href="${href}" aria-hidden="true" tabindex="-1">${av(x, 'm')}</a><div class="fp-fb">`
+        + `<div class="fp-f1"><a class="fp-fn" href="${href}" dir="auto">${esc(x.n || '@' + x.u)}</a>${marks}</div>`
+        + `<div class="fp-f2">${esc(when)}${more ? `, and ${plural(more, 'time', 'times')} before` : ''}</div>`
+        + (e.rx ? `<a class="fp-rx" href="${href}" dir="auto">${esc(e.rx)}${e.rx.length >= 240 ? '…' : ''}</a>` : e.sp ? `<a class="fp-rx sp" href="${href}">Their review has spoilers. Read it on their profile.</a>` : '')
+        + '</div></li>';
+    }).join('')}</ul>`;
+    else if (fr.length || all.n) h += `<p class="fx-muted fp-none">None of the people you follow have logged it yet.</p>`;
+    if (want.length) h += `<div class="fp-want"><span class="fp-stack">${want.slice(0, 6).map(x => `<a href="/u/${esc(x.u)}" title="${esc(x.n || '@' + x.u)}">${av(x, 's')}</a>`).join('')}</span><span>${want.length === 1 ? `<b dir="auto">${esc(want[0].n || '@' + want[0].u)}</b> wants to see it` : `<b dir="auto">${esc(want[0].n || '@' + want[0].u)}</b> and ${plural(want.length - 1, 'other', 'others')} want to see it`}</span></div>`;
+    return h + '</section>';
   }
   // everything known about the film on show, in one shape
   function film() {
@@ -105,7 +153,8 @@ function fxFilmPages(o) {
       }).join('')}</ul></section>`;
     } else if (seen) h += `<p class="dx-seen">You’ve seen this.</p>`;
     if (pw) h += `<p class="fp-plan"><span>In your plan</span> ${pw.done ? 'Watched, week ' + num(pw.w) : pw.now ? 'This week' : 'Week ' + num(pw.w) + (pw.when ? ', ' + esc(pw.when) : '')}</p>`;
-    if (fp.friends && fp.friends.length) {
+    if (fp.soc) h += socialHtml();
+    else if (fp.friends && fp.friends.length) {
       h += `<section class="fx-card dx-sec"><h2>People you follow</h2><ul class="fp-fr">${fp.friends.slice(0, 12).map(e => `<li><a class="fx-who" href="/u/${esc(e.u)}${e.id ? '#' + esc(e.id) : ''}">${typeof fxAvatar === 'function' ? fxAvatar(e.u, e.n, e.a, 's') : ''}<b dir="auto">${esc(e.n || '@' + e.u)}</b></a>`
         + `<span class="fx-mini" dir="ltr">${stars(+e.r)}</span>${e.h ? '<i class="fx-ico lk"></i>' : ''}${e.w ? `<span class="fx-muted">${esc(U.longDay(e.w))}</span>` : ''}${e.rx ? `<p dir="auto">${esc(String(e.rx).slice(0, 200))}</p>` : ''}</li>`).join('')}</ul></section>`;
     }

@@ -33,9 +33,10 @@ const here = p => p.url().replace(B, '');
 
   // ---- Settings: who you are and Sign out, right at the top ----
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
-  const first = await p.$eval('.fx-app .fx-card', e => e.className);
-  ok(/ac-me/.test(first), 'the account is the first thing in Settings');
-  ok(/@pia/.test(await p.$eval('.ac-me', e => e.innerText)) && await p.$('.ac-me [data-ac-out]') !== null, 'signed in as @pia, with Sign out');
+  ok(await p.$('.fx-app .fx-head + .ac-me') !== null, 'the account is the first thing in Settings');
+  ok(/@pia/.test(await p.$eval('.ac-me', e => e.innerText)) && await p.$('[data-ac-out]') !== null, 'signed in as @pia, with Sign out');
+  await p.click('[data-sset="account"]'); await p.waitForSelector('#ac-security');
+  ok(here(p) === '/settings/account', 'Account has its own page', here(p));
   await p.waitForSelector('.ac-list li', {timeout: 8000});
   const devices = await p.$$eval('#ac-security .ac-list li', ls => ls.map(l => l.innerText.replace(/\s+/g, ' ')));
   ok(devices.length === 1 && /Chrome/.test(devices[0]) && /This device/.test(devices[0]), 'where you’re signed in: this device', devices);
@@ -68,7 +69,7 @@ const here = p => p.url().replace(B, '');
   // ---- signing out with changes this device hasn't saved yet ----
   await c1.setOffline(true);
   await p.evaluate(() => Store.set('log:off', 't:Offline Film (2001)'));
-  await p.click('.ac-me [data-ac-out]'); await p.waitForSelector('.ac-warn', {timeout: 8000});
+  await p.click('[data-sset-back]'); await p.waitForSelector('[data-ac-out]'); await p.click('[data-ac-out]'); await p.waitForSelector('.ac-warn', {timeout: 8000});
   ok(/haven’t been saved/.test(await p.$eval('.ac-warn', e => e.innerText)), 'unsaved changes: it warns before signing out');
   await c1.setOffline(false);
   await p.click('[data-ac-retry]'); await p.waitForSelector('form[data-auth]', {timeout: 10000});
@@ -100,7 +101,7 @@ const here = p => p.url().replace(B, '');
   const rexFollows = await r.evaluate(async () => (await (await fetch('/api/u/pia/meta')).json()).follows);
   ok(rexFollows === false, 'removed as a follower');
   await p.goto(B + '/u/quin'); await p.waitForSelector('.fx-pmeta');
-  await p.click('[data-pmore]'); await p.click('[data-pblock]'); await p.click('[data-pblockyes]'); await p.waitForURL(/\/settings$/, {timeout: 10000});
+  await p.click('[data-pmore]'); await p.click('[data-pblock]'); await p.click('[data-pblockyes]'); await p.waitForURL(/\/settings\/privacy$/, {timeout: 10000});
   await p.waitForSelector('[data-ac-unblock="quin"]', {timeout: 8000});
   ok(true, 'blocked: listed in Settings');
   const zr = await z.evaluate(async () => ({follow: (await CloudSync.follow('pia', true)).status, profile: (await fetch('/api/u/pia')).status, react: (await CloudSync.react({owner: 'pia', eid: 'x1', kind: 'h', on: true})).status,
@@ -110,7 +111,7 @@ const here = p => p.url().replace(B, '');
   ok(await z.evaluate(async () => (await fetch('/api/u/pia')).status) === 200, 'unblocked: they can see you again');
 
   // ---- About ----
-  await p.click('.ac-foot a[href="/about"]'); await p.waitForSelector('.ac-doc');
+  await p.click('[data-sset-back]'); await p.waitForSelector('.st-nav'); await p.click('.st-nav a[href="/about"]'); await p.waitForSelector('.ac-doc');
   ok(here(p) === '/about' && /What .* keeps/i.test(await p.$eval('.fx-app', e => e.innerText)), 'About and privacy, inside the app', here(p));
   await p.screenshot({path: path.join(OUT, 'acct-about.png'), fullPage: false});
   await p.goBack(); await p.waitForTimeout(300);

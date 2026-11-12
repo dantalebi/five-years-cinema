@@ -5,6 +5,7 @@
 //   fxNav.setHandler(fn): fn(url, how) shows the screen for an address ('pop' when it comes from Back or Forward)
 //   fxNav.open(url): go to a new screen · fxNav.note(url): the screen already changed, record it · fxNav.replace(url)
 //   fxNav.modal(id, onBack) / fxNav.unmodal(id): a sheet opened or closed (onBack returns false to stay open)
+//   fxNav.restore(y): scroll back to y once the page is tall enough (Back, a reload) · fxNav.savedY(): this entry's place
 const fxNav = (() => {
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   const slug = s => norm(s).replace(/ /g, '-');
@@ -33,6 +34,20 @@ const fxNav = (() => {
   const st = () => (history.state && typeof history.state === 'object' ? history.state : {});
   // the scroll position goes with each entry, so Back returns to the same place in a long list
   function remember() { try { history.replaceState(Object.assign({}, st(), {y: Math.round(window.scrollY || 0)}), ''); } catch (e) {} }
+  // leaving the page altogether (a profile's film opens the app, a reload): its place is kept the same way
+  window.addEventListener('pagehide', remember);
+  // going back to a place: screens that load their content (a director's films, a profile) aren't tall enough yet, so
+  // keep trying as the page grows, until it gets there, the person scrolls, or a few seconds pass
+  let want = null, until = 0;
+  function settle() {
+    if (want === null) return;
+    if (Date.now() > until) { want = null; return; }
+    window.scrollTo(0, want);
+    if (Math.abs((window.scrollY || 0) - want) < 3) want = null;
+  }
+  function restore(y) { want = y > 0 ? y : null; until = Date.now() + 5000; if (want === null) window.scrollTo(0, 0); else settle(); }
+  try { new ResizeObserver(() => settle()).observe(document.documentElement); } catch (e) {}
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, () => { want = null; }, {passive: true, capture: true}));
   function push(url) {
     remember();
     history.pushState({app: 1, n: (st().n || 0) + 1}, '', url);
@@ -74,5 +89,5 @@ const fxNav = (() => {
     if (handler) handler(location.pathname + location.search, 'pop');
   });
   return {film, director, parseFilm, slug, setHandler: fn => { handler = fn; }, open, note, replace, back, modal: modalOpen, unmodal: modalClose,
-    savedY: () => +st().y || 0, depth: () => st().n || 0};
+    savedY: () => +st().y || 0, depth: () => st().n || 0, restore, top: () => restore(0)};
 })();

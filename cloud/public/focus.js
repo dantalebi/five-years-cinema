@@ -442,7 +442,7 @@ function mountFocus(root, D, S, opts) {
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '', bdPick = null;
-  let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '', just = '';
+  let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '', just = '', sset = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
   const posterOn = () => !!(P && P.on());
@@ -791,7 +791,73 @@ function mountFocus(root, D, S, opts) {
       return `<div class="fx-fav"><button type="button" class="fx-favb" data-fav="${n}" title="${esc(title)}">${img}<span class="fx-favt">${esc(title)}</span></button><span class="fx-favc" dir="auto">${esc(title)}</span><button type="button" class="fx-link fx-al" data-favrm="${n}">${t.favRemove}</button></div>`;
     }).join('');
   }
+  // ---- Settings on the site: a short list of sections, each on its own page (/settings/profile, …) ----
+  const SECTIONS = ['profile', 'privacy', 'plan', 'letterboxd', 'account', 'data'];
+  function renderSections() {
+    const t = T(), st = ST.status(), sid = seen()['cfg:share'], me = ST.me ? ST.me() || {} : {}, site = (typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15';
+    const msg = k => note[k] ? `<p class="fx-note ${note[k][0]}">${esc(note[k][1])}</p>` : '';
+    const sec = SECTIONS.includes(sset) ? sset : '';
+    const ls = opts.letterboxd ? opts.letterboxd.status() : {};
+    const planName = D.kind === 'list' ? t.planList(fa(F.length)) : opts.plan && opts.plan.own ? t.planOwn(fa(F.length)) : t.planSample;
+    const NAMES = {profile: 'Profile', privacy: 'Privacy', plan: 'Your plan', letterboxd: 'Letterboxd', account: 'Account', data: 'Your data'};
+    if (!sec) {
+      const rows = [
+        ['profile', 'Picture, name, bio, links and favorite films'],
+        ['privacy', (sid ? 'Your profile is public' : 'Your profile is private') + '; blocked accounts'],
+        ['plan', planName],
+        ['letterboxd', ls.at ? (seen()['cfg:lb'] ? '@' + seen()['cfg:lb'] + ', ' : '') + 'checked ' + ago(Date.parse(ls.at)) : 'Bring in your history from Letterboxd'],
+        ['account', me.rk === false ? 'Make a recovery key, password, devices' : 'Password, recovery key, where you’re signed in'],
+        ['data', 'Backups and downloads'],
+      ];
+      return `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${t.settings}</h1></div></header>${opts.accountUI('summary')}
+        <nav class="st-nav" aria-label="Settings">${rows.map(([k, d]) => `<button type="button" class="st-row${k === 'account' && me.rk === false ? ' st-warn' : ''}" data-sset="${k}"><span><b>${NAMES[k]}</b><small>${esc(d)}</small></span><i aria-hidden="true"></i></button>`).join('')}
+        <a class="st-row" href="/about" data-app><span><b>About ${esc(site)}</b><small>What the site keeps about you, and credits</small></span><i aria-hidden="true"></i></a></nav>${opts.accountUI('signout')}`;
+    }
+    let h = `<header class="fx-head st-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-sset-back>${t.settings}</button></div><h1 class="fx-h1">${NAMES[sec]}</h1></header>`;
+    if (sec === 'profile') {
+      h += opts.accountUI('picture');
+      if (!sid) h += `<p class="fx-note st-priv">Your profile is private, so only you can see these. <button type="button" class="fx-link" data-sset="privacy">Make it public</button></p>`;
+      else h += `<section class="fx-card"><h2>${t.linkL}</h2><pre class="fx-pre fx-link-pre" dir="ltr">${esc(ST.shareUrl(sid).replace(/^https:\/\//, '').replace(/\/$/, ''))}</pre><div class="fx-row"><button type="button" class="fx-btn" data-share-copy>${t.shareCopy}</button>${ST.previewUrl ? `<a class="fx-btn" href="${esc(ST.previewUrl(sid))}" data-app>View it</a>` : ''}</div></section>`;
+      h += `<section class="fx-card"><h2>About you</h2>
+          <label class="fx-field"><span>${t.nameL}</span><input type="text" data-cfg="cfg:name" maxlength="60" dir="auto" placeholder="${esc(t.namePh)}" value="${esc(seen()['cfg:name'] || '')}"></label>
+          <label class="fx-field"><span>Bio</span><textarea data-cfg="cfg:bio" maxlength="300" rows="3" dir="auto" placeholder="A line or two about you and the films you love">${esc(seen()['cfg:bio'] || '')}</textarea></label>
+          <div class="fx-field fx-two"><label><span>Pronouns</span><input type="text" data-cfg="cfg:pron" maxlength="30" dir="auto" placeholder="Optional" value="${esc(seen()['cfg:pron'] || '')}"></label>
+          <label><span>Location</span><input type="text" data-cfg="cfg:loc" maxlength="60" dir="auto" placeholder="Optional" value="${esc(seen()['cfg:loc'] || '')}"></label></div>
+          <div class="fx-field"><span>${t.linksL}</span><div class="fx-links-ed">${[['tg', 'cfg:channel', 'url'], ['sp', 'cfg:sp', 'url'], ['ig', 'cfg:ig', 'url'], ['web', 'cfg:web', 'url']].map(([k, ck, ty]) => `<label><span>${t.links[k][0]}</span><input type="${ty}" data-cfg="${ck}" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="${esc(t.links[k][1])}" value="${esc(seen()[ck] || '')}"></label>`).join('')}</div><p class="fx-muted fx-small">Your Letterboxd link comes from your username in <button type="button" class="fx-link" data-sset="letterboxd">Letterboxd</button>.</p></div>
+          <div class="fx-row"><button type="button" class="fx-btn primary" data-cfg-save>${t.cfgSave}</button>${msg('cfg')}</div></section>
+        <section class="fx-card"><h2>${t.favH}</h2><p class="fx-muted">${t.favP}</p><div class="fx-favs">${favTiles()}</div>${picker && picker.fav != null ? pickerBox() : ''}</section>
+        <section class="fx-card"><h2>${t.bdH}</h2><p class="fx-muted">${t.bdP}</p>${bdField()}</section>`;
+    } else if (sec === 'privacy') {
+      const sw = (attr, on, title, d, dis) => `<label class="st-sw${dis ? ' off' : ''}"><span><b>${title}</b><small>${d}</small></span><input type="checkbox" class="fx-sw" role="switch" ${attr}${on ? ' checked' : ''}${dis ? ' disabled' : ''}></label>`;
+      const pub = !!sid, diary = seen()['cfg:pubdiary'] !== '0', wl = seen()['cfg:pubwl'] !== '0';
+      h += `<section class="fx-card st-sws">`
+        + sw('data-pubprof', pub, 'Public profile', pub ? 'Anyone with the link can see your profile, and members can find and follow you.' : 'Only you can see your profile. Nobody can find or follow you.', !st.connected)
+        + sw('data-pubdiary', diary, 'Diary and ratings', 'Your entries, ratings and reviews on your profile and in your followers’ Activity. Off: only this week’s films show.', !pub)
+        + sw('data-pubwl', wl, 'Watchlist', 'Your watchlist on your profile, and in Tonight when friends pick a film together.', !pub || !diary)
+        + msg('share') + `</section>${opts.accountUI('blocked')}`;
+    } else if (sec === 'plan') {
+      h += `<section class="fx-card"><h2>Current plan</h2><p>${esc(planName)}</p><div class="fx-row"><button type="button" class="fx-link${note.planReset ? ' fx-warn' : ''}" data-plan-reset>${note.planReset ? t.planReset2 : t.planReset}</button></div></section>`;
+      if (opts.settingsExtra) h += opts.settingsExtra(L());
+    } else if (sec === 'letterboxd' && opts.letterboxd) {
+      h += `<section class="fx-card"><h2>Import</h2><p class="fx-muted">${t.lbP}</p>
+        <div class="fx-row"><label class="fx-btn fx-file">${t.lbPick}<input type="file" accept=".zip,.csv,application/zip,text/csv" multiple data-lbimport></label></div>
+        ${lbBusy ? `<p class="fx-note busy" data-lbprog>${esc(lbBusy)}</p>` : msg('lb')}</section>
+        <section class="fx-card"><h2>Staying in sync</h2><label class="fx-field"><span>Your Letterboxd username</span><input type="text" data-cfg="cfg:lb" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="username" value="${esc(seen()['cfg:lb'] || '')}"></label>
+        <p class="fx-muted fx-small">${ls.at ? esc(t.lbAuto(ago(Date.parse(ls.at)), ls.n ? fa(ls.n) : '')) : t.lbAutoOff}</p>
+        ${opts.letterboxd.friends ? `<label class="fx-field"><span>${t.lbfL}</span><input type="text" data-cfg="cfg:lbf" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="username, another_one" value="${esc(seen()['cfg:lbf'] || '')}"></label><p class="fx-muted fx-small">${t.lbfP}</p>` : ''}
+        <div class="fx-row"><button type="button" class="fx-btn primary" data-cfg-save>${t.cfgSave}</button>${msg('cfg')}</div></section>`;
+    } else if (sec === 'account') {
+      h += opts.accountUI('security') + opts.accountUI('delete');
+    } else if (sec === 'data') {
+      h += `<section class="fx-card"><h2>Download</h2><p class="fx-muted">Everything in your account as a file: your diary, ratings, reviews, plan progress and settings.</p><div class="fx-row"><button type="button" class="fx-btn" data-dl-data>Download my data</button><button type="button" class="fx-btn" data-dl-all>${t.dlAll}</button></div></section>
+        <section class="fx-card"><h2>${t.bkH}</h2><p class="fx-muted">${t.bkP}</p>
+        <div class="fx-row"><button type="button" class="fx-btn" data-bk-copy>${t.bkCopy}</button></div>
+        <form class="fx-form" data-bk><input type="text" autocomplete="off" dir="ltr" placeholder="${esc(t.bkPh)}" aria-label="${esc(t.bkPh)}" required><button type="submit" class="fx-btn">${t.bkLoad}</button></form>${msg('bk')}</section>`;
+    }
+    return h;
+  }
   function renderSettings() {
+    if (opts.accountUI) return renderSections();
     const st = ST.status(), tm = seen()['cfg:tmdb'], t = T(), lang = L();
     const msg = k => note[k] ? `<p class="fx-note ${note[k][0]}">${esc(note[k][1])}</p>` : '';
     let h = `<header class="fx-head"><div class="fx-hrow"><h1 class="fx-h1">${t.settings}</h1></div></header>`;
@@ -873,9 +939,11 @@ function mountFocus(root, D, S, opts) {
     // the + in the bar: log a film from wherever you are
     if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
     const bd = view === 'week' ? fxBd(seen()) : null, chg = view !== viewShown;
-    const top = opts.brand ? opts.brand(view) : '';
+    const top = opts.brand ? opts.brand(view) : '', y0 = window.scrollY;
     root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     // the set switches on once per visit (not on every reload); after that, changing screens changes channel
+    // the same screen drawn again keeps its place, even if something on it was briefly shorter
+    if (!chg && y0 && Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);
     if (chg && opts.flip !== false) { let on = viewShown === null; if (on) { try { on = !sessionStorage.getItem('fx-on'); sessionStorage.setItem('fx-on', '1'); } catch (e) {} } if (on || viewShown !== null) fxFlip(on); }
     if (just) { const c = root.querySelector('.fx-i[data-k="' + CSS.escape(just) + '"] .fx-chk[aria-pressed="true"]'); if (c) c.classList.add('just'); just = ''; }
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
@@ -1248,7 +1316,13 @@ function mountFocus(root, D, S, opts) {
     if (e.target.matches('input[data-limport]')) { const f = e.target.files && e.target.files[0]; e.target.value = ''; listImport(f); return; }
     const c = e.target.closest('[data-cfg]');
     if (c) { saveCfg(c); return; }
-    if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); return; }
+    if (e.target.closest('input[data-pubdiary]')) { S.set('cfg:pubdiary', e.target.checked ? null : '0'); fxOSD(T().osdSaved); if (sset) render(); return; }
+    if (e.target.closest('input[data-pubwl]')) { S.set('cfg:pubwl', e.target.checked ? null : '0'); fxOSD(T().osdSaved); render(); return; }
+    if (e.target.closest('input[data-pubprof]')) {
+      const on = e.target.checked, tt = T(); note.share = ['busy', on ? tt.shareMaking : tt.shareStopping]; render();
+      (on ? ST.shareOn() : ST.shareOff()).then(r => { note.share = r ? ['bad', r] : null; if (!r) fxOSD(on ? 'Profile public' : 'Profile private'); render(); });
+      return;
+    }
   });
   function saveCfg(c) {
     {
@@ -1288,6 +1362,8 @@ function mountFocus(root, D, S, opts) {
       if (listRm !== k) { listRm = k; render(); setTimeout(() => { if (listRm === k) { listRm = ''; if (view === 'list') render(); } }, 4000); return; }
       listRm = ''; LS.remove(k); return;
     }
+    if (t.dataset.sset !== undefined) { sset = SECTIONS.includes(t.dataset.sset) ? t.dataset.sset : ''; note = {}; picker = null; view = 'settings'; render(); window.scrollTo(0, 0); if (opts.onSettings) opts.onSettings(sset); return; }
+    if (t.hasAttribute('data-sset-back')) { if (opts.settingsBack) opts.settingsBack(); else { sset = ''; render(); } return; }
     if (t.hasAttribute('data-plan-reset')) {
       if (!note.planReset) { note.planReset = 1; render(); setTimeout(() => { if (note.planReset) { delete note.planReset; render(); } }, 4000); return; }
       delete note.planReset; if (opts.plan) opts.plan.reset(); return;
@@ -1443,7 +1519,7 @@ function mountFocus(root, D, S, opts) {
       const m = md ? Object.assign({}, md) : null; if (m) delete m.k;
       pick('t:' + title + (year ? ' (' + year + ')' : ''), m);
     },
-    go, view: () => view,
+    go, view: () => view, section: () => sset, setSection: x => { sset = SECTIONS.includes(x) ? x : ''; },
     openEntry(ek) { if (seen()[ek] || seen()['v:' + ek]) openSheet({ek}); },
     closeSheet: () => { if (sheet) closeSheet(true); },
   };

@@ -300,7 +300,7 @@
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
 
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
-  const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync, {toSettings: () => { if (FX && FX.view() !== 'settings') fxNav.open('/settings'); }}) : null;
+  const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync, {toSettings: () => { if (FX && (FX.view() !== 'settings' || FX.section())) fxNav.open('/settings'); }}) : null;
   const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
   const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
@@ -308,7 +308,7 @@
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
   const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
-  const pathOf = v => v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
+  const pathOf = v => v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
     const u = new URL(url, location.origin), p = u.pathname.replace(/\/+$/, '') || '/';
@@ -317,12 +317,14 @@
     else if (p === '/activity' || p.startsWith('/activity/')) { if (FR) FR.fromPath(p); v = 'friends'; }
     else if ((p === '/discover' || p.startsWith('/discover/')) && DX) { DX.fromUrl(p, u.searchParams); v = 'discover'; }
     else if (p.startsWith('/film/') && FP) { FP.openFilm(fxNav.parseFilm(p)); v = 'film'; }
+    else if (p === '/settings' || p.startsWith('/settings/')) { FX.setSection(p.slice(10)); v = 'settings'; }
     else if (p.startsWith('/director/') && FP) { FP.openDirector(p.slice(10).replace(/[^a-z0-9-]/g, '').slice(0, 120)); v = 'director'; }
     else v = VIEWS[p] || startView();
     if (AC) AC.closeMenu();
     FX.go(v);
     if (v !== 'film' && v !== 'director') document.title = C.siteName || 'TVC15';
-    window.scrollTo(0, how === 'pop' ? fxNav.savedY() : 0);
+    // Back and a reload return to the same place; anything else starts at the top
+    if (how === 'pop' || how === 'init') fxNav.restore(fxNav.savedY()); else fxNav.top();
   }
   fxNav.setHandler(route);
   document.addEventListener('click', e => { if (AC && FX && !e.target.closest('.av-top') && AC.closeMenu()) FX.render(); }, true);
@@ -392,11 +394,11 @@
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
-    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
+    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
-      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), profileMore: true, onView: v => fxNav.note(pathOf(v)), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : '')), settingsBack: () => fxNav.back('/settings'), modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
@@ -418,7 +420,7 @@
     });
     CloudSync.setPayload(() => {
       const out = fxShare(FX.plan(), Store.data, k => Posters.src(k));
-      if (!FR || Store.data['cfg:pubdiary'] === '0') return out;
+      if (!FR || Store.data['cfg:pubdiary'] === '0' || Store.data['cfg:pubwl'] === '0') return out;
       const o = JSON.parse(out); o.wl = FR.wl.list().slice(0, 1500).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
       return JSON.stringify(o);
     });
@@ -525,10 +527,13 @@
       }
       return `<div class="fx-pmeta"><span class="fx-muted">${esc(t.followers(fa(meta.followers)))}, ${esc(t.following(fa(meta.following)))}${meta.followsYou && !meta.self ? ' <span class="fx-badge">Follows you</span>' : ''}</span>${btn}</div>${more}`;
     };
+    if (!eid) fxNav.restore(fxNav.savedY());  // back from a film opened here: the same place on the profile
     PF = fxProfile(root, name, eid, {
       clean: true, base: location.origin + '/u/' + name, source: '/api/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: brandBar(),
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
+      // on someone else's grids, the films you've seen too
+      seenMine: f => !!mine && mine.has(+f.tm > 0 ? 'tm' + f.tm : norm(String(f.t || '').replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (+f.y || 0)),
       avatar: d => typeof fxAvatar === 'function' ? fxAvatar(name, d.name, d.av, 'xl') : '',
       // the reader's own language and calendar: a member's from their settings, a visitor's from the sign-in screen's switch
       lang: () => 'en',
@@ -538,7 +543,7 @@
         if (b.hasAttribute('data-pmore')) { pmore = !pmore; pblock = false; pnote = ''; render(); return true; }
         if (b.hasAttribute('data-pblock')) { pblock = true; render(); return true; }
         if (b.hasAttribute('data-pblockno')) { pblock = false; render(); return true; }
-        if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) location.href = '/settings'; }); return true; }
+        if (b.hasAttribute('data-pblockyes')) { CloudSync.block(name, true).then(r => { if (r.ok) location.href = '/settings/privacy'; }); return true; }
         if (b.hasAttribute('data-prmfollower')) { CloudSync.removeFollower(name).then(r => { if (r.ok) { meta.followsYou = false; meta.followers = Math.max(0, meta.followers - 1); pnote = '@' + name + ' no longer follows you.'; render(); } }); return true; }
         if (!b.hasAttribute('data-pfollow')) return false;
         const on = !meta.follows; meta.follows = on; meta.followers += on ? 1 : -1; render(); typeof fxOSD === 'function' && fxOSD(on ? 'Following' : 'Unfollowed');

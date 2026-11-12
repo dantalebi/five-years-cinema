@@ -46,15 +46,15 @@ function png(w, h) {
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
   ok(p.url().endsWith('/settings') && !(await p.$('.av-menu')), 'Settings from the menu');
 
-  // upload a photo, frame it, save it (once Settings has finished loading, so the file box isn't redrawn under us)
-  await p.waitForSelector('#ac-security .ac-list li', {timeout: 8000}).catch(() => {}); await p.waitForTimeout(300);
+  // upload a photo, frame it, save it (in Profile)
+  await p.click('[data-sset="profile"]'); await p.waitForSelector('.ac-pic'); await p.waitForTimeout(300);
   await p.setInputFiles('input[data-ac-avfile]', pic); await p.waitForSelector('.av-crop canvas');
   await p.$eval('[data-avzoom]', e => { e.value = '1.6'; e.dispatchEvent(new Event('input', {bubbles: true})); });
   const box = await p.$eval('.av-crop canvas', e => { const r = e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; });
   await p.mouse.move(box.x, box.y); await p.mouse.down(); await p.mouse.move(box.x + 40, box.y + 10); await p.mouse.up();
   await p.screenshot({path: path.join(OUT, 'av-crop.png')});
-  await p.click('[data-avsave]'); await p.waitForSelector('.ac-me img.av', {timeout: 8000});
-  const src = await p.$eval('.ac-me img.av', e => e.getAttribute('src'));
+  await p.click('[data-avsave]'); await p.waitForSelector('.ac-pic img.av', {timeout: 8000});
+  const src = await p.$eval('.ac-pic img.av', e => e.getAttribute('src'));
   ok(/^\/api\/avatar\/vera\?v=\d+$/.test(src), 'saved: Settings shows it', src);
   const img = await p.evaluate(async s => { const r = await fetch(s); const a = new Uint8Array(await r.arrayBuffer()); return {type: r.headers.get('content-type'), cache: r.headers.get('cache-control'), jpeg: a[0] === 0xFF && a[1] === 0xD8, n: a.length}; }, src);
   ok(img.type === 'image/jpeg' && img.jpeg && img.n < 80000 && /immutable/.test(img.cache), 'a small JPEG, cached for good', img);
@@ -83,15 +83,15 @@ function png(w, h) {
   await p.fill('form[data-avq] input', 'Close-Up'); await p.click('form[data-avq] button'); await p.waitForSelector('[data-avfilm]');
   await p.click('[data-avfilm]'); await p.waitForSelector('[data-avstill]'); await p.click('[data-avstill]'); await p.waitForSelector('.av-crop canvas');
   await p.click('[data-avsave]'); await p.waitForTimeout(800);
-  const src2 = await p.$eval('.ac-me img.av', e => e.getAttribute('src'));
+  const src2 = await p.$eval('.ac-pic img.av', e => e.getAttribute('src'));
   ok(src2 !== src, 'a film still as the picture: a new version', src2);
   // Back closes the framing sheet without saving
   await p.setInputFiles('input[data-ac-avfile]', pic); await p.waitForSelector('.av-crop canvas');
   await p.goBack(); await p.waitForTimeout(400);
-  ok(!(await p.$('.av-crop')) && p.url().endsWith('/settings') && (await p.$eval('.ac-me img.av', e => e.getAttribute('src'))) === src2, 'Back closes it and keeps the picture');
+  ok(!(await p.$('.av-crop')) && p.url().endsWith('/settings/profile') && (await p.$eval('.ac-pic img.av', e => e.getAttribute('src'))) === src2, 'Back closes it and keeps the picture');
 
   // remove it
-  await p.click('[data-ac-avrm]'); await p.waitForSelector('.ac-me .av-i');
+  await p.click('[data-ac-avrm]'); await p.waitForSelector('.ac-pic .av-i');
   ok(await p.evaluate(async () => (await fetch('/api/avatar/vera')).status) === 404, 'removed: back to her initial');
 
   // what the server refuses

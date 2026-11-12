@@ -88,7 +88,7 @@ json.dump(man, open(OUT + 'manifest.webmanifest', 'w'), ensure_ascii=False, inde
 
 # Cloudflare Pages: headers for every file
 # every screen has an address (nav.js); all of them are the same page
-APP_PATHS = ['/u/*', '/plan/*', '/film/*', '/director/*', '/discover', '/discover/*', '/activity', '/activity/*', '/week', '/diary', '/stats', '/settings', '/plan', '/list', '/about']
+APP_PATHS = ['/u/*', '/plan/*', '/film/*', '/director/*', '/discover', '/discover/*', '/activity', '/activity/*', '/week', '/diary', '/stats', '/settings', '/settings/*', '/plan', '/list', '/about']
 # (an exact path rewritten to /index.html gets redirected to / by Pages' pretty URLs, so those go to / itself)
 open(OUT + '_redirects', 'w').write(''.join(f'{p}  {"/index.html" if p.endswith("*") else "/"}  200\n' for p in APP_PATHS))
 open(OUT + '_headers', 'w').write(f'''/*

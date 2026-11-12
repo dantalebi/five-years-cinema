@@ -32,7 +32,8 @@ const SCHEMA = [
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
 // users.av: when the profile picture last changed (0: none), so its address changes with it and can be cached for good
-const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`];
+const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE profiles ADD COLUMN films TEXT`];
 let ready = null;
 const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
@@ -240,6 +241,32 @@ on('PUT', '/api/plan', async (req, env, u) => {
 }, {auth: true});
 on('DELETE', '/api/plan', async (req, env, u) => { await env.DB.prepare('DELETE FROM plans WHERE uid = ?').bind(u.id).run(); return json({ok: true}); }, {auth: true});
 
+// Each profile's films, one line per entry, so a film's page can find everyone's ratings without unpacking whole
+// profiles: "<film key>\t<rating 0-10>\t<liked>\t<watched date>\t<entry id>\t<rewatch>\t<kind: D diary, S seen
+// without a date, W watchlist>\t<spoiler>\t<the start of the review>". A film's key is m<TMDB id> (t<id> for a series)
+// or n<title, simplified>|<year>; an entry with a TMDB id is listed under both, so either finds it.
+const fnorm = t => String(t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 120);
+const fkeys = (t, y, tm) => { const k = []; tm = +tm || 0; if (tm > 0) k.push('m' + tm); else if (tm < 0) k.push('t' + (-tm)); const n = fnorm(t); if (n) k.push('n' + n + '|' + (+y || '')); return k; };
+const clean1 = (v, n) => String(v == null ? '' : v).replace(/[\t\n\r\u0000-\u001f]+/g, ' ').trim().slice(0, n);
+function filmIndex(p) {
+  const out = [];
+  const add = (e, kind) => {
+    if (!e || typeof e.t !== 'string') return;
+    const rx = kind === 'D' && e.rv && typeof e.rv === 'string' && !e.sp ? clean1(e.rv, 240) : '';
+    const row = [Math.max(0, Math.min(10, +e.r || 0)), e.h ? 1 : 0, kind === 'D' && /^\d{4}-\d\d-\d\d$/.test(e.w || '') ? e.w : '', kind === 'D' ? clean1(e.id, 120) : '', e.rw ? 1 : 0, kind, e.sp && e.rv ? 1 : 0, rx].join('\t');
+    fkeys(e.t, e.y, e.tm).forEach(k => out.push(k + '\t' + row));
+  };
+  (Array.isArray(p.diary) ? p.diary : []).forEach(e => add(e, 'D'));
+  (Array.isArray(p.seen) ? p.seen : []).forEach(e => add(e, 'S'));
+  (Array.isArray(p.wl) ? p.wl : []).forEach(e => add(e, 'W'));
+  return '\n' + out.join('\n') + '\n';
+}
+// the lines of one profile's index for any of a film's keys
+function filmLines(films, keys) {
+  const out = [];
+  keys.forEach(k => { const at = '\n' + k + '\t'; let i = films.indexOf(at); while (i >= 0) { const j = films.indexOf('\n', i + 1); out.push(films.slice(i + at.length, j < 0 ? undefined : j).split('\t')); i = films.indexOf(at, i + 1); } });
+  return out;
+}
 // the public profile: the app builds it (fxShare) and sends it whole; the latest diary entries are kept apart for the feed
 on('PUT', '/api/profile', async (req, env, u) => {
   const b = await body(req, 1.9e6), p = b.payload;
@@ -252,8 +279,8 @@ on('PUT', '/api/profile', async (req, env, u) => {
   });
   const name = String(p.name || '').trim().slice(0, 60), now = Date.now(), pub = b.public === false ? 0 : 1;
   await env.DB.batch([
-    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
-      public = excluded.public, payload = excluded.payload, recent = excluded.recent, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), now),
+    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
+      public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = excluded.films, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), filmIndex(p), now),
     env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, u.id),
   ]);
   return json({updated: now});
@@ -347,6 +374,41 @@ on('GET', '/api/people', async (req, env, u) => {
       FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id, u.id, u.id).all()).results || [];
   return json({people: rows.map(r => ({username: r.username, name: r.name, av: r.av || 0, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
+}, {auth: true});
+// one film among the members: what the people you follow made of it (every entry, not only recent ones), who has it
+// on their watchlist, and how everyone on the site rated it (counted, not named). ?k= one or more of the film's keys.
+on('GET', '/api/film', async (req, env, u) => {
+  const keys = [...new Set(new URL(req.url).searchParams.getAll('k'))].filter(k => /^(m\d{1,9}|t\d{1,9}|n[^\t\n]{1,120}\|\d{0,4})$/u.test(k)).slice(0, 3);
+  if (!keys.length) return fail('bad', 400);
+  const rows = (await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS fol
+      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
+        AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id, u.id).all()).results || [];
+  const friends = [], hist = Array(11).fill(0); let n = 0, likes = 0, want = 0;
+  for (const r of rows) {
+    let films = r.films;
+    if (films == null && r.hasp) {  // published before the index existed: build it once now
+      const pr = await env.DB.prepare('SELECT payload FROM profiles WHERE uid = ?').bind(r.id).first();
+      try { films = filmIndex(JSON.parse(pr.payload)); await env.DB.prepare('UPDATE profiles SET films = ? WHERE uid = ?').bind(films, r.id).run(); } catch (e) { films = ''; }
+    }
+    const seen = new Set(), es = [];
+    let wl = false;
+    for (const l of filmLines(films || '', keys)) {
+      if (l[5] === 'W') { wl = true; continue; }
+      const id = l[3] || 'seen', sig = id + '|' + l[0] + '|' + l[2];
+      if (seen.has(sig)) continue; seen.add(sig);
+      es.push({r: +l[0] || 0, h: l[1] === '1', w: l[2] || '', id: l[3] || '', rw: l[4] === '1', sp: l[6] === '1', rx: l[7] || ''});
+    }
+    // an entry and an undated "seen" for the same film are the same viewing
+    const real = es.filter(e => e.id); const list = real.length ? real : es.slice(0, 1);
+    if (list.length) {
+      const best = list.find(e => e.r) || list[0];
+      n++; if (best.r) hist[best.r]++; if (list.some(e => e.h)) likes++;
+    }
+    if (wl && !list.length) want++;
+    if (r.fol && (list.length || wl)) friends.push({u: r.username, n: r.name || '', a: +r.av || 0, wl: wl && !list.length, e: list.sort((a, b) => String(b.w).localeCompare(String(a.w))).slice(0, 6)});
+  }
+  friends.sort((a, b) => (b.e.length > 0) - (a.e.length > 0) || String((b.e[0] || {}).w || '').localeCompare(String((a.e[0] || {}).w || '')));
+  return json({friends, all: {n, likes, want, hist}}, 200, {'cache-control': 'private, no-store'});
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
 // with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]

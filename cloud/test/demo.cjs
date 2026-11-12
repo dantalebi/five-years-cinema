@@ -36,7 +36,7 @@ async function signup(p, u, n, lang) {
     await signup(p, 'talebi', 'Danial Talebi', 'fa');
     await p.setInputFiles('[data-omove]', path.join(OUT, 'demo-move.json'));
     await p.waitForSelector('.fx-tabbar', {timeout: 30000});
-    await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('[data-lbimport]', {state: 'attached'});
+    await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.click('[data-sset="letterboxd"]'); await p.waitForSelector('[data-lbimport]', {state: 'attached'});
     const files = ['diary.csv', 'reviews.csv', 'watched.csv', 'ratings.csv'].map(f => path.join(LBX, f)).concat([path.join(LBX, 'likes', 'films.csv')]);
     await p.setInputFiles('[data-lbimport]', files);
     for (let i = 0; i < 240; i++) { await p.waitForTimeout(1000); const n = await p.evaluate(() => Object.keys(Store.data).filter(k => /^v:log:/.test(k)).length); if (n > 600 && i > 5) { const n2 = await p.evaluate(() => Object.keys(Store.data).filter(k => /^v:log:/.test(k)).length); if (n2 === n) break; } }

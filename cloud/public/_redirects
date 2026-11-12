@@ -10,6 +10,7 @@
 /diary  /  200
 /stats  /  200
 /settings  /  200
+/settings/*  /index.html  200
 /plan  /  200
 /list  /  200
 /about  /  200

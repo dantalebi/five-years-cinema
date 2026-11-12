@@ -169,6 +169,8 @@ const CloudSync = (() => {
     loadPlan, cachedPlan, savePlan, shareOn, shareOff, shareUrl, previewUrl: u => shareUrl(u),
     follow: (username, on) => api('POST', '/follow', {username, on}), feed: () => api('GET', '/feed'), people: () => api('GET', '/people'), meta: u => api('GET', '/u/' + u + '/meta'),
     react: o => api('POST', '/react', o), inbox: () => api('GET', '/inbox'),
+    // a film among the members: the people you follow (every entry), watchlists, everyone's ratings counted
+    filmRatings: keys => api('GET', '/film?' + keys.map(k => 'k=' + encodeURIComponent(k)).join('&')),
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

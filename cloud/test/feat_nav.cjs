@@ -72,7 +72,16 @@ const here = p => p.url().replace(B, '');
   // Settings behind the gear, and Back out of it
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForTimeout(200);
   ok(here(p) === '/settings', 'Settings', here(p));
-  ok(await p.$('a[href="/plan/new"]') !== null, 'Settings offers to build a new plan');
+  ok(await p.$$eval('.st-nav .st-row', rs => rs.length) >= 6, 'Settings: a short list of sections');
+  await p.click('[data-sset="plan"]'); await p.waitForTimeout(200);
+  ok(here(p) === '/settings/plan' && await p.$('a[href="/plan/new"]') !== null, 'Your plan: build a new one', here(p));
+  await p.reload(); await p.waitForSelector('a[href="/plan/new"]', {timeout: 8000});
+  ok(here(p) === '/settings/plan', 'a section reloads as itself');
+  await p.click('[data-sset-back]'); await p.waitForTimeout(300);
+  ok(here(p) === '/settings' && await p.$('.st-nav') !== null, 'its back link: Settings', here(p));
+  await p.click('[data-sset="privacy"]'); await p.waitForTimeout(200);
+  await p.goBack(); await p.waitForTimeout(300);
+  ok(here(p) === '/settings', 'Back from a section: Settings', here(p));
   await p.goBack(); await p.waitForTimeout(300);
   ok(here(p) === '/diary', 'Back: where you were', here(p));
 

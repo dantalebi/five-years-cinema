@@ -1,7 +1,8 @@
-// Your account, in Settings: who you're signed in as and signing out (top); then blocked accounts, your password,
-// your recovery key, the devices you're signed in on, and deleting the account (bottom).
-// fxAccount(CloudSync) → {ui(where), click(button, render), submit(form, render), about()}: Settings calls ui('top') and
-// ui('bottom'); the app passes its clicks and form submissions through.
+// Your account, in Settings. ui(part) draws one part where Settings puts it: 'summary' (who you're signed in as, at the
+// top of Settings), 'picture' (your profile picture, in Profile), 'blocked' (in Privacy), 'security' (password, recovery
+// key, the devices you're signed in on), 'signout', 'delete' (in Account).
+// fxAccount(CloudSync) → {ui(part), click(button, render), submit(form, render), about()}: the app passes its clicks and
+// form submissions through.
 function fxAccount(CS, o) {
   o = o || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -32,27 +33,36 @@ function fxAccount(CS, o) {
   }
   let renderRef = null;
 
-  function top() {
+  // who you are, at the top of Settings
+  function summary() {
     const me = CS.me() || {}, sync = CS.status ? CS.status() : {};
-    const syncLine = sync.state === 'err' ? `<span class="fx-bad">${esc(sync.msg || 'Not synced')}</span>` : sync.state === 'busy' ? 'Saving…' : 'Your diary is saved to your account and stays in sync on all your devices.';
-    const picAct = typeof fxAvatarEditor !== 'undefined' ? `<div class="ac-avact"><label class="fx-link ac-file">${me.av ? 'Change picture' : 'Add a picture'}<input type="file" accept="image/*" data-ac-avfile></label><button type="button" class="fx-link" data-ac-avstill>Use a film still</button>${me.av ? '<button type="button" class="fx-link" data-ac-avrm>Remove</button>' : ''}</div>` : '';
-    let h = `<section class="fx-card ac-me"><div class="ac-who">${pic(me.username, me.name, me.av, 'l')}<div><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span>${picAct}</div></div>${msg('av')}
-      <p class="fx-muted">${syncLine}</p>
-      <div class="fx-row"><a class="fx-btn" href="/u/${esc(me.username || '')}">Your profile</a><button type="button" class="fx-btn" data-ac-out>Sign out</button></div>`;
+    const syncLine = sync.state === 'err' ? `<span class="fx-bad">${esc(sync.msg || 'Not synced')}</span>` : sync.state === 'busy' ? 'Saving…' : 'Saved to your account, in sync on all your devices';
+    let h = `<section class="ac-me"><a class="ac-who" href="/u/${esc(me.username || '')}">${pic(me.username, me.name, me.av, 'l')}<span><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span><small>${syncLine}</small></span><em>View profile</em></a>`;
+    if (me.rk === false) h += `<p class="fx-note ac-rknote">You don’t have a recovery key yet. Without one, a forgotten password can’t be reset. <button type="button" class="fx-link" data-sset="account">Make one</button></p>`;
+    return h + '</section>';
+  }
+  // your picture, in Profile
+  function picture() {
+    const me = CS.me() || {};
+    const act = typeof fxAvatarEditor !== 'undefined' ? `<div class="ac-avact"><label class="fx-btn ac-file">${me.av ? 'Change picture' : 'Add a picture'}<input type="file" accept="image/*" data-ac-avfile></label><button type="button" class="fx-btn" data-ac-avstill>Use a film still</button>${me.av ? '<button type="button" class="fx-link" data-ac-avrm>Remove</button>' : ''}</div>` : '';
+    return `<section class="fx-card ac-pic"><h2>Picture</h2><div class="ac-picrow">${pic(me.username, me.name, me.av, 'l')}${act}</div>${msg('av')}</section>`;
+  }
+  function signout() {
+    let h = `<div class="ac-out"><button type="button" class="fx-btn" data-ac-out>Sign out</button>`;
     if (st.outWarn) h += `<div class="fx-note bad ac-warn"><p>Some changes on this device haven’t been saved to your account yet (you may be offline). If you sign out now, they’ll be lost.</p>
       <div class="fx-row"><button type="button" class="fx-btn" data-ac-retry>Try saving again</button><button type="button" class="fx-btn fx-danger" data-ac-outforce>Sign out anyway</button></div></div>`;
-    if (me.rk === false) h += `<p class="fx-note ac-rknote">You don’t have a recovery key yet. Without one, a forgotten password can’t be reset. <a href="#ac-security">Make one below</a>.</p>`;
-    return h + msg('out') + '</section>';
+    return h + msg('out') + '</div>';
   }
-  function bottom() {
-    const me = CS.me() || {};
+  function blocked() {
     let h = `<section class="fx-card"><h2>Blocked accounts</h2><p class="fx-muted">People you block can’t follow you, react to or comment on your entries, or see your profile while they’re signed in. They aren’t told.</p>`;
     if (st.blocks === null) h += `<p class="fx-muted">Loading…</p>`;
     else if (!st.blocks.length) h += `<p class="fx-muted">You haven’t blocked anyone. To block someone, open their profile.</p>`;
     else h += `<ul class="ac-list">${st.blocks.map(b => `<li><span><b dir="auto">${esc(b.name || b.username)}</b> <span class="fx-muted">@${esc(b.username)}</span></span><button type="button" class="fx-btn" data-ac-unblock="${esc(b.username)}">Unblock</button></li>`).join('')}</ul>`;
-    h += msg('blocks') + '</section>';
-    // security
-    h += `<section class="fx-card" id="ac-security"><h2>Password and security</h2>
+    return h + msg('blocks') + '</section>';
+  }
+  function security() {
+    const me = CS.me() || {};
+    let h = `<section class="fx-card" id="ac-security"><h2>Password</h2>
       <details class="fx-more"${st.note.pw ? ' open' : ''}><summary>Change password</summary><form class="fx-form ac-form" data-ac-pw>
         <input type="password" name="cur" autocomplete="current-password" dir="ltr" placeholder="Current password" aria-label="Current password" required>
         <input type="password" name="next" autocomplete="new-password" minlength="8" dir="ltr" placeholder="New password (at least 8 characters)" aria-label="New password" required>
@@ -69,17 +79,20 @@ function fxAccount(CS, o) {
       h += `<ul class="ac-list">${st.sessions.map(s => `<li><span><b>${esc(device(s.ua))}</b> <span class="fx-muted">${s.current ? 'This device' : esc(ago(s.seen))}</span></span>${s.current ? '' : `<button type="button" class="fx-btn" data-ac-end="${esc(s.id)}">Sign out</button>`}</li>`).join('')}</ul>`;
       if (st.sessions.length > 1) h += `<div class="fx-row"><button type="button" class="fx-btn" data-ac-endothers>Sign out of all other devices</button></div>`;
     }
-    h += msg('sessions') + `</div></section>`;
-    // delete
-    h += `<section class="fx-card"><h2>Delete your account</h2><p class="fx-muted">This deletes everything: your diary, plan, profile, follows, reactions and comments. It can’t be undone, so download your data first if you want a copy.</p>
+    return h + msg('sessions') + `</div></section>`;
+  }
+  function del() {
+    return `<section class="fx-card"><h2>Delete your account</h2><p class="fx-muted">This deletes everything: your diary, plan, profile, follows, reactions and comments. It can’t be undone, so download your data first if you want a copy.</p>
       <div class="fx-row"><button type="button" class="fx-btn" data-dl-data>Download my data</button></div>
       <details class="fx-more"${st.delSure || st.note.del ? ' open' : ''}><summary>Delete my account</summary><form class="fx-form ac-form" data-ac-del><input type="password" name="pw" autocomplete="current-password" dir="ltr" placeholder="Your password" aria-label="Your password" required>
       <button type="submit" class="fx-btn fx-danger">${st.delSure ? 'Delete it for good' : 'Delete my account'}</button></form>${st.delSure ? '<p class="fx-note bad">This is permanent. Press the button again to delete your account.</p>' : ''}${msg('del')}</details></section>`;
-    h += `<p class="fx-muted ac-foot"><a href="/about" data-app>About ${esc(siteName())} and your privacy</a></p>`;
-    return h;
   }
   const siteName = () => (typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15';
-  function ui(where, render) { if (render) renderRef = render; if (where === 'bottom' && renderRef) load(renderRef); return where === 'top' ? top() : bottom(); }
+  function ui(part, render) {
+    if (render) renderRef = render;
+    if ((part === 'blocked' || part === 'security') && renderRef) load(renderRef);
+    return {summary, picture, blocked, security, signout, delete: del}[part] ? {summary, picture, blocked, security, signout, delete: del}[part]() : '';
+  }
 
   async function click(b, render) {
     const d = b.dataset;

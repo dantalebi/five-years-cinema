@@ -1359,3 +1359,97 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 .fx-authhead .fx-lede{font-size:17px; line-height:1.5; color:var(--ink); max-width:30em}
 .fx-badge{display:inline-block; margin-inline-start:6px; padding:1px 7px; border-radius:5px; font-size:11.5px; font-weight:700; font-stretch:106%; color:var(--osd); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--osd) 45%, transparent); vertical-align:1px}
 .fx-authtabs button{padding:7px 15px; font-size:13.5px; font-weight:600}
+
+/* a film's page: the people you follow, in a section of their own */
+.fp-soc{display:grid; gap:16px}
+.fp-soch{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px}
+.fp-soch h2{margin:0}
+.fp-soch .fx-muted{font-size:13px}
+.fp-sum{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 26px}
+.fp-avgs{display:grid; gap:10px; flex:1 1 210px}
+.fp-avg{display:flex; align-items:center; gap:12px}
+.fp-avg b{font-family:var(--display); font-weight:800; font-stretch:125%; font-size:34px; line-height:1; letter-spacing:-.03em; min-width:2.2ch; font-variant-numeric:tabular-nums}
+.fp-avg > span{display:grid; gap:1px; font-size:12.5px; color:var(--muted); line-height:1.35}
+.fp-avg2 b{font-size:24px; color:var(--muted)}
+.fp-st{color:var(--osd); letter-spacing:.04em; font-size:14px}
+.fp-avg2 .fp-st{opacity:.75}
+.fp-hist{flex:1 1 170px; max-width:280px; display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); grid-template-rows:56px auto; column-gap:3px; row-gap:5px; align-items:end}
+.fp-hist i{height:var(--h); min-height:2px; border-radius:2px 2px 0 0; background:var(--osd); opacity:.85; transform-origin:bottom; animation:fp-rise .5s cubic-bezier(.2,.8,.2,1) both}
+.fp-hist i[style*="--h:0%"]{background:var(--line2); opacity:1}
+.fp-hist span{grid-row:2; font-size:10.5px; color:var(--faint); line-height:1}
+.fp-hist span:first-of-type{grid-column:1 / 3} .fp-hist span:last-of-type{grid-column:6 / 11; justify-self:end; letter-spacing:.04em}
+@keyframes fp-rise{from{transform:scaleY(0)}}
+.fp-fl{list-style:none; margin:0; padding:0; display:grid}
+.fp-fl li{display:grid; grid-template-columns:36px minmax(0, 1fr); gap:12px; padding:14px 0; border-top:1px solid var(--line)}
+.fp-fav{border-radius:50%}
+.fp-fb{display:grid; gap:2px; min-width:0}
+.fp-f1{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px}
+.fp-fn{font-weight:700; font-stretch:104%; color:var(--ink); text-decoration:none}
+.fp-fn:hover{text-decoration:underline; text-decoration-color:var(--osd)}
+.fp-f1 .fx-ico{width:14px; height:14px}
+.fp-f2{font-size:12.5px; color:var(--muted)}
+.fp-rx{display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; margin-top:6px; font-size:14.5px; line-height:1.55; color:var(--ink); opacity:.92; text-decoration:none}
+.fp-rx::before{content:"“"; font-family:var(--display); font-weight:800; color:var(--osd); margin-inline-end:2px}
+.fp-rx::after{content:"”"; font-family:var(--display); font-weight:800; color:var(--osd); margin-inline-start:1px}
+.fp-rx.sp{color:var(--muted); font-style:italic} .fp-rx.sp::before, .fp-rx.sp::after{content:none}
+.fp-rx:hover{opacity:1}
+.fp-none{margin:0; font-size:14px}
+.fp-want{display:flex; align-items:center; gap:12px; padding-top:14px; border-top:1px solid var(--line); font-size:13.5px; color:var(--muted)}
+.fp-want b{color:var(--ink); font-weight:600}
+.fp-stack{display:inline-flex; padding-inline-start:6px}
+.fp-stack a{margin-inline-start:-6px; border-radius:50%; box-shadow:0 0 0 2px var(--bg)}
+@media (prefers-reduced-motion: reduce){ .fp-hist i{animation:none} }
+.fp-fl .fp-fn{color:var(--ink)}
+
+/* a profile's Films and Watchlist: poster grids */
+.fx-pgbar{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; margin:4px 0 2px}
+.fx-pgbar .fx-muted{font-size:13px; font-weight:600; font-stretch:106%}
+.fx-pgrid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(78px, 1fr)); gap:14px 8px}
+@media (min-width:600px){ .fx-pgrid{grid-template-columns:repeat(auto-fill, minmax(98px, 1fr))} }
+.fx-pgrid li{display:grid; gap:5px; align-content:start; min-width:0}
+.fx-pg{position:relative; display:block; aspect-ratio:2 / 3; border-radius:3px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s}
+.fx-pg img{width:100%; height:100%; object-fit:cover; display:block}
+@media (hover:hover){ a.fx-pg:hover{transform:translateY(-2px); box-shadow:0 0 0 2px var(--osd), 0 8px 18px -8px rgba(0,0,0,.5)} }
+a.fx-pg:active{transform:scale(.97)}
+.fx-pgt{position:absolute; inset:0; display:grid; place-items:center; padding:6px; text-align:center; font-size:11px; font-weight:600; font-stretch:106%; line-height:1.25; color:var(--muted); overflow:hidden}
+.fx-pgy{position:absolute; top:4px; right:4px; width:16px; height:16px; border-radius:50%; background:var(--osd); box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+.fx-pgy::after{content:""; position:absolute; left:5px; top:3px; width:4px; height:7px; border:solid var(--on-osd); border-width:0 2px 2px 0; transform:rotate(45deg)}
+.fx-pgm{display:flex; align-items:center; gap:4px; min-height:14px; font-size:11.5px; line-height:1; color:var(--osd); letter-spacing:.02em; white-space:nowrap; overflow:hidden}
+.fx-pgm .fx-ico{width:11px; height:11px}
+.fx-pgmore{display:flex; align-items:center; gap:12px; margin-top:18px}
+
+/* Settings: who you are, then a short list of sections, each on its own page */
+.ac-me{display:grid; gap:12px}
+.ac-me .ac-who{display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:14px; padding:14px; border-radius:14px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink); text-decoration:none; transition:box-shadow .15s}
+.ac-me .ac-who:hover{box-shadow:inset 0 0 0 1px var(--osd)}
+.ac-me .ac-who > span{display:grid; gap:1px; min-width:0}
+.ac-me .ac-who b{font-size:18px; font-weight:700; font-stretch:106%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ac-me .ac-who > span > span{font-size:13px; color:var(--muted)}
+.ac-me .ac-who small{font-size:12px; color:var(--faint); margin-top:3px}
+.ac-me .ac-who em{font-style:normal; font-size:12.5px; font-weight:600; color:var(--osd); white-space:nowrap}
+.ac-rknote{margin:0}
+.st-nav{display:grid; border-radius:14px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--line); background:var(--surface)}
+.st-row{all:unset; box-sizing:border-box; cursor:pointer; display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:12px; padding:14px 16px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background .15s}
+.st-row:first-child{border-top:0}
+.st-row:hover{background:color-mix(in srgb, var(--ink) 4%, transparent)}
+.st-row:active{background:color-mix(in srgb, var(--ink) 8%, transparent)}
+.st-row:focus-visible{outline:2px solid var(--osd); outline-offset:-2px}
+.st-row > span{display:grid; gap:2px; min-width:0}
+.st-row b{font-size:15.5px; font-weight:650; font-stretch:106%}
+.st-row small{font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.st-row > i{width:8px; height:8px; border:solid var(--faint); border-width:1.8px 1.8px 0 0; transform:rotate(45deg); margin-inline-end:4px}
+.st-row.st-warn small{color:var(--need)}
+.ac-out{display:grid; gap:10px; justify-items:start; padding-top:6px}
+.st-head{gap:8px}
+.st-priv{margin:0}
+.ac-pic .ac-picrow{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.ac-pic .ac-avact{margin:0; gap:8px}
+.st-sws{gap:0}
+.st-sw{display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:16px; padding:14px 0; border-top:1px solid var(--line); cursor:pointer}
+.st-sw:first-child{border-top:0; padding-top:0}
+.st-sw > span{display:grid; gap:3px}
+.st-sw b{font-size:15px; font-weight:650; font-stretch:106%}
+.st-sw small{font-size:13px; line-height:1.45; color:var(--muted)}
+.st-sw.off{opacity:.5; cursor:default}
+.fx-sw:focus-visible{outline:2px solid var(--osd); outline-offset:2px}
+.fp-fl .fp-rx{color:var(--ink)} .fp-fl .fp-rx.sp{color:var(--muted)}

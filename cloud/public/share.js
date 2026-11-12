@@ -4,13 +4,16 @@
 function fxProfile(root, id, focusId, opts) {
   opts = opts || {};
   let lang = 'en', data = null, updated = '', tab = focusId ? 'diary' : 'now', open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
-  const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n'};  // which way each stats card is showing
+  const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n', fs: 'w', ws: 'a'};  // which way each stats card (and the Films and Watchlist grids) is showing
+  const shown = {films: 120, wl: 120};  // how much of a long grid is drawn
   // the games (play.js), when the page has them; ?play=duel|tonight|match opens one straight away
   const playLink = g => opts.clean ? opts.base + '?play=' + g : location.href.replace(/[?#].*$/, '') + '?play=' + g + '#' + id;
   const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink, lbProxy: opts.lbProxy || '', mine: opts.mine || null}) : null;
   let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
-    en: {diary: 'Film diary', title: 'Film diary', now: 'This week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', updated: a => 'Updated ' + a,
+    en: {diary: 'Film diary', title: 'Film diary', now: 'This week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', tFilms: 'Films', tWl: 'Watchlist',
+      fsorts: [['w', 'Last watched'], ['r', 'Rating'], ['y', 'Release year'], ['t', 'Title']], wsorts: [['a', 'Recently added'], ['y', 'Release year'], ['t', 'Title']],
+      noFilms: 'No films here yet.', noWl: 'Nothing on the watchlist.', showMore: 'Show more', ofN: (a, b) => a + ' of ' + b, wlN: n => n + (n === 1 ? ' film' : ' films') + ' to watch', seenByYou: 'You’ve seen it', updated: a => 'Updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ', ' + rt : '') + (n ? ', ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
       watched: 'Watched', min: n => n, films: n => n + (n === 1 ? ' film' : ' films'), hours: n => Number(n).toLocaleString('en-US') + (n === 1 ? ' hour' : ' hours'), avg: a => '★ ' + a + ' average', likes: n => n + (n === 1 ? ' like' : ' likes'), reviews: n => n + (n === 1 ? ' review' : ' reviews'),
       allYears: 'All time', tmatch: 'taste match', inCommon: n => n + (n === 1 ? ' film in common' : ' films in common'), favs: 'Favorite films', spoiler: 'This review may contain spoilers.', reveal: 'Show it anyway', readReview: 'Read review', open: 'Open entry', backTo: n => '← ' + n, reviewBy: n => 'Review by ' + n, entryBy: n => 'Diary entry by ' + n, entry: 'Diary entry', watchedOn: 'Watched', rewatchedOn: 'Rewatched', spoilerTag: 'Spoilers', rewatch: 'Rewatch', withShort: n => 'with ' + n, cal: 'Watch calendar', perma: 'Copy link', copied: 'Link copied', more: 'Read more', less: 'Show less', noReviews: 'No reviews yet.', noDiary: 'Nothing logged yet.',
@@ -22,7 +25,9 @@ function fxProfile(root, id, focusId, opts) {
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
       inApp: 'app', links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
-    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', tPlay: 'بازی', updated: a => 'به‌روز شده ' + a,
+    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', tPlay: 'بازی', tFilms: 'فیلم‌ها', tWl: 'واچ‌لیست',
+      fsorts: [['w', 'آخرین دیده‌شده'], ['r', 'امتیاز'], ['y', 'سال ساخت'], ['t', 'نام']], wsorts: [['a', 'تازه‌ترین'], ['y', 'سال ساخت'], ['t', 'نام']],
+      noFilms: 'هنوز فیلمی نیست.', noWl: 'واچ‌لیست خالیه.', showMore: 'بیشتر', ofN: (a, b) => a + ' از ' + b, wlN: n => n + ' فیلم برای دیدن', seenByYou: 'دیدی‌ش', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
       watched: 'دیدمش', min: n => n + ' دقیقه', films: n => n + ' فیلم', hours: n => n + ' ساعت', avg: a => 'میانگین ★' + a, likes: n => n + ' ♥', reviews: n => n + ' ریویو',
       discuss: 'گفت‌وگو تو کانال ↗', allYears: 'همه', tmatch: 'هم‌سلیقگی', inCommon: n => n + ' فیلم مشترک', favs: 'فیلم‌های محبوب', spoiler: 'این ریویو ممکنه داستان رو لو بده.', reveal: 'با این حال نشونم بده', readReview: 'خوندن ریویو', open: 'باز کردن', backTo: n => '→ ' + n, reviewBy: n => 'ریویوی ' + n, entryBy: n => 'از دفتر ' + n, entry: 'از دفتر', watchedOn: 'دیده‌شده', rewatchedOn: 'دوباره دیده‌شده', spoilerTag: 'اسپویل', rewatch: 'دوباره‌دیدن', withShort: n => 'با ' + n, cal: 'تقویم تماشا', perma: 'کپی لینک', copied: 'لینک کپی شد', more: 'ادامه', less: 'کمتر', noReviews: 'هنوز ریویویی نیست.', noDiary: 'هنوز چیزی ثبت نشده.',
@@ -91,7 +96,7 @@ function fxProfile(root, id, focusId, opts) {
     let h = `${opts.top || ''}<header class="fx-head">${opts.top ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
-    if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['diary', t.tDiary], ['reviews', t.tReviews], ['stats', t.tStats]].concat(PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
+    if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]].concat(Array.isArray(data.wl) ? [['wl', t.tWl]] : [], [['stats', t.tStats]], PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
   // a signed-in visitor sees at once how close their taste is to this person's
@@ -208,6 +213,36 @@ function fxProfile(root, id, focusId, opts) {
   }
   const card = (title, tools, body) => `<section class="fx-card"><div class="fx-cardh"><h2>${title}</h2>${tools || ''}</div>${body}</section>`;
   const dirsOf = f => String(f.d || '').split(/,\s*|،\s*/).filter(Boolean);
+  // ---- every film they've watched, and their watchlist: poster grids ----
+  const gkey = f => (+f.tm > 0 ? 'm' + f.tm : '') || String(f.t || '').toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '') + '|' + (+f.y || 0);
+  function gridCell(f, extra) {
+    const href = siteFilm(f) || (okSlug(f.l) ? 'https://letterboxd.com/film/' + f.l + '/' : (+f.tm > 0 ? 'https://letterboxd.com/tmdb/' + (+f.tm) + '/' : ''));
+    const title = String(f.t || '').replace(/\s*\(\d{4}\)\s*$/, ''), lab = title + (f.y ? ' (' + f.y + ')' : '');
+    const pic = okPoster(f.p) ? `<img src="${esc(f.p.replace(/\/w\d+\//, '/w185/'))}" alt="" loading="lazy" decoding="async">` : `<span class="fx-pgt" dir="auto">${esc(title)}</span>`;
+    const seenMine = opts.seenMine && opts.seenMine(f);
+    const inner = pic + (seenMine ? `<i class="fx-pgy" title="${esc(T().seenByYou)}"></i>` : '');
+    const box = href ? `<a class="fx-pg" href="${esc(href)}"${href.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''} title="${esc(lab)}" aria-label="${esc(lab)}">${inner}</a>` : `<span class="fx-pg" title="${esc(lab)}">${inner}</span>`;
+    return `<li>${box}${extra || ''}</li>`;
+  }
+  const marks = f => (f.r || f.h) ? `<span class="fx-pgm">${f.r ? `<span>${'★'.repeat(Math.floor(f.r / 2))}${f.r % 2 ? '½' : ''}</span>` : ''}${f.h ? '<i class="fx-ico lk"></i>' : ''}</span>` : '';
+  function moreBtn(k, n) { return n > shown[k] ? `<div class="fx-pgmore"><button type="button" class="fx-btn" data-pgmore="${k}">${T().showMore}</button><span class="fx-muted">${esc(faDigits(T().ofN(shown[k], n)))}</span></div>` : ''; }
+  function filmsView() {
+    const t = T(), d = inYear(), extra = year === 'all' ? (data.seen || []) : [];
+    // one cell per film: its latest viewing, best-known rating, liked if any viewing was
+    const m = new Map();
+    d.concat(extra).forEach(e => { const k = gkey(e), f = m.get(k); if (!f) m.set(k, Object.assign({}, e)); else { if (!f.r && e.r) f.r = e.r; if (e.h) f.h = 1; if (!f.p && e.p) f.p = e.p; if (!f.w && e.w) f.w = e.w; } });
+    let films = [...m.values()];
+    const by = {w: (a, b) => String(b.w || '').localeCompare(String(a.w || '')), r: (a, b) => (b.r || 0) - (a.r || 0) || String(b.w || '').localeCompare(String(a.w || '')), y: (a, b) => (b.y || 0) - (a.y || 0), t: (a, b) => String(a.t).localeCompare(String(b.t))}[stv.fs] || null;
+    if (by) films.sort(by);
+    if (!films.length) return `<p class="fx-muted">${t.noFilms}</p>`;
+    return `<div class="fx-pgbar"><span class="fx-muted">${esc(faDigits(t.films(films.length)))}</span>${seg('fs', t.fsorts)}</div><ul class="fx-pgrid">${films.slice(0, shown.films).map(f => gridCell(f, marks(f))).join('')}</ul>${moreBtn('films', films.length)}`;
+  }
+  function wlView() {
+    const t = T(); let films = (data.wl || []).filter(f => f && typeof f.t === 'string');
+    if (stv.ws === 'y') films = films.slice().sort((a, b) => (b.y || 0) - (a.y || 0)); else if (stv.ws === 't') films = films.slice().sort((a, b) => String(a.t).localeCompare(String(b.t)));
+    if (!films.length) return `<p class="fx-muted">${t.noWl}</p>`;
+    return `<div class="fx-pgbar"><span class="fx-muted">${esc(faDigits(t.wlN(films.length)))}</span>${seg('ws', t.wsorts)}</div><ul class="fx-pgrid">${films.slice(0, shown.wl).map(f => gridCell(f)).join('')}</ul>${moreBtn('wl', films.length)}`;
+  }
   function statsView() {
     // all time also counts the films marked watched with no diary entry, as Letterboxd's stats do
     const t = T(), d = inYear(), extra = year === 'all' ? data.seen : [], films = filmsOf(d.concat(extra)), mw = [['n', t.most], ['r', t.best]];
@@ -261,8 +296,9 @@ function fxProfile(root, id, focusId, opts) {
       root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc(t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }
-    const body = tab === 'diary' ? diaryView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
-    const yn = tab === 'now' || tab === 'play' ? '' : yearNav();
+    if (tab === 'wl' && !Array.isArray(data.wl)) tab = 'now';
+    const body = tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
+    const yn = tab === 'now' || tab === 'play' || tab === 'wl' ? '' : yearNav();
     root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
@@ -298,8 +334,9 @@ function fxProfile(root, id, focusId, opts) {
       if (pushed) { pushed = false; history.back(); return; }
       history.replaceState(null, '', location.href.replace(/#.*$/, '') + hashFor('')); cur = ''; if (tab === 'now') tab = 'diary'; render(); window.scrollTo(0, 0); return;
     }
-    if (b.dataset.tab) { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
+    if (b.dataset.tab) { tab = b.dataset.tab; render(); const tb = root.querySelector('.fx-tabs'); if (tb) { const top = tb.getBoundingClientRect().top + window.scrollY - 8; if (window.scrollY > top) window.scrollTo(0, top); } }
     else if (b.dataset.year) { year = b.dataset.year; if (opts.keep) opts.keep.year = year; render(); }
+    else if (b.dataset.pgmore) { const k = b.dataset.pgmore; if (k in shown) { shown[k] += 240; render(); } }
     else if (b.dataset.st) { const [k, v] = b.dataset.st.split(':'); if (k in stv) { stv[k] = v; if (opts.keep) opts.keep.stv = Object.assign({}, stv); render(); } }
     else if (b.dataset.spoil) { open['sp:' + b.dataset.spoil] = true; render(); }
     else if (b.dataset.more) { open[b.dataset.more] = !open[b.dataset.more]; render(); }

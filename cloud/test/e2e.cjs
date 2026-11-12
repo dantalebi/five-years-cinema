@@ -105,7 +105,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const v = await dev('V');
   await v.goto(B + '/u/danial'); await v.waitForSelector('.fx-pmeta', {timeout: 10000});
   ok((await v.$eval('.fx-pmeta a', e => e.getAttribute('href'))) === '/', 'visitors get a sign-in link instead of Follow');
-  ok(await v.$$eval('.fx-tabs button', l => l.length) === 5, 'all five tabs on a member’s profile');
+  const vt = await v.$$eval('.fx-tabs button', l => l.map(x => x.textContent));
+  ok(vt.length >= 6 && vt.includes('Films'), 'every tab on a member’s profile, Films among them', vt);
   await v.screenshot({path: path.join(OUT, 'cl-profile.png')});
   await v.goto(B + '/u/nobody_here'); await v.waitForTimeout(800);
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'unknown profile: no longer published', await text(v, 'h1'));
@@ -115,13 +116,14 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(/@danial/.test(await text(a, '.fx-app')), 'settings show who is signed in');
   ok(!(await a.$('form[data-tmdb]')) && !(await a.$('form[data-gh]')), 'no TMDB key or GitHub token to paste');
   await a.screenshot({path: path.join(OUT, 'cl-settings.png'), fullPage: true});
-  await a.click('[data-share-off]'); await a.waitForTimeout(800);
+  await a.click('[data-sset="privacy"]'); await a.waitForSelector('input[data-pubprof]'); await a.click('input[data-pubprof]'); await a.waitForTimeout(800);
   await v.goto(B + '/u/danial'); await v.waitForTimeout(800);
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'profile off → not readable');
-  await a.click('.ac-me [data-ac-out]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
+  await a.click('[data-sset-back]'); await a.waitForSelector('[data-ac-out]'); await a.click('[data-ac-out]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
   ok(await a.evaluate(() => !localStorage.getItem('fy-state') && !localStorage.getItem('fd-me')), 'signing out leaves nothing on the device');
   // nothing went straight to TMDB or Letterboxd
   console.log('errors', errs);
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
   await b.close();
+  process.exit(fails ? 1 : 0);
 })();
