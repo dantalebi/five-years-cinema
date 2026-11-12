@@ -11,6 +11,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await p.click('[data-amode="up"]'); await p.fill('input[name=u]', 'logger'); await p.fill('input[name=p]', 'pass for logger');
   await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]'); await p.waitForSelector('[data-ostart="sample"]', {timeout: 15000});
   await p.click('[data-ostart="sample"]'); await p.waitForSelector('.fx-tabbar');
+  ok(await p.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'week', 'it opens on Home');
+  await p.click('[data-nav="friends"]'); await p.waitForTimeout(300);
   ok(await p.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'friends', 'on Activity');
   // + from Activity: search, pick, rate, save — and still on Activity
   await p.click('[data-qlog]'); await p.fill('.fx-pick-q', 'Stalker'); await p.waitForSelector('[data-pick-tm]', {timeout: 8000});

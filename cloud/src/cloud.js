@@ -303,12 +303,14 @@
   const AC = typeof fxAccount === 'function' ? fxAccount(CloudSync, {toSettings: () => { if (FX && (FX.view() !== 'settings' || FX.section())) fxNav.open('/settings'); }}) : null;
   const ABOUT = AC ? {id: 'about', hidden: true, label: {en: 'About', fa: 'About'}, view: () => AC.about(), click: b => { if (b.hasAttribute('data-ac-back')) { fxNav.back('/settings'); return true; } return false; }} : null;
   let DX = null, FP = null;
-  const startView = () => FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week';
+  // the app opens on Home (This week and the rest), or on Activity if you'd rather
+  const startView = () => FR && Store.data['cfg:home'] === 'friends' ? 'friends' : 'week';
+  const HM = typeof fxHome === 'function' ? fxHome({FR, redraw: () => FX && FX.render()}) : null;
   // the top of each main screen: the wordmark, which takes you home
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
   const VIEWS = {'/plan/new': 'build', '/about': 'about', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
-  const pathOf = v => v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
+  const pathOf = v => v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
     const u = new URL(url, location.origin), p = u.pathname.replace(/\/+$/, '') || '/';
@@ -398,7 +400,7 @@
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
-      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : '')), settingsBack: () => fxNav.back('/settings'), modal: {open: fxNav.modal, close: fxNav.unmodal}});
+      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : '')), settingsBack: () => fxNav.back('/settings'), modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger(logTo); }
     if (PM) PM.attach(root, () => FX && FX.render());
@@ -415,8 +417,9 @@
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {
+      const h = e.target.closest('button'); if (h && HM && HM.click(h)) return;
       const b = e.target.closest('[data-home]'); if (!b) return;
-      Store.set('cfg:home', b.dataset.home === 'week' ? 'week' : null); if (FX) FX.render();
+      Store.set('cfg:home', b.dataset.home === 'friends' ? 'friends' : null); if (FX) FX.render();
     });
     CloudSync.setPayload(() => {
       const out = fxShare(FX.plan(), Store.data, k => Posters.src(k));
@@ -427,9 +430,9 @@
     enrichSoon(); setTimeout(lbPull, 2500);
   }
   function homeChoice(L) {
-    const week = Store.data['cfg:home'] === 'week';
+    const act = Store.data['cfg:home'] === 'friends';
     const gen = typeof fxPlanner === 'function' ? `<section class="fx-card"><h2>Build a new plan</h2><p class="fx-muted">A schedule made from the Discover catalog, with your choice of length, pace and balance. It leaves out everything you’ve logged, so it’s worth rebuilding after you bring in your Letterboxd history.</p><div class="fx-row"><a class="fx-btn" href="/plan/new" data-app>Build a new plan</a></div></section>` : '';
-    return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${week ? '' : ' primary'}" data-home="friends">Activity</button><button type="button" class="fx-btn${week ? ' primary' : ''}" data-home="week">This week</button></div></section>`;
+    return gen + `<section class="fx-card"><h2>Open the app on</h2><div class="fx-row"><button type="button" class="fx-btn${act ? '' : ' primary'}" data-home="week">Home</button><button type="button" class="fx-btn${act ? ' primary' : ''}" data-home="friends">Activity</button></div></section>`;
   }
   function reset() { Store.set('cfg:plan', null); kind = ''; onboard(); window.scrollTo(0, 0); }
   let rt = null;

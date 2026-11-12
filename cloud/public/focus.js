@@ -25,7 +25,7 @@ const FX_STR = {
     settings: 'Settings', full: 'The whole plan', planLink: (w, n) => 'Week ' + w + ' of ' + n + ', see the whole plan', diaryLink: 'Diary', back: '← This week', end: 'The end', endP: 'Five years, every film. What comes next is up to you.',
     add: '+ Add a film', addH: 'Add a film', replace: 'Replace', replaceH: t => 'Replace ' + t, insteadOf: t => 'Instead of ' + t, added: 'Added',
     remove: 'Remove', cancel: 'Cancel', addPh: 'Search films…', addAsIs: t => 'Add “' + t + '”', noMatch: 'Not in your plan, but you can still add it.',
-    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' film' : ' films') + ', ' + h + (avg ? ', averaging ' + avg + ' stars' : ''),
+    diaryH: 'Diary', diaryEye: (n, h, avg) => n + (n === '1' ? ' diary entry' : ' diary entries') + ', ' + h + (avg ? ', averaging ' + avg + ' stars' : ''),
     logFilm: '+ Log a film', logH: 'Log a film', allYears: 'All time', watchedLbl: 'Watched',
     inPlan: 'In your plan', fromTmdb: 'From TMDB', searching: 'Searching TMDB…',
     favH: 'Favorite films', favP: 'Four films that sum up your taste. They sit at the top of your profile.', favAdd: 'Add', favPick: n => 'Favorite #' + n, favRemove: 'Remove',
@@ -600,6 +600,8 @@ function mountFocus(root, D, S, opts) {
     const tb = x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '');
     const vis = (opts.tabs || []).filter(x => !x.hidden), extra = vis.filter(x => !x.end).map(tb).join(''), last = vis.filter(x => x.end).map(tb).join('');
     const plus = opts.quickLog ? `<button type="button" class="fx-tplus" data-qlog aria-label="${esc(t.logFilm.replace(/^\+\s*/, ''))}" title="${esc(t.logFilm.replace(/^\+\s*/, ''))}"><i aria-hidden="true"></i></button>` : '';
+    // the site: Home (This week, and the rest under it) first, then Activity, +, Diary, Discover
+    if (opts.homeLabel) return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(opts.homeLabel)} / ${esc(t.navDiary)}"><div>${b('week', esc(opts.homeLabel))}${extra}${plus}${b('diary', t.navDiary)}${last}</div></nav>`;
     return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${last}${ST && !opts.settingsGear ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
   }
   function gear() {
@@ -940,7 +942,7 @@ function mountFocus(root, D, S, opts) {
     if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
     const bd = view === 'week' ? fxBd(seen()) : null, chg = view !== viewShown;
     const top = opts.brand ? opts.brand(view) : '', y0 = window.scrollY;
-    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
+    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}${chg && viewShown !== null ? ' fx-chan' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${top}${gear()}${html}${view === 'week' ? foot() + (opts.homeExtra ? opts.homeExtra() : '') : ''}${tabbar()}</div>`;
     // the set switches on once per visit (not on every reload); after that, changing screens changes channel
     // the same screen drawn again keeps its place, even if something on it was briefly shorter
     if (!chg && y0 && Math.abs(window.scrollY - y0) > 1) window.scrollTo(0, y0);

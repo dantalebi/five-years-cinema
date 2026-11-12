@@ -25,6 +25,7 @@ const here = p => p.url().replace(B, '');
     e('log:a1', 'Close-Up', 1990, '2019-03-02', 8, 30017);
     e('log:a2', 'Close-Up', 1990, '2026-11-01', 10, 30017); Store.set('l:log:a2', 1); Store.set('rv:log:a2', 'Kiarostami films a real trial and lets the man who pretended to be Makhmalbaf play himself.');
     e('log:a3', 'Taste of Cherry', 1997, '2026-10-02', 9, 30020);
+    Store.set('wx:s1', 't:Stalker (1979)'); Store.set('r:wx:s1', 10); Store.set('wx:s2', 't:Mirror (1975)');   // seen, never logged
     Store.set('wl:tm949', JSON.stringify({t: 'Heat', y: 1995, tm: 949, p: '', u: '', at: Date.now()}));
   });
   await publish(ana);
@@ -59,16 +60,23 @@ const here = p => p.url().replace(B, '');
   await bob.goto(B + '/film/tmdb/949'); await bob.waitForSelector('.fp-want', {timeout: 15000});
   ok(/Ana wants to see it/.test(await bob.$eval('.fp-want', e => e.innerText)), 'Heat: Ana wants to see it');
 
+  // Bob's Home: This week first, then what the people he follows watched lately
+  await bob.goto(B + '/'); await bob.waitForSelector('.fx-tabbar');
+  ok(await bob.$eval('.fx-tabbar button[aria-current="page"]', e => e.textContent) === 'Home', 'the app opens on Home');
+  await bob.waitForSelector('.hm-feed li', {timeout: 10000});
+  ok(/Ana/.test(await bob.$eval('.hm-feed', e => e.innerText)) && /Close-Up/.test(await bob.$eval('.hm-feed', e => e.innerText)), 'Home: Ana’s latest, under This week');
+  ok(await bob.$('.fx-i') !== null && (await bob.$$('.hm-sec')).length >= 2, 'This week’s films and the rest');
   // Ana's profile: every film she's watched, and her watchlist
   await bob.goto(B + '/u/ana'); await bob.waitForSelector('.fx-tabs');
+  ok(/^4 films/.test(await bob.$eval('.fx-strip', e => e.innerText.trim())), 'her film count counts films, logged or only marked seen (4), not diary entries (3)', await bob.$eval('.fx-strip', e => e.innerText));
   const tabs = await bob.$$eval('.fx-tabs button', bs => bs.map(x => x.textContent));
   ok(tabs.includes('Films') && tabs.includes('Watchlist'), 'Films and Watchlist on her profile', tabs);
   await bob.click('[data-tab="films"]'); await bob.waitForSelector('.fx-pgrid li');
   const cells = await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label')));
-  ok(cells.length === 2 && cells[0] === 'Close-Up (1990)', 'one cell a film, the latest first', cells);
+  ok(cells.length === 4 && cells[0] === 'Close-Up (1990)', 'one cell a film, the latest first, the undated ones too', cells);
   ok(/★★★★★/.test(await bob.$eval('.fx-pgrid li', l => l.innerText)), 'with her rating');
   await bob.click('[data-st="fs:t"]'); await bob.waitForTimeout(200);
-  ok((await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label'))))[1] === 'Taste of Cherry (1997)', 'sorted by title');
+  ok((await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label'))))[0] === 'Close-Up (1990)' && (await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label'))))[3] === 'Taste of Cherry (1997)', 'sorted by title');
   await bob.click('[data-tab="wl"]'); await bob.waitForSelector('.fx-pgrid li');
   ok((await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label')))).join() === 'Heat (1995)', 'her watchlist');
   await bob.screenshot({path: path.join(OUT, 'friends-wl.png'), fullPage: true});

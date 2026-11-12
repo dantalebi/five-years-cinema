@@ -378,5 +378,7 @@ function fxFriendsTab(CS) {
       } catch (e) {}
     },
     wl: {list: wlList, set: wlSet, has: wlHas, key: wlKey},
+    // the latest entries from people you follow, newest first (null while they load; asking starts loading them)
+    recent(n) { if (!feed) { if (!err) load(); return err ? [] : null; } return feedRows().sort((a, b) => String(b.w || '').localeCompare(String(a.w || ''))).slice(0, n); },
   };
 }

@@ -20,7 +20,7 @@ const here = p => p.url().replace(B, '');
 
   // This Week → a film's page → its director → Back, Back
   await p.click('[data-nav="week"]'); await p.waitForTimeout(200);
-  ok(here(p) === '/week', 'This Week has an address', here(p));
+  ok(here(p) === '/', 'Home (This week) lives at /', here(p));
   const href = await p.$eval('.fx-i .fx-film', a => a.getAttribute('href'));
   ok(/^\/film\/[a-z0-9-]+$/.test(href), 'a plan film links to its page on the site, not Letterboxd', href);
   await p.click('.fx-i .fx-film'); await p.waitForSelector('.dx-ft');
@@ -37,12 +37,12 @@ const here = p => p.url().replace(B, '');
   await p.goBack(); await p.waitForSelector('.dx-ft');
   ok(here(p) === href, 'Back: the film again', here(p));
   await p.goBack(); await p.waitForTimeout(300);
-  ok(here(p) === '/week' && /This week/i.test(await p.$eval('.fx-h1', e => e.textContent)), 'Back: This Week again', here(p));
+  ok(here(p) === '/' && /This week/i.test(await p.$eval('.fx-h1', e => e.textContent)), 'Back: Home again', here(p));
 
   // the + box and the log sheet close on Back, and Back with an unsaved review asks first
   await p.click('.fx-tplus'); await p.waitForSelector('.fx-pick-q');
   await p.goBack(); await p.waitForTimeout(300);
-  ok(!(await p.$('.fx-pick-q')) && here(p) === '/week', 'Back closes the + box, and stays put', here(p));
+  ok(!(await p.$('.fx-pick-q')) && here(p) === '/', 'Back closes the + box, and stays put', here(p));
   await p.click('.fx-i .fx-film'); await p.waitForSelector('[data-fp-log]', {timeout: 8000});
   await p.click('[data-fp-log]'); await p.waitForSelector('.fx-sheet');
   await p.fill('.fx-shrv', 'Beautiful.');

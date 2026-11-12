@@ -21,7 +21,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   };
   const kim = await person('kim', [['Heat', 1995, 10], ['Ran', 1985, 10]], [['Stalker', 1979], ['Ugetsu', 1953]]);
   const lou = await person('lou', [['Heat', 1995, 8], ['Jaws', 1975, 10]], [['Stalker', 1979], ['Ran', 1985]]);
-  await kim.evaluate(() => CloudSync.follow('lou', true)); await kim.reload(); await kim.waitForSelector('.fx-tabbar');
+  await kim.evaluate(() => CloudSync.follow('lou', true)); await kim.goto(B + '/activity'); await kim.waitForSelector('.fx-tabbar');
   await kim.click('[data-seg="t"]'); await kim.waitForSelector('[data-tgp="lou"]', {timeout: 8000});
   await kim.click('[data-tgp="lou"]'); await kim.click('[data-tggo]'); await kim.waitForSelector('.fx-tgpick', {timeout: 15000});
   const pick = await kim.$eval('.fx-tgpick', e => e.innerText.replace(/\s+/g, ' '));

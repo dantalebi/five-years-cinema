@@ -18,10 +18,11 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   };
   const a = await person('ana', [['Close-Up', 1990, '2026-11-08', 10], ['Heat', 1995, '2026-11-02', 8]]);
   const z = await person('zed', [['Heat', 1995, '2026-11-01', 6]]);
-  // the site opens on Friends
+  // the site opens on Home; Activity comes next in the bar
   await z.reload(); await z.waitForSelector('.fx-tabbar');
-  ok(await z.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'friends', 'home page is Activity');
-  ok(await z.$eval('.fx-tabbar button', e => e.dataset.nav) === 'friends', 'Activity comes first in the bar');
+  ok(await z.$eval('.fx-tabbar button[aria-current="page"]', e => e.dataset.nav) === 'week', 'the app opens on Home');
+  ok((await z.$$eval('.fx-tabbar button', bs => bs.map(b => b.dataset.nav || '+'))).join() === 'week,friends,+,diary,discover', 'Home, Activity, +, Diary, Discover');
+  await z.click('[data-nav="friends"]'); await z.waitForSelector('[data-seg="p"]');
   await z.click('[data-seg="p"]'); await z.click('[data-fr-follow="ana"]'); await z.waitForTimeout(800); await z.click('[data-seg="f"]'); await z.waitForSelector('.fx-actv', {timeout: 8000});
   ok(/Close-Up/.test(await z.$eval('.fx-afeed', e => e.innerText)), 'her films in the feed');
   ok(/review that friends/.test(await z.$eval('.fx-afeed', e => e.innerText)), 'with the start of her review');

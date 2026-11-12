@@ -55,7 +55,7 @@ const CAT = {v: 1, built: '2026-11-12', fields: ['tmdb', 'slug', 'title', 'year'
 
   // the bar: Discover after Diary, Settings behind the gear
   const bar = await p.$$eval('.fx-tabbar button', bs => bs.map(x => x.dataset.nav || (x.hasAttribute('data-qlog') ? '+' : '')));
-  ok(bar.join(',') === 'friends,week,+,diary,discover', 'the bar: Activity, This Week, +, Diary, Discover', bar);
+  ok(bar.join(',') === 'week,friends,+,diary,discover', 'the bar: Home, Activity, +, Diary, Discover', bar);
   ok(await p.$('.av-top [data-ac-menu]') !== null, 'Settings is in the account menu at the top');
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.fx-h1');
   ok(/Settings/.test(await p.$eval('.fx-h1', e => e.textContent)), 'the gear opens Settings');

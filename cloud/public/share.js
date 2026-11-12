@@ -89,14 +89,17 @@ function fxProfile(root, id, focusId, opts) {
     return pic ? `<div class="fx-pid">${pic}<div class="fx-pidt">${nm}${loc}</div></div>${bio}` : nm + bio + loc;
   }
   function header() {
-    const t = T(), d = data.diary || [], mins = d.reduce((a, e) => a + (+e.m || 0), 0), rated = d.filter(e => e.r);
+    // the numbers count films, the way Letterboxd does: every film they've watched once, logged in the diary or only
+    // marked as seen, with its latest rating; reviews count diary entries
+    const t = T(), d = data.diary || [], all = filmsOf(d.concat(Array.isArray(data.seen) ? data.seen : []));
+    const mins = all.reduce((a, e) => a + (+e.m || 0), 0), rated = all.filter(e => e.r);
     const avg = rated.length ? (rated.reduce((a, e) => a + e.r, 0) / rated.length / 2).toFixed(1) : '';
     const name = String(data.name || '').trim();
-    const strip = d.length ? [t.films(d.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', d.some(e => e.h) ? t.likes(d.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(x => '<span>' + esc(faDigits(x)) + '</span>').join('') : '';
+    const strip = all.length ? [t.films(all.length), t.hours(Math.round(mins / 60)), avg ? t.avg(avg) : '', all.some(e => e.h) ? t.likes(all.filter(e => e.h).length) : '', d.some(e => e.rv) ? t.reviews(d.filter(e => e.rv).length) : ''].filter(Boolean).map(x => '<span>' + esc(faDigits(x)) + '</span>').join('') : '';
     let h = `${opts.top || ''}<header class="fx-head">${opts.top ? (updated ? `<div class="fx-eye">${esc(t.updated(ago(updated)))}</div>` : '') : `<div class="fx-eye">${esc(opts.site || t.diary)}${updated ? ', ' + esc(t.updated(ago(updated))) : ''}</div>`}${ident(name || t.title)}${strip ? `<div class="fx-strip"><span class="fx-tw">${strip}</span></div>` : ''}${linksRow()}${opts.headerExtra ? opts.headerExtra(lang) : ''}${tasteChip()}</header>`;
     const fav = (Array.isArray(data.fav) ? data.fav : []).filter(f => f && typeof f.t === 'string').slice(0, 4);
     if (fav.length) h += `<section class="fx-favrow"><div class="fx-eye">${t.favs}</div><div class="fx-favs">${fav.map(f => { const sf = siteFilm(f), link = sf || (okSlug(f.l) ? `https://letterboxd.com/film/${f.l}/` : (+f.tm > 0 ? `https://letterboxd.com/tmdb/${+f.tm}/` : '')); const inner = `${okPoster(f.p) ? `<img alt="" src="${f.p}">` : ''}<span class="fx-favt">${esc(f.t)}</span>`; return `<div class="fx-fav">${link ? `<a class="fx-favb" href="${link}" target="_blank" rel="noopener noreferrer" title="${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}">${inner}</a>` : `<span class="fx-favb">${inner}</span>`}</div>`; }).join('')}</div></section>`;
-    if (d.length) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]].concat(Array.isArray(data.wl) ? [['wl', t.tWl]] : [], [['stats', t.tStats]], PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
+    if (d.length || (Array.isArray(data.seen) && data.seen.length)) h += `<nav class="fx-tabs" role="tablist">${[['now', t.now], ['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]].concat(Array.isArray(data.wl) ? [['wl', t.tWl]] : [], [['stats', t.tStats]], PL ? [['play', t.tPlay]] : []).map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
   // a signed-in visitor sees at once how close their taste is to this person's
@@ -187,7 +190,7 @@ function fxProfile(root, id, focusId, opts) {
   // one film per title, with its latest rating — Letterboxd counts films, not viewings
   function filmsOf(d) {
     const m = new Map();
-    d.forEach(e => { const k = String(e.t) + '|' + (e.y || 0), f = m.get(k); if (!f) m.set(k, Object.assign({}, e)); else if (!f.r && e.r) f.r = e.r; });
+    d.forEach(e => { const k = String(e.t).toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '') + '|' + (e.y || 0), f = m.get(k); if (!f) m.set(k, Object.assign({}, e)); else { if (!f.r && e.r) f.r = e.r; if (e.h) f.h = 1; if (!f.m && e.m) f.m = e.m; } });
     return [...m.values()];
   }
   // count and average rating per bucket, e.g. per genre: [[bucket, films, average or 0]]
@@ -227,7 +230,8 @@ function fxProfile(root, id, focusId, opts) {
   const marks = f => (f.r || f.h) ? `<span class="fx-pgm">${f.r ? `<span>${'★'.repeat(Math.floor(f.r / 2))}${f.r % 2 ? '½' : ''}</span>` : ''}${f.h ? '<i class="fx-ico lk"></i>' : ''}</span>` : '';
   function moreBtn(k, n) { return n > shown[k] ? `<div class="fx-pgmore"><button type="button" class="fx-btn" data-pgmore="${k}">${T().showMore}</button><span class="fx-muted">${esc(faDigits(T().ofN(shown[k], n)))}</span></div>` : ''; }
   function filmsView() {
-    const t = T(), d = inYear(), extra = year === 'all' ? (data.seen || []) : [];
+    // every film, all time (the diary's own tabs go year by year)
+    const t = T(), d = data.diary || [], extra = Array.isArray(data.seen) ? data.seen : [];
     // one cell per film: its latest viewing, best-known rating, liked if any viewing was
     const m = new Map();
     d.concat(extra).forEach(e => { const k = gkey(e), f = m.get(k); if (!f) m.set(k, Object.assign({}, e)); else { if (!f.r && e.r) f.r = e.r; if (e.h) f.h = 1; if (!f.p && e.p) f.p = e.p; if (!f.w && e.w) f.w = e.w; } });
@@ -298,7 +302,7 @@ function fxProfile(root, id, focusId, opts) {
     }
     if (tab === 'wl' && !Array.isArray(data.wl)) tab = 'now';
     const body = tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
-    const yn = tab === 'now' || tab === 'play' || tab === 'wl' ? '' : yearNav();
+    const yn = tab === 'now' || tab === 'play' || tab === 'wl' || tab === 'films' ? '' : yearNav();
     root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
   }
   function shell(title, sub) {
