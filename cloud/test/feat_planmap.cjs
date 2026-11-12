@@ -19,7 +19,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(await p.$$eval('.pm-svg', l => l.length) === 5, 'five years on the map');
   ok(await p.$$eval('.pm-c.s-w', l => l.length) === 3, 'three squares filled in', await p.$$eval('.pm-c.s-w', l => l.length));
   ok(/^3\b/.test(await p.$eval('.pm-stats b', e => e.innerText)), 'stats: 3 watched');
-  ok(/Week 1\b/.test(await p.$eval('#pm-week', e => e.innerText)) && /You’re here/.test(await p.$eval('#pm-week', e => e.innerText)), 'week panel starts at this week');
+  ok(/Week 1\b/.test(await p.$eval('#pm-week', e => e.innerText)) && /Current/i.test(await p.$eval('#pm-week', e => e.innerText)), 'week panel starts at this week');
   // tap week 30 on the map
   await p.click('.pm-svg >> nth=0 >> [data-pmwk="30"] .pm-hit', {force: true}); await p.waitForTimeout(500);
   ok(/Week 30/.test(await p.$eval('#pm-week h2', e => e.innerText)), 'tapping a week opens it', await p.$eval('#pm-week h2', e => e.innerText));

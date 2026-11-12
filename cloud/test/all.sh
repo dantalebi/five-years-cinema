@@ -12,6 +12,7 @@ python3 build_cloud.py > /dev/null || exit 1
 run test/api_test.mjs
 run test/e2e.cjs
 run test/poster_csp.cjs 8790
+run test/catalog_test.mjs
 for t in test/feat_*.cjs; do [ -f "$t" ] && run "$t"; done
 pkill -f "test/server.mjs 8790" 2>/dev/null
 [ $fail = 0 ] && echo "EVERYTHING PASSED" || { echo "SOMETHING FAILED"; exit 1; }

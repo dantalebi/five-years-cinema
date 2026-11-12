@@ -13,7 +13,7 @@ const LIMIT = +process.env.LIMIT || Infinity, MISS_DAYS = 45, NOW = Date.now();
 const seed = JSON.parse(fs.readFileSync(process.env.CATALOG_SEED || path.join(HERE, 'seed.json'), 'utf8'));
 const CACHE_F = process.env.CATALOG_CACHE || path.join(HERE, 'tmdb-cache.json');
 const cache = fs.existsSync(CACHE_F) ? JSON.parse(fs.readFileSync(CACHE_F, 'utf8')) : {};
-for (const k of ['slug', 'movie', 'person', 'credits']) cache[k] = cache[k] || {};
+for (const k of ['slug', 'movie', 'tv', 'person', 'credits']) cache[k] = cache[k] || {};
 const save = () => fs.writeFileSync(CACHE_F, JSON.stringify(cache));
 
 const norm = s => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -46,6 +46,7 @@ async function pool(items, n, fn) {
 async function details(id) {
   if (cache.movie[id]) return cache.movie[id];
   const j = await get(`/movie/${id}?append_to_response=credits,keywords`);
+  if (j === FAILED) return FAILED;
   if (!j) return null;
   const y = +(String(j.release_date || '').slice(0, 4)) || 0;
   const dirs = ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name).slice(0, 4);
@@ -55,35 +56,85 @@ async function details(id) {
     j.vote_count || 0, Math.round((j.vote_average || 0) * 10)];
   return cache.movie[id];
 }
-// which TMDB film a Letterboxd entry is: same title (or original title), same or next-door year, the most-voted of those
-async function match(t, y) {
+// does a TMDB director list agree with the director Letterboxd gives? (full name, or surname and first initial)
+const dkey = n => { const t = norm(n).split(' ').filter(Boolean); return t.length > 1 ? [t.join(' '), t[t.length - 1] + ' ' + t[0][0]] : [t.join(' ')]; };
+const dirOk = (want, have) => { const H = new Set((have || []).flatMap(dkey)); return want.some(w => dkey(w).some(k => H.has(k))); };
+// which TMDB film a Letterboxd entry is. The same title (or original title) a year either side, the most-voted first;
+// when Letterboxd names the director, the first of those whose director agrees. A title that only contains the other
+// ("Night" → "Night at the Museum") needs the director's word. Nothing among films: a TV series of that name (Dekalog,
+// Berlin Alexanderplatz), kept as a negative id. Returns FAILED when TMDB couldn't be asked, 0 for no match.
+async function match(t, y, want) {
   const tries = [`/search/movie?query=${encodeURIComponent(t)}${y ? '&primary_release_year=' + y : ''}`, `/search/movie?query=${encodeURIComponent(t)}`];
-  const want = norm(t);
-  let best = null;
+  const wt = norm(t), cands = new Map();
   for (const q of tries) {
-    const j = await get(q); if (j === FAILED) return -1;
-    const rs = (j && j.results) || [];
-    for (const r of rs.slice(0, 12)) {
+    const j = await get(q); if (j === FAILED) return FAILED;
+    for (const r of ((j && j.results) || []).slice(0, 12)) {
       const ry = +(String(r.release_date || '').slice(0, 4)) || 0, dy = y && ry ? Math.abs(ry - y) : 3;
-      const same = norm(r.title) === want || norm(r.original_title) === want;
-      const near = !same && (norm(r.title).includes(want) || want.includes(norm(r.title))) && want.length > 3;
+      const same = norm(r.title) === wt || norm(r.original_title) === wt;
+      const near = !same && wt.length > 3 && (norm(r.title).includes(wt) || wt.includes(norm(r.title)));
       if ((!same && !near) || dy > 1) continue;
       const sc = (same ? 10 : 4) + (dy === 0 ? 5 : 2) + Math.log10(1 + (r.vote_count || 0));
-      if (!best || sc > best.sc) best = {id: r.id, sc};
+      if (!cands.has(r.id) || cands.get(r.id).sc < sc) cands.set(r.id, {id: r.id, sc, same, dy});
     }
-    if (best) break;
+    if ([...cands.values()].some(c => c.same)) break;
   }
-  return best ? best.id : 0;
+  const list = [...cands.values()].sort((a, b) => b.sc - a.sc);
+  if (want.length) {
+    for (const c of list.slice(0, 3)) { const d = await details(c.id); if (d === FAILED) return FAILED; if (d && dirOk(want, d[8])) return c.id; }
+    const c = list.find(c => c.same && c.dy === 0);
+    if (c) return c.id;
+  } else {
+    const c = list.find(c => c.same);
+    if (c) return c.id;
+  }
+  return await matchTv(t, y, want);
 }
+async function matchTv(t, y, want) {
+  const j = await get(`/search/tv?query=${encodeURIComponent(t)}${y ? '&first_air_date_year=' + y : ''}`); if (j === FAILED) return FAILED;
+  const wt = norm(t);
+  const rs = ((j && j.results) || []).filter(r => (norm(r.name) === wt || norm(r.original_name) === wt) && (!y || Math.abs((+(String(r.first_air_date || '').slice(0, 4)) || 0) - y) <= 1))
+    .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+  for (const r of rs.slice(0, 2)) {
+    const d = await tvDetails(r.id); if (d === FAILED) return FAILED;
+    if (d && (!want.length || dirOk(want, d[8]))) return -r.id;
+  }
+  return 0;
+}
+// a series, in the same compact shape as a film; its length is all of its episodes
+async function tvDetails(id) {
+  if (cache.tv[id]) return cache.tv[id];
+  const j = await get(`/tv/${id}?append_to_response=credits,keywords`);
+  if (j === FAILED) return FAILED;
+  if (!j) return null;
+  const y = +(String(j.first_air_date || '').slice(0, 4)) || 0;
+  const dirs = [...new Set([].concat((j.created_by || []).map(c => c.name), ((j.credits && j.credits.crew) || []).filter(c => c.job === 'Director').map(c => c.name)))].slice(0, 4);
+  const kw = ((j.keywords && j.keywords.results) || []).map(k => String(k.name).toLowerCase()).filter(k => KEYS.has(k));
+  const ep = (j.episode_run_time || [])[0] || 0;
+  cache.tv[id] = [j.name || '', j.original_name && j.original_name !== j.name ? j.original_name : '', y, Math.min(ep * (j.number_of_episodes || 1), 2000), j.poster_path || '',
+    (j.genres || []).map(g => g.id), (j.origin_country || []).slice(0, 4), j.original_language || '', dirs, kw, j.vote_count || 0, Math.round((j.vote_average || 0) * 10)];
+  return cache.tv[id];
+}
+const info = id => id > 0 ? cache.movie[id] : id < 0 ? cache.tv[-id] : null;
 
 async function main() {
   if (!TOKEN && !process.env.TMDB_API) { console.error('TMDB_TOKEN is not set: add it under Settings → Secrets and variables → Actions.'); process.exit(2); }
   const films = seed.films.slice(0, LIMIT);
   console.log(`seed: ${films.length} films`);
   // 1. the seed's films on TMDB
+  // matches from before the director check (no third field): kept when the title is the same, or the director agrees;
+  // the rest, and the misses, are matched again
+  let rechecked = 0;
+  films.forEach(f => {
+    const c = cache.slug[f[0]]; if (!c || c[2] === 2) return;
+    const m = info(c[0]), want = f[8] || [];
+    const same = m && (norm(m[0]) === norm(f[1]) || norm(m[1]) === norm(f[1])) && Math.abs(m[2] - f[2]) <= 1;
+    if (m && (want.length ? dirOk(want, m[8]) || (same && m[2] === f[2]) : same)) c[2] = 2;
+    else { delete cache.slug[f[0]]; rechecked++; }
+  });
+  console.log(`${rechecked} earlier matches to look at again`);
   const todo = films.filter(f => { const c = cache.slug[f[0]]; return !c || (c[0] === 0 && NOW - c[1] > MISS_DAYS * 864e5); });
   console.log(`matching ${todo.length} films…`);
-  await pool(todo, 6, async f => { const id = await match(f[1], f[2]); if (id < 0) return; cache.slug[f[0]] = [id, NOW]; if (id) await details(id); });
+  await pool(todo, 6, async f => { const id = await match(f[1], f[2], f[8] || []); if (id === FAILED) return; cache.slug[f[0]] = [id, NOW, 2]; if (id > 0) await details(id); });
   save();
   const byId = new Map();
   films.forEach(f => { const id = (cache.slug[f[0]] || [0])[0]; if (id) byId.set(id, f); });
@@ -127,8 +178,8 @@ async function main() {
   const rows = [], seen = new Set();
   const add = (id, sd) => {
     if (id && seen.has(id)) return; if (id) seen.add(id);
-    const d = id ? cache.movie[id] : null;
-    const [t, ot, y, rt, p, gs, cs, lang, ds, kw, vc] = d || [sd[1], '', sd[2], 0, '', [], [], '', [], [], 0];
+    const d = info(id);
+    const [t, ot, y, rt, p, gs, cs, lang, ds, kw, vc] = d || [sd[1], '', sd[2], 0, '', [], [], '', sd[8] || [], [], 0];
     const year = y || (sd ? sd[2] : 0), canon = sd ? sd[5] : [0, 0, 0, 0, 0], q = sd ? sd[3] : -1;
     const dn = ds.map(nn), kws = new Set(kw);
     const movs = [];
@@ -153,7 +204,8 @@ async function main() {
     rows.push([id || 0, sd ? sd[0] : '', t || (sd && sd[1]) || '', year, rt, p, ds.map(n => ix(dirIx, dirs, n)), cs.map(c => ix(coIx, cos, c)), gs, movs, lens,
       q, sd ? sd[4] : -1, vc, canon, ot, lang]);
   };
-  films.forEach(f => add((cache.slug[f[0]] || [0])[0], f));
+  // a seed film TMDB doesn't know stays only if it's in the canon (shown without a poster); the rest are left out
+  films.forEach(f => { const id = (cache.slug[f[0]] || [0])[0]; if (info(id) || f[5].some(Boolean)) add(info(id) ? id : 0, f); });
   wantExtra.forEach((why, id) => { if (cache.movie[id] && cache.movie[id][2]) add(id, null); });
   const GEN = {28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror',
     10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Science Fiction', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'};

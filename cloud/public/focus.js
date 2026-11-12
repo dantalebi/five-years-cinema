@@ -558,9 +558,16 @@ function mountFocus(root, D, S, opts) {
   }
   function tabbar() {
     const t = T(), b = (v, label, extra) => `<button type="button" data-nav="${v}" aria-current="${view === v ? 'page' : 'false'}">${label}${extra || ''}</button>`;
-    const extra = (opts.tabs || []).filter(x => !x.hidden).map(x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '')).join('');
+    // a tab with {end: true} sits after Diary; with settingsGear, Settings is a gear at the top instead of a tab
+    const tb = x => b(x.id, esc(x.label[L()] || x.label.en), x.dot && x.dot() ? '<i class="fx-ndot" aria-hidden="true"></i>' : '');
+    const vis = (opts.tabs || []).filter(x => !x.hidden), extra = vis.filter(x => !x.end).map(tb).join(''), last = vis.filter(x => x.end).map(tb).join('');
     const plus = opts.quickLog ? `<button type="button" class="fx-tplus" data-qlog aria-label="${esc(t.logFilm.replace(/^\+\s*/, ''))}" title="${esc(t.logFilm.replace(/^\+\s*/, ''))}"><i aria-hidden="true"></i></button>` : '';
-    return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${ST ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+    return `<nav class="fx-tabbar${plus ? ' fx-hasplus' : ''}" aria-label="${esc(t.navWeek)} / ${esc(t.navDiary)}"><div>${opts.tabsFirst ? extra : ''}${b('week', t.navWeek)}${LS ? b('list', t.navList) : ''}${plus}${b('diary', t.navDiary)}${opts.tabsFirst ? '' : extra}${last}${ST && !opts.settingsGear ? b('settings', t.navSettings, syncDot()) : ''}</div></nav>`;
+  }
+  function gear() {
+    if (!ST || !opts.settingsGear) return '';
+    const t = T();
+    return `<button type="button" class="fx-gear" data-nav="settings" aria-label="${esc(t.navSettings)}" title="${esc(t.navSettings)}" aria-current="${view === 'settings' ? 'page' : 'false'}"><i aria-hidden="true"></i>${syncDot()}</button>`;
   }
   function syncDot() {
     const st = ST.status();
@@ -818,7 +825,7 @@ function mountFocus(root, D, S, opts) {
     // the + in the bar: log a film from wherever you are
     if (picker && picker.log && view !== 'diary') html = `<section class="fx-card fx-qlog">${pickerBox()}</section>` + html;
     const bd = view === 'week' ? fxBd(seen()) : null;
-    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
+    root.innerHTML = `<div class="fx fx-app${posterOn() ? ' fx-hasp' : ''}${bd ? ' fx-withbd' : ''}" dir="${L() === 'fa' ? 'rtl' : 'ltr'}" lang="${L()}">${bd ? `<div class="fx-hero" aria-hidden="true"><img alt="" src="${fxTmdbBd(bd.p)}"></div>` : ''}${gear()}${html}${view === 'week' ? foot() : ''}${tabbar()}</div>`;
     if (flash) { const el = root.querySelector('[data-dk="' + CSS.escape(flash) + '"], .fx-i[data-ek="' + CSS.escape(flash) + '"]'); flash = ''; if (el) { el.classList.add('hl'); el.scrollIntoView({block: 'nearest'}); } }
     if (posterOn()) P.fill(root);
     if (picker) { const q = root.querySelector('.fx-pick-q'); if (q && picker.focus) { q.focus(); const n = q.value.length; q.setSelectionRange(n, n); picker.focus = false; } }

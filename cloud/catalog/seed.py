@@ -1,9 +1,10 @@
 """The Discover catalog's seed: which films, and how they rank. Only derived numbers leave this script.
 Inputs (kept out of the repo): the panel's Letterboxd ratings and the canon lists (allcinema.json), and the five-year plan.
-Output: catalog/seed.json, one row per film: [slug, title, year, quality 0-100, reach 0-100, canon flags, plan group, plan lane]
+Output: catalog/seed.json, one row per film: [slug, title, year, quality 0-100, reach 0-100, canon flags, plan group, plan lane, directors]
   quality: a Bayesian average of the panel's ratings, as a percentile across the catalog (no raw averages, no counts)
   reach:   how many of the panel have seen it, as a percentile
   canon:   S&S critics, S&S directors, TSPDT 1000 rank, TSPDT 21st-century rank, Criterion Closet
+  directors: as Letterboxd or the plan names them, where known (they confirm which TMDB film a title is)
 """
 import json, re, sys, collections, bisect
 SRC, PLAN, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -21,9 +22,13 @@ canon = collections.defaultdict(dict)
 for name, items in d['lists'].items():
     for i, (slug, tt, *_r) in enumerate(items):
         title.setdefault(slug, tt); canon[slug][name] = i + 1
-planned = {}
+planned, dirs = {}, {}
 for f in plan['F']:
-    if f[5]: planned[f[5]] = (f[13], f[6]); title.setdefault(f[5], f'{f[0]} ({f[1]})')
+    if f[5]:
+        planned[f[5]] = (f[13], f[6]); title.setdefault(f[5], f'{f[0]} ({f[1]})')
+        if f[2]: dirs[f[5]] = [x.strip() for x in f[2].split(',') if x.strip()][:3]
+for slug, x in d.get('details', {}).items():
+    if x.get('dirs'): dirs[slug] = list(x['dirs'])[:3]
 
 # which films: anything canonical or planned, anything three or more of the panel have seen, and pairs that both rated well
 def keep(s):
@@ -49,7 +54,7 @@ for s in films:
     t, y = ty(title[s])
     c = canon.get(s, {})
     g, l = planned.get(s, (-1, ''))
-    rows.append([s, t, y, pct(qsorted, qs[s]) if rates[s] else -1, pct(nsorted, len(watch[s])), [c.get(k, 0) for k in CN], g, l])
+    rows.append([s, t, y, pct(qsorted, qs[s]) if rates[s] else -1, pct(nsorted, len(watch[s])), [c.get(k, 0) for k in CN], g, l, dirs.get(s, [])])
 rows.sort(key=lambda r: (-(r[3] if r[3] >= 0 else 40), r[1]))
 json.dump({'v': 1, 'canon': CN, 'films': rows}, open(OUT, 'w'), ensure_ascii=False, separators=(',', ':'))
-print(len(rows), 'films ·', sum(1 for r in rows if any(r[5])), 'canonical ·', sum(1 for r in rows if r[6] >= 0), 'planned ·', sum(1 for r in rows if r[3] < 0), 'unrated')
+print(len(rows), 'films ·', sum(1 for r in rows if any(r[5])), 'canonical ·', sum(1 for r in rows if r[6] >= 0), 'planned ·', sum(1 for r in rows if r[3] < 0), 'unrated ·', sum(1 for r in rows if r[8]), 'with directors')

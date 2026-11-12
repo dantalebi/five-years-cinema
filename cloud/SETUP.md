@@ -51,6 +51,24 @@ Everything fits in Cloudflare's free plan.
 - **Proxies:** TMDB requests (members only, a short list of allowed paths, cached for a day) and Letterboxd RSS (any username, cached for 30 minutes).
 - **Deleting an account** removes every row that belongs to it.
 
+## The Discover catalog
+
+Discover reads one static file, `public/catalog/catalog.json` (about 11,500 films, under 2 MB before compression).
+It's built on GitHub by `.github/workflows/catalog.yml`, which runs `catalog/build.mjs`:
+
+- **What it starts from:** `catalog/seed.json`, the films and how they rank.
+  - It holds canon lists, the five-year plan, and films a panel of Letterboxd accounts has seen.
+  - It's made by `catalog/seed.py` from inputs that stay out of the repo.
+  - Only derived percentiles leave it: no account names, ratings or counts.
+- **TMDB:** each film is matched on TMDB for its poster, directors, countries and genres.
+  - When Letterboxd names the director, a match must agree with it.
+  - Series such as *Dekalog* are matched as TV, with a negative id.
+- **Movements:** each one is completed from its core directors' filmographies. The movements, eras and ways in are defined in `catalog/taxonomy.mjs`.
+- **Cache:** what TMDB answered is kept in `catalog/tmdb-cache.json`, so a later run only asks about what's new.
+- **When it runs:** on the 3rd of each month, whenever the seed, taxonomy or build script changes, or by hand from the Actions tab.
+- **Secret:** it needs one repository secret, `TMDB_TOKEN`, which is TMDB's "API Read Access Token".
+- **Going live:** the push that saves the catalog is what puts the new one on the site.
+
 ## Running it locally
 
 ```

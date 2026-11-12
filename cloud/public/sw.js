@@ -1,7 +1,7 @@
 // Offline shell: the app's own files come from the cache; posters and fonts are kept once fetched.
 // GitHub and TMDB API calls always go to the network.
-const V = 'fd-c866de875968';
-const SHELL = ["/", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/friends.js", "/wrapped.js", "/planmap.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
+const V = 'fd-a4a08186da5d';
+const SHELL = ["/", "/config.js", "/store.js", "/posters.js", "/fxcal.js", "/focus.js", "/fxlb.js", "/play.js", "/share.js", "/fxlist.js", "/cloudsync.js", "/friends.js", "/wrapped.js", "/planmap.js", "/discover.js", "/cloud.js", "/focus.css", "/app.css", "/sample-plan.json", "/manifest.webmanifest", "/icon32.png", "/apple-touch-icon.png", "/icon192.png", "/icon512.png", "/maskable512.png"];
 // fetch past the browser's HTTP cache, so a new version never stores a file from the previous one
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
@@ -15,6 +15,15 @@ self.addEventListener('fetch', e => {
     if (u.pathname.startsWith('/api/')) return;
     if (req.mode === 'navigate') {
       e.respondWith(fetch(req).catch(() => caches.open(V).then(c => c.match('/')).then(hit => hit ? new Response(hit.body, {status: 200, headers: hit.headers}) : Response.error())));
+      return;
+    }
+    if (u.pathname.startsWith('/catalog/')) {
+      e.respondWith(caches.open('fx-catalog').then(async c => {
+        const hit = await c.match(req, {ignoreSearch: true});
+        const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()); return r; });
+        if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
+        return net;
+      }));
       return;
     }
     e.respondWith(caches.open(V).then(c => c.match(req, {ignoreSearch: true}).then(hit => hit || fetch(req))));

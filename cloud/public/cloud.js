@@ -235,6 +235,7 @@
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
 
   const FR = typeof fxFriendsTab === 'function' ? fxFriendsTab(CloudSync) : null;
+  let DX = null, dxOn = false;
   async function start() {
     fresh();
     if (Store.data['cfg:lang'] && Store.data['cfg:lang'] !== 'en') Store.set('cfg:lang', 'en');
@@ -245,11 +246,15 @@
     sig = kind === 'list' ? FXL.sig(Store.data) : '';
     // the site opens on Friends (unless you chose This week), and Friends comes first in the bar; the plan map opens from This Week
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
+    // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
+    if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM].filter(Boolean), tabsFirst: !!FR, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice,
+      tabs: [FR, PM, DX].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, wrapped: openWrapped, startView: FR && Store.data['cfg:home'] !== 'week' ? 'friends' : 'week', settingsExtra: homeChoice,
       fullView: PM ? 'plan' : ''});
     if (FR) { FR.attach(() => FX && FX.render()); FR.setLogger((t, y, md) => FX && FX.logFilm(t, y, md)); }
     if (PM) PM.attach(root, () => FX && FX.render());
+    if (DX && !dxOn) { dxOn = true; DX.attach(root, () => FX && FX.render()); }
+    if (DX) DX.setLogger((t, y, md) => FX && FX.logFilm(t, y, md));
     root.addEventListener('input', e => { if (FR) FR.input(e.target); });
     root.addEventListener('toggle', e => { if (FR && e.target.matches && e.target.matches('details.fx-wl')) FR.wlOpen(e.target.open); }, true);
     root.addEventListener('click', e => {
