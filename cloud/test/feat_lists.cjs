@@ -24,6 +24,7 @@ const here = p => p.url().replace(B, '');
   // ---- a film's page: Add to a list, a new list made on the spot ----
   await ivy.goto(B + '/film/tmdb/30017'); await ivy.waitForSelector('[data-fp-addlist]', {timeout: 15000});
   await ivy.click('[data-fp-addlist]'); await ivy.waitForSelector('.ls-sheet form[data-lsnew]');
+  await ivy.waitForFunction(() => /You don’t have any lists yet/.test((document.querySelector('.ls-sheet') || {}).innerText || ''), null, {timeout: 8000}).catch(() => {});
   ok(/You don’t have any lists yet/.test(await ivy.$eval('.ls-sheet', e => e.innerText)), 'the sheet: no lists yet');
   await ivy.fill('form[data-lsnew] input[name=name]', 'Slow cinema'); await ivy.click('form[data-lsnew] button'); await ivy.waitForSelector('[data-lstog][aria-pressed="true"]');
   ok(/Slow cinema/.test(await ivy.$eval('.ls-pick', e => e.innerText)), 'made, with the film in it');

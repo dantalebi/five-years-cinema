@@ -165,7 +165,7 @@ function fxAccount(CS, o) {
         <li>Your diary, ratings, reviews, watchlist, plan and settings, so they’re the same on every device.</li>
         <li>Who you follow and block, and the hearts and comments you leave.</li>
         <li>For each device you’re signed in on: the browser’s name and when it was last used, so you can sign it out.</li>
-        <li>Whoever runs ${n} sees a list of accounts, public or private: each one’s username and name, when it joined and was last active, and how many entries, reviews, follows and lists it has. Never your password, and never what you wrote.</li></ul></section>
+        <li>Whoever runs ${n} sees a list of accounts, public or private: each one’s username and name, who invited it, when it joined and was last active, and how many entries, reviews, follows and lists it has. Never your password, and never your diary or reviews.</li></ul></section>
       <section class="fx-card ac-doc"><h2>What others can see</h2><ul>
         <li>Your profile page is public only if you make it public (Settings → Public profile). It shows this week’s films and, if you choose, your diary with ratings, likes and reviews.</li>
         <li>People you follow see your activity only through your public profile. Comments you write can be read by anyone who can see that entry.</li>
@@ -181,7 +181,7 @@ function fxAccount(CS, o) {
         <li>Sign out of any device from Settings → Where you’re signed in.</li></ul></section>
       <section class="fx-card ac-doc"><h2>Ground rules</h2><ul>
         <li>Mark spoilers in reviews.</li>
-        <li>Be decent in comments. You can block anyone, and accounts that harass others can be removed.</li></ul></section>
+        <li>Be decent in comments. You can block anyone. Whoever runs ${n} can take down a comment, and suspend or remove an account that harasses others.</li></ul></section>
       <p class="fx-muted dx-attr">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>`;
   }
   // a picture from this device: frame it, save it
@@ -196,7 +196,7 @@ function fxAccount(CS, o) {
     return `<div class="av-top"><button type="button" class="av-me${onSettings ? ' on' : ''}" data-ac-menu aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="Your account" title="Your account">${pic(me.username, me.name, me.av, 's')}${sync.state === 'err' ? '<i class="av-err" aria-hidden="true"></i>' : ''}</button>
       ${st.menu ? `<div class="av-menu" role="menu"><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
         <div class="av-mg">${yours.map(item).join('')}</div>
-        <div class="av-mg av-msys">${(me.owner ? [['/admin', 'Your site']] : []).concat([['/settings', 'Settings'], ['/about', 'About']]).map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
+        <div class="av-mg av-msys">${(me.owner ? [['/admin', 'Your site']] : []).concat([['/invite', 'Invite friends'], ['/settings', 'Settings'], ['/about', 'About']]).map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
   }
   const closeMenu = () => { if (!st.menu) return false; st.menu = false; return true; };
   return {ui, click, submit, about, device, corner, closeMenu, file};

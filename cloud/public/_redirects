@@ -7,6 +7,9 @@
 /popular  /  200
 /popular/*  /index.html  200
 /admin  /  200
+/invite  /  200
+/news  /  200
+/join/*  /index.html  200
 /activity  /  200
 /activity/*  /index.html  200
 /week  /  200

@@ -5,7 +5,8 @@
 // Passwords: the browser stretches the password first (PBKDF2-SHA256, 600,000 rounds, salted with the username),
 // and only that result ever reaches the server, which hashes it again with its own random salt. The heavy work
 // happens on the user's device because a free Worker gets about 10 ms of CPU per request.
-// Settings (Pages → Settings → Variables): TMDB_TOKEN (secret), SIGNUP_CODE (optional invite code), PEPPER (optional secret).
+// Settings (Pages → Settings → Variables): TMDB_TOKEN (secret), SIGNUP_CODE (optional invite code, until the owner sets
+// one on Your site), PEPPER (optional secret), OWNER (the owner's username).
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '', pw TEXT NOT NULL, created INTEGER NOT NULL)`,
@@ -30,6 +31,12 @@ const SCHEMA = [
   // a profile picture: a small square JPEG (the app crops and shrinks it to 256 pixels), as base64
   `CREATE TABLE IF NOT EXISTS avatars (uid INTEGER PRIMARY KEY, img TEXT NOT NULL, updated INTEGER NOT NULL)`,
   // lists of films: public ones are on the owner's profile and anyone with the link can read them; films is JSON
+  // invites: a link a member (or the owner) makes for someone to join with; used once, good for two weeks
+  `CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, uid INTEGER NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL, uses INTEGER NOT NULL DEFAULT 0, max INTEGER NOT NULL DEFAULT 1, revoked INTEGER NOT NULL DEFAULT 0, used_by INTEGER NOT NULL DEFAULT 0)`,
+  // news: posts the owner writes for everyone (What's new, on Home)
+  `CREATE TABLE IF NOT EXISTS news (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, at INTEGER NOT NULL)`,
+  // the site's own settings, set by its owner on Your site: who can join, the invite code, members' invites, a contact
+  `CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
   // results worked out now and then rather than on every request (Popular), with when they were
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', pub INTEGER NOT NULL DEFAULT 1, ranked INTEGER NOT NULL DEFAULT 0, films TEXT NOT NULL DEFAULT '[]', n INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE (uid, slug))`,
@@ -37,7 +44,9 @@ const SCHEMA = [
 // columns added after the first release (each is added once; on later starts the database says it's already there)
 // users.av: when the profile picture last changed (0: none), so its address changes with it and can be cached for good
 const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`,
-  `ALTER TABLE profiles ADD COLUMN films TEXT`, `ALTER TABLE profiles ADD COLUMN fmeta TEXT`];
+  `ALTER TABLE profiles ADD COLUMN films TEXT`, `ALTER TABLE profiles ADD COLUMN fmeta TEXT`,
+  // users.banned: when the owner suspended the account (0: never); users.invited_by: who brought them in
+  `ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE users ADD COLUMN invited_by INTEGER NOT NULL DEFAULT 0`];
 let ready = null;
 const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
@@ -95,8 +104,8 @@ async function who(req, env) {
   const t = cookie(req, 'fd_s');
   if (!t || t.length > 100) return null;
   const h = await sha256(t);
-  const r = await env.DB.prepare('SELECT s.uid, s.seen, u.username, u.name FROM sessions s JOIN users u ON u.id = s.uid WHERE s.h = ?').bind(h).first();
-  if (!r) return null;
+  const r = await env.DB.prepare('SELECT s.uid, s.seen, u.username, u.name, u.banned FROM sessions s JOIN users u ON u.id = s.uid WHERE s.h = ?').bind(h).first();
+  if (!r || r.banned) return null;
   const now = Date.now();
   if (r.seen < now - SESSION_DAYS * DAY) { await env.DB.prepare('DELETE FROM sessions WHERE h = ?').bind(h).run(); return null; }
   if (r.seen < now - DAY) await env.DB.prepare('UPDATE sessions SET seen = ? WHERE h = ?').bind(now, h).run();
@@ -112,6 +121,19 @@ const me = u => ({username: u.username, name: u.name});
 // The owner has one page more than anyone else: the site's numbers and every account (/api/admin)
 const owners = env => String(env.OWNER || 'talebi').toLowerCase().split(/[\s,]+/).filter(Boolean);
 const isOwner = (env, u) => !!u && owners(env).includes(u.username);
+// the site's settings (Your site), with what they fall back to
+async function siteSettings(env) {
+  const rows = (await env.DB.prepare('SELECT k, v FROM settings').all()).results || [], S = {};
+  rows.forEach(r => { S[r.k] = r.v; });
+  const code = S.code !== undefined ? S.code : String(env.SIGNUP_CODE || '').trim();
+  const signup = ['open', 'invite', 'closed'].includes(S.signup) ? S.signup : (code ? 'invite' : 'open');
+  return {signup, code, invites: S.invites !== undefined ? Math.max(0, Math.min(1000, +S.invites || 0)) : 3, contact: S.contact || ''};
+}
+const INVITE = /^[a-z0-9]{8,24}$/;
+const newCode = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+// an invite link still good: not taken back, not past its date, not used up
+const liveInvite = (env, code) => INVITE.test(String(code || '')) ? env.DB.prepare(`SELECT i.code, i.uid, x.username, x.name, x.av FROM invites i JOIN users x ON x.id = i.uid
+  WHERE i.code = ? AND i.revoked = 0 AND i.expires > ? AND i.uses < i.max AND x.banned = 0`).bind(code, Date.now()).first() : Promise.resolve(null);
 // a recovery key: the way back in after a forgotten password (there's no email). Shown once, kept only as a hash.
 const RK_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newRecoveryKey = () => [...crypto.getRandomValues(new Uint8Array(20))].map(b => RK_ALPHA[b % 32]).join('').replace(/(.{5})(?=.)/g, '$1-');
@@ -123,10 +145,19 @@ const blocked = async (env, x, y) => !!await env.DB.prepare('SELECT 1 FROM block
 const routes = [];
 const on = (method, pattern, fn, opt = {}) => routes.push({method, re: new RegExp('^' + pattern + '$'), fn, opt});
 
-on('GET', '/api/config', async (req, env) => json({code: !!env.SIGNUP_CODE, tmdb: !!env.TMDB_TOKEN}));
+on('GET', '/api/config', async (req, env) => { const S = await siteSettings(env); return json({code: S.signup === 'invite', closed: S.signup === 'closed', contact: S.contact, tmdb: !!env.TMDB_TOKEN}); });
+// who an invite link is from, for the page it opens (nothing for a link that's no good)
+on('GET', '/api/invite/([a-z0-9]{8,24})', async (req, env, u, m) => {
+  if (await limited(env.DB, 'invite:' + ip(req), 60, 36e5)) return fail('slow', 429);
+  const i = await liveInvite(env, m[1]);
+  return i ? json({by: {username: i.username, name: i.name || '', av: +i.av || 0}}) : fail('none', 404);
+}, {optionalAuth: true});
 on('POST', '/api/signup', async (req, env, ctx) => {
   const b = await body(req, 2000), username = String(b.username || '').toLowerCase().trim(), key = String(b.key || '');
-  if (env.SIGNUP_CODE && !same(String(b.code || '').trim(), String(env.SIGNUP_CODE).trim())) return fail('code', 403);
+  // who can join: anyone, people with the code or an invite link, or (closed) nobody new
+  const S = await siteSettings(env), given = String(b.code || '').trim(), invite = await liveInvite(env, given.toLowerCase());
+  if (S.signup === 'closed') return fail('closed', 403);
+  if (S.signup === 'invite' && !invite && !(S.code && same(given, S.code))) return fail('code', 403);
   if (!USERNAME.test(username) || RESERVED.has(username)) return fail('username', 400);
   if (!KEY.test(key)) return fail('key', 400);
   if (await limited(env.DB, 'signup:' + ip(req), 5, 36e5)) return fail('slow', 429);
@@ -134,15 +165,19 @@ on('POST', '/api/signup', async (req, env, ctx) => {
   if (taken) return fail('taken', 409);
   const name = String(b.name || '').trim().slice(0, 60);
   const rk = newRecoveryKey();
-  const r = await env.DB.prepare('INSERT INTO users (username, name, pw, created, rk) VALUES (?, ?, ?, ?, ?) RETURNING id').bind(username, name, await hashKey(key, env), Date.now(), await rkHash(rk, env)).first();
+  // an invite is used up as the account is made (two people racing for the last use: one of them gets it)
+  if (invite) { const t = await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code = ? AND uses < max AND revoked = 0 RETURNING code').bind(invite.code).first(); if (!t && S.signup === 'invite' && !(S.code && same(given, S.code))) return fail('code', 403); }
+  const r = await env.DB.prepare('INSERT INTO users (username, name, pw, created, rk, invited_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').bind(username, name, await hashKey(key, env), Date.now(), await rkHash(rk, env), invite ? invite.uid : 0).first();
+  if (invite) await env.DB.prepare('UPDATE invites SET used_by = ? WHERE code = ?').bind(r.id, invite.code).run();
   return json({me: {username, name, rk: true}, rk}, 200, {'set-cookie': await startSession(env, r.id, req)});
 });
 on('POST', '/api/login', async (req, env) => {
   const b = await body(req, 2000), username = String(b.username || '').toLowerCase().trim(), key = String(b.key || '');
   if (!USERNAME.test(username) || !KEY.test(key)) return fail('wrong', 401);
   if (await limited(env.DB, 'login:' + ip(req), 30, 9e5) || await limited(env.DB, 'login:' + username, 10, 9e5)) return fail('slow', 429);
-  const u = await env.DB.prepare('SELECT id, username, name, pw FROM users WHERE username = ?').bind(username).first();
+  const u = await env.DB.prepare('SELECT id, username, name, pw, banned FROM users WHERE username = ?').bind(username).first();
   if (!u || !await keyOk(key, u.pw, env)) return fail('wrong', 401);
+  if (u.banned) return fail('suspended', 403);
   return json({me: me(u)}, 200, {'set-cookie': await startSession(env, u.id, req)});
 });
 // sign out of this device, or (all: true) of every device
@@ -182,8 +217,9 @@ on('POST', '/api/recover', async (req, env) => {
   const b = await body(req, 1000), username = String(b.username || '').toLowerCase().trim();
   if (!USERNAME.test(username) || !KEY.test(String(b.next || '')) || !/^[A-Za-z0-9-]{20,40}$/.test(String(b.rk || ''))) return fail('wrongrk', 401);
   if (await limited(env.DB, 'recover:' + ip(req), 10, 36e5) || await limited(env.DB, 'recover:' + username, 5, 36e5)) return fail('slow', 429);
-  const u = await env.DB.prepare('SELECT id, username, name, rk FROM users WHERE username = ?').bind(username).first();
+  const u = await env.DB.prepare('SELECT id, username, name, rk, banned FROM users WHERE username = ?').bind(username).first();
   if (!u || !u.rk || !same(await rkHash(b.rk, env), u.rk)) return fail('wrongrk', 401);
+  if (u.banned) return fail('suspended', 403);
   const rk = newRecoveryKey();
   await env.DB.batch([
     env.DB.prepare('UPDATE users SET pw = ?, rk = ? WHERE id = ?').bind(await hashKey(b.next, env), await rkHash(rk, env), u.id),
@@ -203,12 +239,14 @@ on('POST', '/api/password', async (req, env, u) => {
   ]);
   return json({ok: true});
 }, {auth: true});
+// everything an account has, gone at once
+const wipe = (env, id) => env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
+  'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?', 'DELETE FROM avatars WHERE uid = ?',
+  'DELETE FROM lists WHERE uid = ?', 'DELETE FROM invites WHERE uid = ?', 'DELETE FROM users WHERE id = ?'].map(q => env.DB.prepare(q).bind(id)));
 on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
-  await env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
-    'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?', 'DELETE FROM avatars WHERE uid = ?',
-    'DELETE FROM users WHERE id = ?'].map(s => env.DB.prepare(s).bind(u.id)));
+  await wipe(env, u.id);
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
 
@@ -319,7 +357,7 @@ on('PUT', '/api/profile', async (req, env, u) => {
 }, {auth: true});
 on('DELETE', '/api/profile', async (req, env, u) => { await env.DB.prepare('UPDATE profiles SET public = 0 WHERE uid = ?').bind(u.id).run(); return json({ok: true}); }, {auth: true});
 on('GET', '/api/u/([a-z0-9_]{3,24})', async (req, env, u, m) => {
-  const r = await env.DB.prepare('SELECT x.id, x.av, p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(m[1]).first();
+  const r = await env.DB.prepare('SELECT x.id, x.av, p.payload, p.updated FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1 AND x.banned = 0').bind(m[1]).first();
   if (!r || !r.payload || (u && await blocked(env, u.id, r.id))) return fail('none', 404);
   return raw('{"updated":' + r.updated + ',"av":' + (+r.av || 0) + ',"data":' + r.payload + '}', 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=20'});
 }, {optionalAuth: true});
@@ -327,7 +365,7 @@ on('GET', '/api/u/([a-z0-9_]{3,24})', async (req, env, u, m) => {
 on('GET', '/api/u/([a-z0-9_]{3,24})/meta', async (req, env, u, m) => {
   const x = await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.public,
       (SELECT COUNT(*) FROM follows WHERE b = x.id) AS followers, (SELECT COUNT(*) FROM follows WHERE a = x.id) AS following
-      FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?`).bind(m[1]).first();
+      FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND x.banned = 0`).bind(m[1]).first();
   if (!x || (!x.public && !(u && u.id === x.id))) return fail('none', 404);  // your own counts, even while your profile is private
   if (u && u.id !== x.id && await env.DB.prepare('SELECT 1 FROM blocks WHERE a = ? AND b = ?').bind(x.id, u.id).first()) return fail('none', 404);
   const out = {username: x.username, name: x.name, av: x.av || 0, followers: x.followers, following: x.following};
@@ -343,7 +381,7 @@ on('GET', '/api/u/([a-z0-9_]{3,24})/meta', async (req, env, u, m) => {
 // follows, Letterboxd-style: one way, no approval
 on('POST', '/api/follow', async (req, env, u) => {
   const b = await body(req, 500), name = String(b.username || '').toLowerCase();
-  const x = USERNAME.test(name) && await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(name).first();
+  const x = USERNAME.test(name) && await env.DB.prepare('SELECT id FROM users WHERE username = ? AND banned = 0').bind(name).first();
   if (!x || x.id === u.id) return fail('none', 404);
   if (b.on !== false && await blocked(env, u.id, x.id)) return fail('none', 404);
   if (b.on === false) await env.DB.prepare('DELETE FROM follows WHERE a = ? AND b = ?').bind(u.id, x.id).run();
@@ -352,11 +390,11 @@ on('POST', '/api/follow', async (req, env, u) => {
 }, {auth: true});
 // who follows someone, and whom they follow: [{username, name, av, following (you follow them), you (it's you)}]
 on('GET', '/api/u/([a-z0-9_]{3,24})/(followers|following)', async (req, env, u, m) => {
-  const x = await env.DB.prepare('SELECT x.id, p.public FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ?').bind(m[1]).first();
+  const x = await env.DB.prepare('SELECT x.id, p.public FROM users x LEFT JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND x.banned = 0').bind(m[1]).first();
   if (!x || (!x.public && !(u && u.id === x.id)) || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
   const me = u ? u.id : 0, col = m[2] === 'followers' ? ['a', 'b'] : ['b', 'a'];
   const rows = (await env.DB.prepare(`SELECT y.username, y.name, y.av, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = y.id) AS fol
-      FROM follows f JOIN users y ON y.id = f.${col[0]} WHERE f.${col[1]} = ?
+      FROM follows f JOIN users y ON y.id = f.${col[0]} WHERE f.${col[1]} = ? AND y.banned = 0
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = y.id) OR (a = y.id AND b = ?)) ORDER BY f.at DESC LIMIT 1000`).bind(me, x.id, me, me).all()).results || [];
   return json({people: rows.map(r => ({username: r.username, name: r.name || '', av: +r.av || 0, following: !!r.fol, you: !!u && r.username === u.username}))}, 200, {'cache-control': 'private, no-store'});
 }, {optionalAuth: true});
@@ -422,14 +460,14 @@ on('DELETE', '/api/lists/(\\d{1,12})', async (req, env, u, m) => {
 // someone's lists (the public ones; all of them for the owner), and one list by its address: anyone can read a public
 // list, signed in or not, even when its owner's profile is private
 on('GET', '/api/u/([a-z0-9_]{3,24})/lists', async (req, env, u, m) => {
-  const x = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(m[1]).first();
+  const x = await env.DB.prepare('SELECT id FROM users WHERE username = ? AND banned = 0').bind(m[1]).first();
   if (!x || (u && await blocked(env, u.id, x.id))) return fail('none', 404);
   const own = !!u && u.id === x.id;
   const rows = (await env.DB.prepare(`SELECT * FROM lists WHERE uid = ?${own ? '' : ' AND pub = 1'} ORDER BY updated DESC LIMIT 500`).bind(x.id).all()).results || [];
   return json({lists: rows.map(r => listRow(r, false))}, 200, {'cache-control': 'private, no-store'});
 }, {optionalAuth: true});
 on('GET', '/api/u/([a-z0-9_]{3,24})/list/([a-z0-9-]{1,80})', async (req, env, u, m) => {
-  const r = await env.DB.prepare('SELECT l.*, x.username, x.name AS uname, x.av FROM lists l JOIN users x ON x.id = l.uid WHERE x.username = ? AND l.slug = ?').bind(m[1], m[2]).first();
+  const r = await env.DB.prepare('SELECT l.*, x.username, x.name AS uname, x.av FROM lists l JOIN users x ON x.id = l.uid WHERE x.username = ? AND l.slug = ? AND x.banned = 0').bind(m[1], m[2]).first();
   if (!r || (!r.pub && !(u && u.id === r.uid)) || (u && u.id !== r.uid && await blocked(env, u.id, r.uid))) return fail('none', 404);
   return json({list: listRow(r, true), by: {username: r.username, name: r.uname || '', av: +r.av || 0}, own: !!u && u.id === r.uid}, 200, {'cache-control': u ? 'private, no-store' : 'public, max-age=30'});
 }, {optionalAuth: true});
@@ -487,7 +525,7 @@ on('POST', '/api/follower', async (req, env, u) => {
 on('GET', '/api/people', async (req, env, u) => {
   const rows = (await env.DB.prepare(`SELECT x.username, x.name, x.av, p.updated,
       EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS following, EXISTS (SELECT 1 FROM follows WHERE a = x.id AND b = ?) AS follower
-      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
+      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ? AND x.banned = 0
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) ORDER BY p.updated DESC LIMIT 300`).bind(u.id, u.id, u.id, u.id, u.id).all()).results || [];
   return json({people: rows.map(r => ({username: r.username, name: r.name, av: r.av || 0, updated: r.updated, following: !!r.following, follower: !!r.follower}))});
 }, {auth: true});
@@ -497,7 +535,7 @@ on('GET', '/api/film', async (req, env, u) => {
   const keys = [...new Set(new URL(req.url).searchParams.getAll('k'))].filter(k => /^(m\d{1,9}|t\d{1,9}|n[^\t\n]{1,120}\|\d{0,4})$/u.test(k)).slice(0, 3);
   if (!keys.length) return fail('bad', 400);
   const rows = (await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS fol
-      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ?
+      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ? AND x.banned = 0
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id, u.id).all()).results || [];
   const friends = [], hist = Array(11).fill(0); let n = 0, likes = 0, want = 0;
   for (const r of rows) {
@@ -575,8 +613,8 @@ async function popular(env, u, who) {
   const cols = 'x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp';
   const rows = (await (who === 'friends'
     ? env.DB.prepare(`SELECT ${cols} FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
-        WHERE f.a = ? AND p.public = 1 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id)
-    : env.DB.prepare(`SELECT ${cols} FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 LIMIT 5000`)).all()).results || [];
+        WHERE f.a = ? AND p.public = 1 AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id)
+    : env.DB.prepare(`SELECT ${cols} FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.banned = 0 LIMIT 5000`)).all()).results || [];
   let builds = 0;
   for (const r of rows) if (r.films == null && r.hasp && builds++ < 3) r.films = (await indexes(env, r.id)).films;
   const P = popularOf(rows);
@@ -625,7 +663,7 @@ on('GET', '/api/admin', async (req, env, u) => {
   if (!isOwner(env, u)) return fail('none', 404);
   const all = q => env.DB.prepare(q).all().then(r => r.results || []);
   const [users, sess, profs, kv, cfg, fol, fby, rx, ls] = await Promise.all([
-    all('SELECT id, username, name, av, created FROM users ORDER BY created'),
+    all('SELECT id, username, name, av, created, banned, invited_by FROM users ORDER BY created'),
     all('SELECT uid, MAX(seen) AS seen, COUNT(*) AS n FROM sessions GROUP BY uid'),
     all('SELECT uid, public, updated FROM profiles'),
     // a diary entry: a date under v:<entry> or a film ticked in a plan (a key with no prefix); seen without a date: wx:
@@ -641,14 +679,19 @@ on('GET', '/api/admin', async (req, env, u) => {
   const by = rows => new Map(rows.map(r => [r.uid, r]));
   const S = by(sess), P = by(profs), K = by(kv), F1 = by(fol), F2 = by(fby), L = by(ls), C = new Map();
   cfg.forEach(r => { let v = null; try { v = JSON.parse(r.v); } catch (e) {} if (!C.has(r.uid)) C.set(r.uid, {}); C.get(r.uid)[r.k.slice(4)] = v; });
-  const now = Date.now(), within = (t, d) => t && now - t < d * DAY;
+  const now = Date.now(), within = (t, d) => t && now - t < d * DAY, nameOf = new Map(users.map(x => [x.id, x.username]));
   const people = users.map(x => {
     const s = S.get(x.id) || {}, p = P.get(x.id), k = K.get(x.id) || {}, c = C.get(x.id) || {}, l = L.get(x.id) || {};
     return {username: x.username, name: x.name || '', av: +x.av || 0, joined: x.created, seen: Math.max(+s.seen || 0, +k.last || 0), devices: +s.n || 0,
       public: !!(p && p.public), diary: !!(p && p.public) && c.pubdiary !== '0', plan: typeof c.plan === 'string' ? c.plan : '', lb: !!c.lb,
       entries: +k.entries || 0, reviews: +k.reviews || 0, seenOnly: +k.seen || 0, wl: +k.wl || 0,
-      following: +(F1.get(x.id) || {}).n || 0, followers: +(F2.get(x.id) || {}).n || 0, lists: +l.n || 0, publicLists: +l.pub || 0};
+      following: +(F1.get(x.id) || {}).n || 0, followers: +(F2.get(x.id) || {}).n || 0, lists: +l.n || 0, publicLists: +l.pub || 0,
+      banned: +x.banned || 0, invitedBy: nameOf.get(x.invited_by) || '', owner: owners(env).includes(x.username)};
   });
+  const [SET, inv, cm] = await Promise.all([siteSettings(env),
+    all(`SELECT i.code, i.created, i.expires, i.uses, i.max, x.username FROM invites i JOIN users x ON x.id = i.uid WHERE i.revoked = 0 AND i.expires > ${now} AND i.uses < i.max ORDER BY i.created DESC LIMIT 200`),
+    // the latest comments, for taking down one that breaks the ground rules (comments are seen by anyone who can see the entry)
+    all(`SELECT r.id, r.text, r.ft, r.at, x.username AS by, o.username AS ownr FROM reacts r JOIN users x ON x.id = r.uid JOIN users o ON o.id = r.owner WHERE r.kind = 'c' ORDER BY r.at DESC LIMIT 40`)]);
   const sum = f => people.reduce((a, x) => a + f(x), 0), R = {}; rx.forEach(r => { R[r.kind] = r.n; });
   const months = {}; users.forEach(x => { const m = new Date(x.created).toISOString().slice(0, 7); months[m] = (months[m] || 0) + 1; });
   return json({at: now, owner: u.username, people, totals: {
@@ -657,7 +700,131 @@ on('GET', '/api/admin', async (req, env, u) => {
     publicProfiles: people.filter(x => x.public).length, publicDiaries: people.filter(x => x.diary).length, letterboxd: people.filter(x => x.lb).length,
     entries: sum(x => x.entries), reviews: sum(x => x.reviews), seenOnly: sum(x => x.seenOnly), watchlists: sum(x => x.wl),
     follows: sum(x => x.following), lists: sum(x => x.lists), publicLists: sum(x => x.publicLists),
-    hearts: R.h || 0, comments: R.c || 0, seenToo: R.s || 0, wants: R.w || 0}, months}, 200, {'cache-control': 'private, no-store'});
+    hearts: R.h || 0, comments: R.c || 0, seenToo: R.s || 0, wants: R.w || 0}, months,
+    settings: SET, invites: inv.map(i => ({code: i.code, by: i.username, created: i.created, expires: i.expires})),
+    comments: cm.map(c => ({id: c.id, text: c.text, film: c.ft || '', at: c.at, by: c.by, on: c.ownr}))}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+// the owner's controls. Nothing here can touch another owner's account
+async function target(env, u, name) {
+  if (!isOwner(env, u)) return null;
+  const x = USERNAME.test(String(name || '')) && await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(name)).first();
+  return x && !owners(env).includes(x.username) ? x : null;
+}
+// suspend an account (signed out everywhere, gone from everything public, can't sign in) or restore it
+on('POST', '/api/admin/suspend', async (req, env, u) => {
+  const b = await body(req, 500), x = await target(env, u, b.username);
+  if (!x) return fail('none', 404);
+  if (b.on === false) await env.DB.prepare('UPDATE users SET banned = 0 WHERE id = ?').bind(x.id).run();
+  else await env.DB.batch([env.DB.prepare('UPDATE users SET banned = ? WHERE id = ?').bind(Date.now(), x.id), env.DB.prepare('DELETE FROM sessions WHERE uid = ?').bind(x.id),
+    env.DB.prepare('UPDATE invites SET revoked = 1 WHERE uid = ?').bind(x.id)]);
+  return json({ok: true});
+}, {auth: true});
+// sign an account out of every device (a password may have leaked)
+on('POST', '/api/admin/signout', async (req, env, u) => {
+  const b = await body(req, 500), x = await target(env, u, b.username);
+  if (!x) return fail('none', 404);
+  await env.DB.prepare('DELETE FROM sessions WHERE uid = ?').bind(x.id).run();
+  return json({ok: true});
+}, {auth: true});
+// delete an account and everything in it; the username has to be typed again, so it can't happen by a slip
+on('POST', '/api/admin/delete', async (req, env, u) => {
+  const b = await body(req, 500), x = await target(env, u, b.username);
+  if (!x || String(b.confirm || '') !== x.username) return fail('none', 404);
+  await wipe(env, x.id);
+  return json({ok: true});
+}, {auth: true});
+// take down a comment
+on('POST', '/api/admin/uncomment', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const b = await body(req, 200);
+  await env.DB.prepare("DELETE FROM reacts WHERE id = ? AND kind = 'c'").bind(+b.id || 0).run();
+  return json({ok: true});
+}, {auth: true});
+// who can join and how: {signup: open | invite | closed, code (or newCode: true for a fresh one), invites (each member's), contact}
+on('POST', '/api/admin/settings', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const b = await body(req, 2000), put = (k, v) => env.DB.prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(k, String(v));
+  const st = [];
+  if (b.signup !== undefined) { if (!['open', 'invite', 'closed'].includes(b.signup)) return fail('bad', 400); st.push(put('signup', b.signup)); }
+  if (b.newCode) st.push(put('code', newCode(4) + '-' + newCode(4)));
+  else if (b.code !== undefined) { const c = String(b.code).trim(); if (c && !/^[\w-]{4,40}$/.test(c)) return fail('bad', 400); st.push(put('code', c)); }
+  if (b.invites !== undefined) st.push(put('invites', Math.max(0, Math.min(1000, Math.round(+b.invites) || 0))));
+  if (b.contact !== undefined) { const c = String(b.contact).trim(); if (c && !/^https:\/\/[^\s"<>]{3,200}$/.test(c)) return fail('bad', 400); st.push(put('contact', c)); }
+  if (st.length) await env.DB.batch(st);
+  return json({settings: await siteSettings(env)});
+}, {auth: true});
+// news: what's new on the site, written by its owner; every member reads it on Home
+// the first post, written once when there's no news yet, in the owner's name (theirs to edit or delete)
+const FIRST_POST = {title: 'Bring your friends', body: `TVC15 has always been invitation-only. Now every member can do the inviting.
+
+Open the menu under your picture and choose Invite friends. Make a link and send it however you like: it lets one person join, it works for two weeks, and it opens the sign-up page with your name on it. Changed your mind? Take it back any time before it’s used.
+
+Also new this month:
+
+- Lists, ranked or not, public or private. A public list opens for anyone with its link, account or not.
+- Popular: what the people you follow, or everyone here, watched most this week, this month, this year or ever.
+- Themes in Discover: thirty-four ways in, from Queer Cinema and folk horror to road movies, trains and films about films.
+- World Cinema, a new collection, and close to 15,000 films in the catalog.
+- A name opens a profile, a poster opens the film, a date or a rating opens the diary entry. And Back goes back.
+
+Happy watching.`};
+async function seedNews(env) {
+  const done = await env.DB.prepare("SELECT 1 FROM settings WHERE k = 'news-seeded'").first();
+  if (done) return;
+  await env.DB.prepare("INSERT OR IGNORE INTO settings (k, v) VALUES ('news-seeded', '1')").run();
+  const has = await env.DB.prepare('SELECT 1 FROM news LIMIT 1').first();
+  const o = await env.DB.prepare(`SELECT id FROM users WHERE username IN (${owners(env).map(() => '?').join(',')}) ORDER BY id LIMIT 1`).bind(...owners(env)).first();
+  if (!has && o) await env.DB.prepare('INSERT INTO news (uid, title, body, at) VALUES (?, ?, ?, ?)').bind(o.id, FIRST_POST.title, FIRST_POST.body, Date.now()).run();
+}
+on('GET', '/api/news', async (req, env, u) => {
+  await seedNews(env);
+  const rows = (await env.DB.prepare('SELECT n.id, n.title, n.body, n.at, x.username, x.name, x.av FROM news n JOIN users x ON x.id = n.uid ORDER BY n.at DESC LIMIT 50').all()).results || [];
+  return json({news: rows.map(r => ({id: r.id, title: r.title, body: r.body, at: r.at, by: {username: r.username, name: r.name || '', av: +r.av || 0}}))}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+on('POST', '/api/admin/news', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const b = await body(req, 20000), title = clean1(b.title, 140), text = cleanNote(b.body).slice(0, 8000);
+  if (!title || !text) return fail('empty', 400);
+  if (b.id) await env.DB.prepare('UPDATE news SET title = ?, body = ? WHERE id = ?').bind(title, text, +b.id || 0).run();
+  else await env.DB.prepare('INSERT INTO news (uid, title, body, at) VALUES (?, ?, ?, ?)').bind(u.id, title, text, Date.now()).run();
+  return json({ok: true});
+}, {auth: true});
+on('DELETE', '/api/admin/news/(\\d{1,12})', async (req, env, u, m) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  await env.DB.prepare('DELETE FROM news WHERE id = ?').bind(+m[1]).run();
+  return json({ok: true});
+}, {auth: true});
+on('POST', '/api/admin/revoke', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const b = await body(req, 200);
+  await env.DB.prepare('UPDATE invites SET revoked = 1 WHERE code = ?').bind(String(b.code || '')).run();
+  return json({ok: true});
+}, {auth: true});
+
+// ---- invite links: a member brings a friend. Each link lets one person join, for two weeks; each member has as many
+// as the owner allows (the owner, as many as they like) ----
+const INVITE_DAYS = 14;
+async function myInvites(env, u) {
+  const S = await siteSettings(env), own = isOwner(env, u);
+  const rows = (await env.DB.prepare(`SELECT i.code, i.created, i.expires, i.uses, i.max, i.revoked, x.username AS used FROM invites i LEFT JOIN users x ON x.id = i.used_by
+    WHERE i.uid = ? ORDER BY i.created DESC LIMIT 100`).bind(u.id).all()).results || [];
+  const counted = rows.filter(r => !r.revoked && (r.uses > 0 || r.expires > Date.now())).length;
+  return {open: S.signup !== 'closed', allowed: own ? -1 : S.invites, left: own ? -1 : Math.max(0, S.invites - counted), contact: S.contact,
+    invites: rows.map(r => ({code: r.code, created: r.created, expires: r.expires, used: r.used || '', state: r.revoked ? 'revoked' : r.uses >= r.max ? 'used' : r.expires <= Date.now() ? 'expired' : 'open'}))};
+}
+on('GET', '/api/invites', async (req, env, u) => json(await myInvites(env, u), 200, {'cache-control': 'private, no-store'}), {auth: true});
+on('POST', '/api/invites', async (req, env, u) => {
+  const I = await myInvites(env, u);
+  if (!I.open) return fail('closed', 403);
+  if (I.left === 0) return fail('none-left', 403);
+  if (await limited(env.DB, 'invite-new:' + u.id, 30, DAY)) return fail('slow', 429);
+  const now = Date.now();
+  await env.DB.prepare('INSERT INTO invites (code, uid, created, expires) VALUES (?, ?, ?, ?)').bind(newCode(12), u.id, now, now + INVITE_DAYS * DAY).run();
+  return json(await myInvites(env, u));
+}, {auth: true});
+on('DELETE', '/api/invites/([a-z0-9]{8,24})', async (req, env, u, m) => {
+  await env.DB.prepare('UPDATE invites SET revoked = 1 WHERE code = ? AND uid = ?').bind(m[1], u.id).run();
+  return json(await myInvites(env, u));
 }, {auth: true});
 // the latest entries of everyone you follow, assembled without unpacking anyone's whole profile,
 // with the reactions to them: [id, owner, eid, kind, text, at, reactor username, reactor name, film title]
@@ -666,10 +833,10 @@ const reactRows = rows => rows.map(r => [r.id, r.ou, r.eid, r.kind, r.text, r.at
 on('GET', '/api/feed', async (req, env, u) => {
   const [rows, re] = await Promise.all([
     env.DB.prepare(`SELECT x.username, x.name, x.av, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
-      WHERE f.a = ? AND p.public = 1 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
+      WHERE f.a = ? AND p.public = 1 AND x.banned = 0 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
     env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
-      WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
+      WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
       ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY, u.id, u.id).all(),
   ]);
   return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"a":' + (+r.av || 0) + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
@@ -679,12 +846,12 @@ on('GET', '/api/inbox', async (req, env, u) => {
   const cut = Date.now() - REACT_DAYS * DAY;
   const [re, fol, thr] = await Promise.all([
     env.DB.prepare(`SELECT r.id, ? AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r JOIN users x ON x.id = r.uid
-      WHERE r.owner = ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?)) ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut, u.id, u.id).all(),
+      WHERE r.owner = ? AND r.at > ? AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?)) ORDER BY r.at DESC LIMIT 500`).bind(u.username, u.id, cut, u.id, u.id).all(),
     env.DB.prepare(`SELECT x.username, x.name, x.av, f.at, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS back FROM follows f JOIN users x ON x.id = f.a
-      WHERE f.b = ? AND f.at > ? ORDER BY f.at DESC LIMIT 100`).bind(u.id, u.id, cut).all(),
+      WHERE f.b = ? AND f.at > ? AND x.banned = 0 ORDER BY f.at DESC LIMIT 100`).bind(u.id, u.id, cut).all(),
     env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
-      WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ? AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
+      WHERE r.kind = 'c' AND r.uid != ? AND r.owner != ? AND r.at > ? AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
         AND EXISTS (SELECT 1 FROM reacts m WHERE m.owner = r.owner AND m.eid = r.eid AND m.uid = ? AND m.kind = 'c' AND m.at < r.at)
       ORDER BY r.at DESC LIMIT 200`).bind(u.id, u.id, cut, u.id, u.id, u.id).all(),
   ]);
@@ -703,7 +870,7 @@ on('POST', '/api/react', async (req, env, u) => {
   const owner = String(b.owner || '').toLowerCase(), eid = String(b.eid || ''), kind = String(b.kind || '');
   const ft = String(b.ft || '').replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 200);
   if (!USERNAME.test(owner) || !EID.test(eid) || !/^[hswc]$/.test(kind)) return fail('bad', 400);
-  const o = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1').bind(owner).first();
+  const o = await env.DB.prepare('SELECT x.id FROM users x JOIN profiles p ON p.uid = x.id WHERE x.username = ? AND p.public = 1 AND x.banned = 0').bind(owner).first();
   if (!o || await blocked(env, u.id, o.id)) return fail('none', 404);
   if (kind === 'c') {
     const text = String(b.text || '').replace(/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, 500);

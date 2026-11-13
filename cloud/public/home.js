@@ -110,10 +110,11 @@ function fxHome(o) {
   return {
     html() {
       let h = '';
-      try { h = friends() + (o.pop ? o.pop.teaser('friends') : '') + watchlist() + onThisDay() + year() + channel(); } catch (e) { h = ''; }
+      try { h = (o.news ? o.news.card() : '') + friends() + (o.pop ? o.pop.teaser('friends') : '') + watchlist() + onThisDay() + year() + channel(); } catch (e) { h = ''; }
       return h ? `<div class="hm">${h}</div>` : '';
     },
     click(b) {
+      if (o.news && o.news.click(b)) return true;
       if (b.hasAttribute('data-hm-pick') && FR && FR.wl) {
         const l = FR.wl.list(); if (!l.length) return true;
         const f = l[Math.floor(Math.random() * l.length)];

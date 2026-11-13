@@ -39,7 +39,7 @@ function png(w, h) {
   ok(!(await p.$('.fx-gear')), 'the picture takes the gear’s place');
   await p.click('[data-ac-menu]'); await p.waitForSelector('.av-menu');
   const items = await p.$$eval('.av-menu [role=menuitem]', es => es.map(e => e.textContent));
-  ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Settings|About|Sign out', 'the menu: everything of hers, then Settings, About, Sign out', items);
+  ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Invite friends|Settings|About|Sign out', 'the menu: everything of hers, then Settings, About, Sign out', items);
   await p.screenshot({path: path.join(OUT, 'av-menu.png')});
   await p.keyboard.press('Escape'); await p.waitForTimeout(150);
   ok(!(await p.$('.av-menu')), 'Escape closes it');

@@ -1678,3 +1678,73 @@ a.fx-pg:active{transform:scale(.97)}
 .ad-when, .ad-facts{grid-column:1 / -1; margin:0; font-size:13px; line-height:1.5; color:var(--muted)}
 .ad-facts{color:var(--ink)}
 .ad-note{font-size:12.5px}
+
+/* sign-up: who invited you; where to ask for an invite */
+.au-inv{display:flex; align-items:center; gap:12px; margin:0; font-size:14.5px; line-height:1.45}
+.au-inv b{font-weight:700}
+.au-ask{margin:14px 0 0; text-align:center}
+.au-ask a{color:var(--ink); text-decoration:underline; text-decoration-color:var(--osd); text-underline-offset:2px}
+
+/* Invite friends */
+.iv-make{align-items:center; gap:10px 14px}
+.iv-list{list-style:none; margin:0; padding:0; display:grid}
+.iv-list li{display:grid; gap:8px; padding:12px 0; border-top:1px solid var(--line)}
+.iv-list li:first-child{border-top:0; padding-top:0}
+.iv-b{display:grid; gap:2px; min-width:0}
+.iv-b code{font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--ink); overflow-wrap:anywhere}
+.iv-st{font-size:12.5px; color:var(--muted)}
+.iv-open .iv-st{color:var(--osd); font-weight:600}
+.iv-used code, .iv-expired code, .iv-revoked code{color:var(--muted); text-decoration:line-through; text-decoration-color:color-mix(in srgb, var(--muted) 60%, transparent)}
+.iv-used code{text-decoration:none}
+.iv-acts{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px}
+
+/* What's new: a card at the top of Home, and the posts */
+.nw-card{position:relative; box-shadow:inset 3px 0 0 var(--osd)}
+.nw-eye{display:flex; align-items:center; justify-content:space-between; font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--osd)}
+.nw-x{all:unset; cursor:pointer; width:28px; height:28px; display:grid; place-items:center; border-radius:50%; font-size:20px; line-height:1; color:var(--muted)}
+.nw-x:hover{background:var(--sunk); color:var(--ink)}
+.nw-x:focus-visible{outline:2px solid var(--accent)}
+.nw-t{margin:4px 0 6px; font-family:var(--display); font-size:22px; font-weight:800; font-stretch:112%; line-height:1.15; letter-spacing:-.01em}
+.fx .nw-t a{color:var(--ink); text-decoration:none}
+.nw-ex{margin:0 0 4px; font-size:14.5px; line-height:1.5; color:var(--muted)}
+.nw-meta{font-size:12.5px; color:var(--muted)}
+.nw-body{font-size:15.5px; line-height:1.65}
+.nw-body p{margin:0 0 12px}
+.nw-body ul{margin:0 0 12px; padding-inline-start:20px}
+.nw-body li{margin:0 0 6px}
+.nw-body li::marker{color:var(--osd)}
+.fx .nw-body a{color:var(--ink); text-decoration:underline; text-decoration-color:var(--osd)}
+
+/* Your site: joining, news, comments, managing an account */
+.ad-help{margin:6px 0 0; font-size:12.5px; line-height:1.45}
+.ad-join{display:grid; gap:12px}
+.ad-field{display:grid; gap:8px; padding-top:12px; border-top:1px solid var(--line)}
+.ad-field > span{font-size:13px; font-weight:650; color:var(--ink)}
+.ad-code{display:flex; flex-wrap:wrap; align-items:center; gap:10px}
+.ad-code code{padding:5px 10px; border-radius:8px; background:var(--sunk); font-family:var(--sans); font-size:15px; font-weight:700; letter-spacing:.03em}
+.ad-inline{gap:8px; flex-wrap:nowrap}
+.ad-inline input{flex:1; min-width:0}
+.ad-invs{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.ad-invs li{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13.5px; color:var(--muted)}
+.ad-invs b{color:var(--ink); font-weight:600}
+.ad-compose{display:grid; gap:8px}
+.ad-compose input, .ad-compose textarea{width:100%; box-sizing:border-box}
+.ad-posts, .ad-cms{list-style:none; margin:12px 0 0; padding:0; display:grid}
+.ad-posts li, .ad-cms li{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; padding:10px 0; border-top:1px solid var(--line)}
+.ad-posts li > div:first-child{display:grid; min-width:0}
+.ad-posts .fx-muted{font-size:12.5px}
+.ad-pa{display:flex; gap:12px}
+.ad-cms li{display:grid}
+.ad-cm{margin:0; font-size:14px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
+.ad-cmeta{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; font-size:12.5px; color:var(--muted)}
+.ad-man{font-size:13px}
+.ad-acts{grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:6px; padding:12px; border-radius:12px; background:var(--sunk)}
+.ad-acts .ad-help{flex-basis:100%; margin:0}
+.ad-del{display:grid}
+.ad-tag.ban{color:var(--bad); box-shadow:inset 0 0 0 1px var(--bad)}
+.ad-banned .ad-n b{text-decoration:line-through; text-decoration-color:var(--bad)}
+.fx .fx-warn{color:var(--bad)}
+/* a post's title is a headline, not a card label; the Home card's green edge sits clear of the text */
+.fx[dir] .fx-card h2.nw-t{margin:2px 0 4px; font-family:var(--display); font-size:22px; font-weight:800; font-stretch:118%; line-height:1.15; letter-spacing:-.02em; color:var(--ink); text-transform:none}
+.fx .fx-card.nw-card{gap:6px; padding-inline-start:16px; box-shadow:inset 3px 0 0 var(--osd)}
+.nw-post{gap:6px}

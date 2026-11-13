@@ -13,7 +13,7 @@ const CloudSync = (() => {
   const L = () => langFn() === 'fa' ? 'fa' : 'en';
   const MSG = {
     en: {net: 'Can’t connect right now. Trying again automatically.', slow: 'Too many attempts. Try again in a few minutes.', wrong: 'Wrong username or password.', taken: 'That username’s already taken.',
-      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code doesn’t work.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', none: 'That account isn’t available.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
+      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code or link doesn’t work. It may have been used, taken back or expired.', closed: 'TVC15 isn’t taking new members right now.', suspended: 'This account has been suspended.', 'none-left': 'You’ve used all your invites.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', none: 'That account isn’t available.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
     fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
       username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
   };
@@ -179,6 +179,11 @@ const CloudSync = (() => {
     popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
     // the owner's page: the site's numbers and every account
     admin: () => api('GET', '/admin'),
+    adminDo: (what, o) => api('POST', '/admin/' + what, o),
+    // invite links: yours, a new one, taking one back; who a link is from
+    invites: {mine: () => api('GET', '/invites'), make: () => api('POST', '/invites', {}), revoke: c => api('DELETE', '/invites/' + c), who: c => api('GET', '/invite/' + c)},
+    // what's new on the site (the owner writes it)
+    news: () => api('GET', '/news'), newsPost: o => api('POST', '/admin/news', o), newsDelete: id => api('DELETE', '/admin/news/' + id),
     config: () => api('GET', '/config'), setLang: f => { langFn = f; },
   };
 })();

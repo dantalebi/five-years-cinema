@@ -59,25 +59,39 @@
   };
 
   // ================= signed out =================
-  let authMode = 'in', authNote = '', cfg = null;
+  let authMode = 'in', authNote = '', cfg = null, join = null;  // join: an invite link being used ({code, by})
   async function authScreen() {
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
     if (authMode === 'rec') { recoverScreen(); return; }
+    // an invite link: who it's from (or that it's no good); sign-ups closed; where to ask for an invite
+    if (join && join.by === undefined) { const r = await CloudSync.invites.who(join.code); join.by = r.ok ? r.j.by : null; }
+    const inviter = join && join.by ? `<p class="fx-card au-inv">${typeof fxAvatar === 'function' ? fxAvatar(join.by.username, join.by.name, join.by.av, 'm') : ''}<span><b dir="auto">${esc(join.by.name || '@' + join.by.username)}</b> invited you to ${esc(C.siteName || 'TVC15')}. Choose a username and a password, and you’re in.</span></p>`
+      : join ? `<p class="fx-note bad au-inv">This invite link doesn’t work any more: it’s been used, taken back or it’s expired. Ask for a new one.</p>` : '';
+    const contact = /^https:\/\//.test(cfg.contact || '') ? `, or <a href="${esc(cfg.contact)}" target="_blank" rel="noopener noreferrer">message the site’s owner${/^https:\/\/(t\.me|telegram\.me)\//.test(cfg.contact) ? ' on Telegram' : ''}</a>` : '';
+    const ask = up && cfg.code && !(join && join.by) ? `<p class="fx-muted fx-small au-ask">No invite? Ask someone on ${esc(C.siteName || 'TVC15')} for a link${contact}.</p>` : '';
+    if (up && cfg.closed) {
+      shell(`<header class="fx-head fx-authhead">${typeof FX_BRAND !== 'undefined' ? `${FX_BRAND.mark({h: 64, id: 'auth', cls: 'fx-authmark'})}<h1 class="fx-authword">${FX_BRAND.word({h: 40})}</h1>` : `<h1 class="fx-h1">${esc(t.site)}</h1>`}<p class="fx-lede">${esc(t.tag)}</p></header>
+        <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="false">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="true">${t.signup}</button></div>
+        <section class="fx-card"><h2>Not taking new members right now</h2><p class="fx-muted">${esc(C.siteName || 'TVC15')} is closed to new accounts for the moment${contact ? `. To ask about it${contact.replace(/^, or /, ', ')}` : ''}.</p></section>`, 'fx-auth');
+      root.addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authScreen(); } });
+      return;
+    }
     shell(`<header class="fx-head fx-authhead">${typeof FX_BRAND !== 'undefined' ? `${FX_BRAND.mark({h: 64, id: 'auth', cls: 'fx-authmark'})}<h1 class="fx-authword">${FX_BRAND.word({h: 40})}</h1>` : `<h1 class="fx-h1">${esc(t.site)}</h1>`}<p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
-      <div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
+      ${up ? inviter : ''}<div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>
         ${up ? `<label class="fx-field"><span>${t.name}</span><input name="n" type="text" dir="auto" maxlength="60" autocomplete="name" placeholder="${esc(t.namePh)}"></label>` : ''}
         <label class="fx-field"><span>${up ? t.passNew : t.pass}</span><input name="p" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" required ${up ? 'minlength="8"' : ''}></label>
-        ${up && cfg.code ? `<label class="fx-field"><span>${t.code}</span><input name="c" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>` : ''}
+        ${up && cfg.code && !join ? `<label class="fx-field"><span>${t.code}</span><input name="c" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>` : ''}
+        ${up && join ? `<input type="hidden" name="c" value="${esc(join.code)}">` : ''}
         ${up ? `<label class="fx-check"><input type="checkbox" name="pub" checked> ${t.pub}</label>` : ''}
         <div class="fx-row"><button type="submit" class="fx-btn primary">${up ? t.make : t.go}</button></div>
         ${authNote ? `<p class="fx-note ${authNote === t.working ? 'busy' : 'bad'}">${esc(authNote)}</p>` : ''}
         ${up ? '' : `<p class="fx-small"><button type="button" class="fx-link" data-amode="rec">Forgot your password?</button></p>`}
         <p class="fx-muted fx-small">${t.privacy}</p>
-      </form>
+      </form>${ask}
       <p class="fx-muted fx-small fx-authfoot"><a href="/about">About ${esc(C.siteName || 'TVC15')} and your privacy</a></p>`, 'fx-auth');
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -95,6 +109,7 @@
       const err = authMode === 'up' ? await CloudSync.signup(u, p, name, f.elements.c ? f.elements.c.value.trim() : '') : await CloudSync.login(u, p);
       if (err) { authNote = err; authScreen(); return; }
       authNote = '';
+      if (join) { join = null; history.replaceState(null, '', '/'); }
       await Store.load();
       if (authMode === 'up') {
         Store.set('cfg:lang', lang());
@@ -310,13 +325,16 @@
   const startView = () => FR && Store.data['cfg:home'] === 'friends' ? 'friends' : 'week';
   // Popular: what the people you follow, or everyone, watched most lately (a page of its own, and a row on Home and Discover)
   const POP = typeof fxPopular === 'function' ? fxPopular(CloudSync, {redraw: () => FX && FX.render(), wl: FR ? FR.wl : null}) : null;
-  const HM = typeof fxHome === 'function' ? fxHome({FR, pop: POP, redraw: () => FX && FX.render()}) : null;
+  // what's new (the owner's posts) and inviting friends
+  const NEWS = typeof fxNews === 'function' ? fxNews(CloudSync, {redraw: () => FX && FX.render()}) : null;
+  const INV = typeof fxInvites === 'function' ? fxInvites(CloudSync, {redraw: () => FX && FX.render()}) : null;
+  const HM = typeof fxHome === 'function' ? fxHome({FR, pop: POP, news: NEWS, redraw: () => FX && FX.render()}) : null;
   // the owner's page: the site's numbers and every account (the server answers only its owner)
-  const ADMIN = typeof fxAdmin === 'function' ? fxAdmin(CloudSync, {redraw: () => FX && FX.render()}) : null;
+  const ADMIN = typeof fxAdmin === 'function' ? fxAdmin(CloudSync, {redraw: () => FX && FX.render(), news: () => NEWS ? NEWS.list() : [], onNews: () => NEWS && NEWS.reload()}) : null;
   // the top of each main screen: the wordmark, which takes you home
   const brandBar = () => `<div class="fx-topbar"><a class="fx-brand" href="/" aria-label="${esc(C.siteName || 'TVC15')}, home">${FX_BRAND.word({h: 15})}</a></div>`;
   // ---- addresses: each screen has one (nav.js), so Back steps through the app and any screen can be reloaded or shared ----
-  const VIEWS = {'/plan/new': 'build', '/about': 'about', '/admin': 'admin', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
+  const VIEWS = {'/plan/new': 'build', '/about': 'about', '/admin': 'admin', '/invite': 'invite', '/news': 'news', '/week': 'week', '/diary': 'diary', '/stats': 'stats', '/settings': 'settings', '/plan': 'plan', '/list': 'list'};
   const pathOf = v => v === 'profile' ? PV.url() : v === 'week' && HM ? '/' : v === 'settings' ? '/settings' + (FX && FX.section() ? '/' + FX.section() : '') : v === 'build' ? '/plan/new' : v === 'friends' ? (FR ? FR.path() : '/activity') : v === 'discover' && DX ? DX.url() : v === 'popular' && POP ? POP.url() : v === 'film' && FP ? FP.url() : v === 'director' && FP ? FP.dirUrl() : '/' + v;
   function route(url, how) {
     if (!FX) return;
@@ -345,7 +363,7 @@
     if (!FX || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
-    if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about|admin)(\/|\?|#|$)|$)/.test(href)) return;
+    if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about|admin|invite|news)(\/|\?|#|$)|$)/.test(href)) return;
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
   });
   // where a plan film sits in your plan, for its page
@@ -419,7 +437,7 @@
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null, top: () => POP ? POP.teaser('everyone') : ''});
     if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
-      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP, ADMIN].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
+      tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP, ADMIN, INV, NEWS && NEWS.tab].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
       topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
       // a section's back link: to the list it was opened from, or to Settings when it was opened some other way
@@ -710,8 +728,10 @@
 
   // ================= which face =================
   async function home() {
-    const um = location.pathname.match(U_PATH);
+    const um = location.pathname.match(U_PATH), jm = location.pathname.match(/^\/join\/([a-z0-9]{8,24})\/?$/);
     await Store.load();
+    // an invite link: the sign-up page, saying who it's from; already a member: Home
+    if (jm) { if (CloudSync.me()) history.replaceState(null, '', '/'); else { join = {code: jm[1]}; authMode = 'up'; authScreen(); return; } }
     // a visitor sees a profile (or a list) on its own; a member, inside the app
     if (um && !CloudSync.me()) { profilePage(um[1], um[2] || ''); return; }
     let me = CloudSync.me();
