@@ -956,7 +956,8 @@
   offBar.textContent = 'You’re offline. Everything you do is saved on this device and syncs when you’re back.';
   document.body.appendChild(offBar);
   const OFF = offBar.textContent, SLOW = 'TVC15 is slow right now. Everything you do is saved on this device and syncs when it’s back.';
-  const bar = () => { const st = CloudSync.status(), slow = st.state === 'err' && /^(timeout|server|http5\d\d)$/.test(st.code || ''); offBar.textContent = navigator.onLine === false ? OFF : SLOW; offBar.hidden = navigator.onLine !== false && !slow; };
+  const LIMIT = 'TVC15 has used up today’s free database allowance. What you do is saved on this device and syncs after 3:30 Tehran time (midnight UTC).';
+  const bar = () => { const st = CloudSync.status(), slow = st.state === 'err' && /^(timeout|server|dblimit|http5\d\d)$/.test(st.code || ''); offBar.textContent = navigator.onLine === false ? OFF : st.code === 'dblimit' ? LIMIT : SLOW; offBar.hidden = navigator.onLine !== false && !slow; };
   window.addEventListener('offline', bar); window.addEventListener('online', bar); CloudSync.onStatus(bar);
   CloudSync.onSignOut(() => { location.href = '/'; });
   CloudSync.onStatus(() => FX && FX.render());

@@ -43,6 +43,8 @@ ok(got >= 505, 'pull pages through everything', {got, rounds});
 // another person, profiles and follows
 r = await call('b', 'POST', '/api/signup', {username: 'sara_k', key: K('c'), name: 'Sara'}); ok(r.s === 200, 'second user');
 const payload = {v: 2, lang: 'en', name: 'Danial Talebi', diary: [{id: 'log1', t: 'Heat', y: 1995, r: 10, h: 1, w: '2026-11-01', rv: 'long review…', p: 'https://image.tmdb.org/t/p/w185/x.jpg'}], now: {films: []}};
+r = await call('a', 'PUT', '/api/profile', {payload, public: true}); ok(r.s === 409, 'no profile goes up while the account’s own setting says private');
+r = await call('a', 'POST', '/api/sync', {since: 0, changes: [['cfg:share', 'danial', Date.now()]]}); ok(r.s === 200, 'the setting: public');
 r = await call('a', 'PUT', '/api/profile', {payload, public: true}); ok(r.s === 200, 'publish profile');
 r = await call('anon', 'GET', '/api/u/danial'); ok(r.s === 200 && r.j.data.diary[0].t === 'Heat' && r.j.updated > 0, 'anyone reads a public profile');
 r = await call('anon', 'GET', '/api/u/sara_k'); ok(r.s === 404, 'no profile yet → 404');

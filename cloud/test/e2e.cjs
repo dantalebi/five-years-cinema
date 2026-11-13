@@ -117,6 +117,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(!(await a.$('form[data-tmdb]')) && !(await a.$('form[data-gh]')), 'no TMDB key or GitHub token to paste');
   await a.screenshot({path: path.join(OUT, 'cl-settings.png'), fullPage: true});
   await a.click('[data-sset="privacy"]'); await a.waitForSelector('input[data-pubprof]'); await a.click('input[data-pubprof]'); await a.waitForTimeout(800);
+  // (a visitor's browser may keep a public profile for 20 seconds: this one starts without it)
+  { const cdp = await v.context().newCDPSession(v); await cdp.send('Network.clearBrowserCache'); }
   await v.goto(B + '/u/danial'); await v.waitForTimeout(800);
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'profile off → not readable');
   await a.click('[data-sset-back]'); await a.waitForSelector('[data-ac-out]'); await a.click('[data-ac-out]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});

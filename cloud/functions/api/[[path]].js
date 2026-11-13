@@ -65,9 +65,16 @@ const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, 
   `ALTER TABLE hroutes ADD COLUMN rr INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE hroutes ADD COLUMN rw INTEGER NOT NULL DEFAULT 0`];
 // indexes on those columns, once they're there
 const AFTER = [`CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email) WHERE email != ''`];
-let ready = null;
-const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {}))))
-  .then(() => Promise.all(AFTER.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
+// making sure the tables are there: if the database won't take it (it can refuse writes for the rest of the day once the
+// free plan's limit is reached), the tables are there already, so requests go ahead and it's tried again in a while
+let ready = null, readyFail = 0;
+function init(db) {
+  if (ready && readyFail && Date.now() - readyFail > 5 * 60e3) { ready = null; readyFail = 0; }
+  return ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {}))))
+    .then(() => Promise.all(AFTER.map(c => db.prepare(c).run().catch(() => {})))).then(() => {}, e => { readyFail = Date.now(); console.error('init', e && e.message); }));
+}
+// the database's own refusals, said plainly: the free plan's daily limits (reads or writes) reached
+const dbLimit = e => /limit|exceed|quota/i.test(String(e && e.message || '')) && /D1|row|daily|day/i.test(String(e && e.message || ''));
 
 const HDR = {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'};
 const json = (o, status = 200, h) => new Response(JSON.stringify(o), {status, headers: Object.assign({}, HDR, h || {})});
@@ -505,6 +512,10 @@ async function indexes(env, uid) {
 on('PUT', '/api/profile', async (req, env, u) => {
   // the app sends it every few minutes at most; this keeps a runaway device from hogging the database
   if (memLimited('profile:' + u.id, 6, 5 * 60e3)) return fail('slow', 429);
+  // whether the profile is public is the account's own setting (cfg:share, the same on every device): a device that
+  // hasn't heard yet that it was turned off elsewhere can't put it back up
+  const sh = await env.DB.prepare("SELECT v FROM kv WHERE uid = ? AND k = 'cfg:share'").bind(u.id).first();
+  if (!sh || !sh.v || sh.v === 'null' || sh.v === '""') return fail('off', 409);
   const b = await body(req, 1.9e6), p = b.payload;
   if (!p || typeof p !== 'object' || !Array.isArray(p.diary)) return fail('bad profile', 400);
   const keep = ['id', 't', 'y', 'p', 'r', 'h', 'rw', 'w', 'd', 'tm', 'sp'];
@@ -1141,6 +1152,7 @@ async function route(req, env, path, meta) {
     return await route.fn(req, env, u, path.match(route.re));
   } catch (e) {
     if (e && e.status) return fail(e.message, e.status);
+    if (dbLimit(e)) return Object.assign(fail('dblimit', 503), {crash: String(e.message || e)});
     console.error(e && e.stack || e);
     return Object.assign(fail('server', 500), {crash: String(e && e.message || e)});
   }

@@ -66,6 +66,12 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(await p.$eval('.fx-offline', e => !e.hidden && /saved on this device/.test(e.textContent)), 'the site failing: a bar says it’s slow and nothing is lost');
   await p.unroute('**/api/sync'); await p.evaluate(() => CloudSync.run()); await p.waitForTimeout(500);
   ok(await p.$eval('.fx-offline', e => e.hidden), 'and goes once it works again');
+  // the database's daily allowance used up: said, with when it comes back
+  await p.route('**/api/sync', r => r.fulfill({status: 503, contentType: 'application/json', body: '{"error":"dblimit"}'}));
+  await p.evaluate(() => { Store.set('cfg:x-test', String(Date.now())); return CloudSync.run(); });
+  await p.waitForTimeout(400);
+  ok(await p.$eval('.fx-offline', e => !e.hidden && /used up today’s free database allowance/.test(e.textContent) && /3:30 Tehran/.test(e.textContent)), 'the daily database limit: said, with when it’s back');
+  await p.unroute('**/api/sync'); await p.evaluate(() => CloudSync.run()); await p.waitForTimeout(500);
   // offline: said at the top while it lasts
   await q.context().setOffline(true); await q.waitForTimeout(200);
   ok(await q.$eval('.fx-offline', e => !e.hidden && /offline/.test(e.textContent)), 'offline: a note at the top');

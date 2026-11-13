@@ -13,7 +13,7 @@ const CloudSync = (() => {
   const L = () => langFn() === 'fa' ? 'fa' : 'en';
   const MSG = {
     en: {net: 'Can’t connect right now. Trying again automatically.', slow: 'Too many attempts. Try again in a few minutes.', wrong: 'Wrong username or password.', taken: 'That username’s already taken.',
-      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code or link doesn’t work. It may have been used, taken back or expired.', closed: 'TVC15 isn’t taking new members right now.', suspended: 'This account has been suspended.', 'none-left': 'You’ve used all your invites.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', toobig: 'Your public profile got too big to save. Your diary is safe; tell whoever runs the site.', email: 'That doesn’t look like an email address. Check it and try again.', emailtaken: 'Another account already uses that email.', mailfail: 'The email couldn’t be sent just now. Try again in a little while.', nomail: 'Email isn’t set up on this site yet.', link: 'This link doesn’t work any more: it’s expired or it’s been used. You can ask for a new one.', noemail: 'Add and confirm your own email first (Settings → Account).', slow: 'Too many tries. Wait a little and try again.', none: 'That account isn’t available.', timeout: 'TVC15 is taking too long to answer; it may be busy right now. What you’ve done is safe on this device. Try again in a minute.', server: 'Something went wrong on the site’s side. Try again in a minute; if it keeps happening, tell whoever runs the site.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
+      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code or link doesn’t work. It may have been used, taken back or expired.', closed: 'TVC15 isn’t taking new members right now.', suspended: 'This account has been suspended.', 'none-left': 'You’ve used all your invites.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', toobig: 'Your public profile got too big to save. Your diary is safe; tell whoever runs the site.', email: 'That doesn’t look like an email address. Check it and try again.', emailtaken: 'Another account already uses that email.', mailfail: 'The email couldn’t be sent just now. Try again in a little while.', nomail: 'Email isn’t set up on this site yet.', link: 'This link doesn’t work any more: it’s expired or it’s been used. You can ask for a new one.', noemail: 'Add and confirm your own email first (Settings → Account).', slow: 'Too many tries. Wait a little and try again.', none: 'That account isn’t available.', dblimit: 'TVC15 has used up its free database allowance for today, so it can’t save or sign anyone in or out until midnight UTC (3:30 in Tehran). Nothing is lost: what you do here stays on this device and syncs after that.', timeout: 'TVC15 is taking too long to answer; it may be busy right now. What you’ve done is safe on this device. Try again in a minute.', server: 'Something went wrong on the site’s side. Try again in a minute; if it keeps happening, tell whoever runs the site.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
     fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
       username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
   };
@@ -93,8 +93,9 @@ const CloudSync = (() => {
     const content = payloadFn();
     if (!content || ls('fd-pub') === fp(content)) return;
     const r = await api('PUT', '/profile', {payload: JSON.parse(content), public: true});
-    if (r.ok) { put('fd-pub', fp(content)); pubFail = 0; pubAt = Date.now(); }
+    if (r.ok) { put('fd-pub', fp(content)); pubFail = 0; pubAt = Date.now(); if (!Store.data['cfg:share']) { put('fd-pub', null); await api('DELETE', '/profile'); } }  // turned off while it was on its way
     else if (r.status === 429) pubAt = Date.now();  // the site asked to slow down: in a few minutes, then
+    else if (r.status === 409) pubAt = Date.now();  // turned off on another device: this one hears about it with the next sync
     else if (r.status) { pubFail = Date.now(); pubCode = r.status === 413 ? 'toobig' : r.code; throw Object.assign(new Error(pubCode), {code: pubCode}); }
   }
   // changes go up shortly after they're made; when there are a lot of them (an import), in fewer, bigger rounds
@@ -191,11 +192,12 @@ const CloudSync = (() => {
 
   // ---- the profile switch, as the app's Settings expect it ----
   async function shareOn() { if (!me) return say('signin'); Store.set('cfg:share', me.username); put('fd-pub', null); pubAt = 0; lastLocal = 0; schedule(); return null; }
-  // turning the profile off: nothing more goes up (a profile on its way up waits to land first, so it can't undo this)
+  // turning the profile off: nothing more goes up (and one already on its way is taken down again as it lands)
   async function shareOff() {
     const was = Store.data['cfg:share'];
     Store.set('cfg:share', null); clearTimeout(pubTimer); pubTimer = null;
-    for (let i = 0; busy && i < 600; i++) await new Promise(r => setTimeout(r, 100));
+    for (let i = 0; busy && i < 100; i++) await new Promise(r => setTimeout(r, 100));
+    await run();  // the setting reaches the account first, so no other device can put the profile back up
     const r = await api('DELETE', '/profile');
     if (!r.ok) { if (was) Store.set('cfg:share', was); return say(r.code); }
     put('fd-pub', null); return null;
