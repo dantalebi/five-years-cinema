@@ -228,6 +228,7 @@ function fxProfile(root, id, focusId, opts) {
   // ---- every film they've watched, and their watchlist: poster grids ----
   const gkey = f => (+f.tm > 0 ? 'm' + f.tm : '') || String(f.t || '').toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '') + '|' + (+f.y || 0);
   function gridCell(f, extra) {
+    if (!okPoster(f.p) && opts.fill) { const x = opts.fill(f); if (x) f = Object.assign({}, f, {tm: +f.tm > 0 ? f.tm : x.tm, p: x.p || f.p}); }
     const href = siteFilm(f) || (okSlug(f.l) ? 'https://letterboxd.com/film/' + f.l + '/' : (+f.tm > 0 ? 'https://letterboxd.com/tmdb/' + (+f.tm) + '/' : ''));
     const title = String(f.t || '').replace(/\s*\(\d{4}\)\s*$/, ''), lab = title + (f.y ? ' (' + f.y + ')' : '');
     const pic = okPoster(f.p) ? `<img src="${esc(f.p.replace(/\/w\d+\//, '/w185/'))}" alt="" loading="lazy" decoding="async">` : `<span class="fx-pgt" dir="auto">${esc(title)}</span>`;

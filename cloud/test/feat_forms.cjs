@@ -67,6 +67,12 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await p.setInputFiles('[data-lbimport]', f); await p.waitForTimeout(1500);
   ok(/already had all of these/.test(await said()), 'a third time: nothing new, and it says that (not “not a Letterboxd export”)', await said());
 
+  // someone else's watchlist, published before its posters were found: the catalog's poster where it has the film
+  await p.evaluate(async () => { await fetch('/api/profile', {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({public: true, payload: {v: 2, name: 'Dan', diary: [], wl: [{t: 'Stalker', y: 1979, tm: 0, p: ''}, {t: 'Not In Any Catalog', y: 2001, tm: 0, p: ''}]}})}); });
+  const v = await ctx(); await v.goto(B + '/u/dan_t/watchlist'); await v.waitForSelector('.fx-pgrid li', {timeout: 15000});
+  await v.waitForFunction(() => document.querySelectorAll('.fx-pgrid img').length > 0, null, {timeout: 20000}).catch(() => {});
+  const cells = await v.$$eval('.fx-pgrid li', ls => ls.map(l => l.querySelector('img') ? 'poster' : l.innerText.trim()));
+  ok(cells.includes('poster') && cells.includes('Not In Any Catalog'), 'a watchlist without posters: the catalog fills in what it knows', cells);
   ok(!errs.length, 'no page errors', errs);
   await b.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);

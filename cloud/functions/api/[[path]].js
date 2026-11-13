@@ -45,6 +45,9 @@ const SCHEMA = [
   // how the site is doing, for its owner: requests per hour (errors, slow ones, total time) and the latest errors
   `CREATE TABLE IF NOT EXISTS health (hour INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, errs INTEGER NOT NULL DEFAULT 0, slow INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS errors (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL, status INTEGER NOT NULL, code TEXT NOT NULL, msg TEXT NOT NULL DEFAULT '')`,
+  // each public profile's film indexes (films: the lines a film's page and Popular read; fmeta: title, year, poster),
+  // one row each, apart from the profile itself: a big diary and watchlist would make one row too big for D1 (2 MB)
+  `CREATE TABLE IF NOT EXISTS pindex (uid INTEGER NOT NULL, k TEXT NOT NULL, v TEXT, PRIMARY KEY (uid, k))`,
   `CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', pub INTEGER NOT NULL DEFAULT 1, ranked INTEGER NOT NULL DEFAULT 0, films TEXT NOT NULL DEFAULT '[]', n INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE (uid, slug))`,
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
@@ -368,7 +371,7 @@ on('POST', '/api/password', async (req, env, u) => {
 // everything an account has, gone at once
 const wipe = (env, id) => env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
   'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?', 'DELETE FROM avatars WHERE uid = ?',
-  'DELETE FROM lists WHERE uid = ?', 'DELETE FROM invites WHERE uid = ?', 'DELETE FROM tokens WHERE uid = ?', 'DELETE FROM users WHERE id = ?'].map(q => env.DB.prepare(q).bind(id)));
+  'DELETE FROM lists WHERE uid = ?', 'DELETE FROM invites WHERE uid = ?', 'DELETE FROM tokens WHERE uid = ?', 'DELETE FROM pindex WHERE uid = ?', 'DELETE FROM users WHERE id = ?'].map(q => env.DB.prepare(q).bind(id)));
 on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
@@ -458,9 +461,14 @@ function metaLine(fm, k) {
   return l[0] ? {t: l[0], y: +l[1] || 0, p: l[2] || ''} : null;
 }
 // a profile published before these indexes existed: build them once, from the profile itself
+// a profile's two indexes, each in a row of its own (and none left in the profile's own row)
+const putIndex = (env, uid, films, fmeta) => [
+  env.DB.prepare("INSERT INTO pindex (uid, k, v) VALUES (?, 'films', ?) ON CONFLICT(uid, k) DO UPDATE SET v = excluded.v").bind(uid, films),
+  env.DB.prepare("INSERT INTO pindex (uid, k, v) VALUES (?, 'fmeta', ?) ON CONFLICT(uid, k) DO UPDATE SET v = excluded.v").bind(uid, fmeta),
+  env.DB.prepare('UPDATE profiles SET films = NULL, fmeta = NULL WHERE uid = ? AND (films IS NOT NULL OR fmeta IS NOT NULL)').bind(uid)];
 async function indexes(env, uid) {
   const pr = await env.DB.prepare('SELECT payload FROM profiles WHERE uid = ?').bind(uid).first();
-  try { const p = JSON.parse(pr.payload), films = filmIndex(p), fmeta = filmMeta(p); await env.DB.prepare('UPDATE profiles SET films = ?, fmeta = ? WHERE uid = ?').bind(films, fmeta, uid).run(); return {films, fmeta}; }
+  try { const p = JSON.parse(pr.payload), films = filmIndex(p), fmeta = filmMeta(p); await env.DB.batch(putIndex(env, uid, films, fmeta)); return {films, fmeta}; }
   catch (e) { return {films: '', fmeta: ''}; }
 }
 // the public profile: the app builds it (fxShare) and sends it whole; the latest diary entries are kept apart for the feed
@@ -475,8 +483,9 @@ on('PUT', '/api/profile', async (req, env, u) => {
   });
   const name = String(p.name || '').trim().slice(0, 60), now = Date.now(), pub = b.public === false ? 0 : 1;
   await env.DB.batch([
-    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, fmeta, updated) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET
-      public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = excluded.films, fmeta = excluded.fmeta, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), filmIndex(p), filmMeta(p), now),
+    env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, fmeta, updated) VALUES (?, ?, ?, ?, NULL, NULL, ?) ON CONFLICT(uid) DO UPDATE SET
+      public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = NULL, fmeta = NULL, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), now),
+    ...putIndex(env, u.id, filmIndex(p), filmMeta(p)),
     env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, u.id),
   ]);
   return json({updated: now});
@@ -660,8 +669,8 @@ on('GET', '/api/people', async (req, env, u) => {
 on('GET', '/api/film', async (req, env, u) => {
   const keys = [...new Set(new URL(req.url).searchParams.getAll('k'))].filter(k => /^(m\d{1,9}|t\d{1,9}|n[^\t\n]{1,120}\|\d{0,4})$/u.test(k)).slice(0, 3);
   if (!keys.length) return fail('bad', 400);
-  const rows = (await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS fol
-      FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.id != ? AND x.banned = 0
+  const rows = (await env.DB.prepare(`SELECT x.id, x.username, x.name, x.av, COALESCE(fi.v, p.films) AS films, p.payload IS NOT NULL AS hasp, EXISTS (SELECT 1 FROM follows WHERE a = ? AND b = x.id) AS fol
+      FROM users x JOIN profiles p ON p.uid = x.id LEFT JOIN pindex fi ON fi.uid = p.uid AND fi.k = 'films' WHERE p.public = 1 AND x.id != ? AND x.banned = 0
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id, u.id).all()).results || [];
   const friends = [], hist = Array(11).fill(0); let n = 0, likes = 0, want = 0;
   for (const r of rows) {
@@ -736,11 +745,11 @@ function popularOf(rows) {
   return out;
 }
 async function popular(env, u, who) {
-  const cols = 'x.id, x.username, x.name, x.av, p.films, p.payload IS NOT NULL AS hasp';
+  const cols = 'x.id, x.username, x.name, x.av, COALESCE(fi.v, p.films) AS films, p.payload IS NOT NULL AS hasp';
   const rows = (await (who === 'friends'
-    ? env.DB.prepare(`SELECT ${cols} FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
+    ? env.DB.prepare(`SELECT ${cols} FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b LEFT JOIN pindex fi ON fi.uid = p.uid AND fi.k = 'films'
         WHERE f.a = ? AND p.public = 1 AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = x.id) OR (a = x.id AND b = ?)) LIMIT 2000`).bind(u.id, u.id, u.id)
-    : env.DB.prepare(`SELECT ${cols} FROM users x JOIN profiles p ON p.uid = x.id WHERE p.public = 1 AND x.banned = 0 LIMIT 5000`)).all()).results || [];
+    : env.DB.prepare(`SELECT ${cols} FROM users x JOIN profiles p ON p.uid = x.id LEFT JOIN pindex fi ON fi.uid = p.uid AND fi.k = 'films' WHERE p.public = 1 AND x.banned = 0 LIMIT 5000`)).all()).results || [];
   let builds = 0;
   for (const r of rows) if (r.films == null && r.hasp && builds++ < 3) r.films = (await indexes(env, r.id)).films;
   const P = popularOf(rows);
@@ -750,7 +759,7 @@ async function popular(env, u, who) {
   const uids = [...new Set([...films.values()].flatMap(c => c.map(x => x[0])))], fm = new Map();
   for (let i = 0; i < uids.length; i += 90) {
     const part = uids.slice(i, i + 90);
-    const rs = (await env.DB.prepare(`SELECT uid, fmeta, payload IS NOT NULL AS hasp FROM profiles WHERE uid IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results || [];
+    const rs = (await env.DB.prepare(`SELECT p.uid, COALESCE(fm.v, p.fmeta) AS fmeta, p.payload IS NOT NULL AS hasp FROM profiles p LEFT JOIN pindex fm ON fm.uid = p.uid AND fm.k = 'fmeta' WHERE p.uid IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results || [];
     for (const r of rs) fm.set(r.uid, r.fmeta == null && r.hasp && builds++ < 3 ? (await indexes(env, r.uid)).fmeta : r.fmeta || '');
   }
   const meta = new Map();
@@ -1091,7 +1100,7 @@ async function route(req, env, path) {
 // every request counted in its hour (and how long it took); a failure on the site's side kept with what it was
 async function record(env, method, path, res, ms) {
   try {
-    const bad = res.status >= 500, st = [env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, 1, ?, ?, ?)
+    const bad = res.status >= 500 || res.status === 413, st = [env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, 1, ?, ?, ?)
       ON CONFLICT(hour) DO UPDATE SET n = n + 1, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(Math.floor(Date.now() / 36e5), bad ? 1 : 0, ms > 3000 ? 1 : 0, ms)];
     if (bad) {
       const j = await res.clone().json().catch(() => ({}));

@@ -408,7 +408,7 @@
   // fill in director, runtime and poster where only a TMDB id or a bare title is known; then genres and cast for the stats
   let enriching = false; const tried = new Set();
   async function enrichSome() {
-    if (enriching || !window.D) return;
+    if (enriching) return;  // (no plan needed: a watchlist fills in whatever plan, or none, is chosen)
     enriching = true; let n = 0, more = false;
     try {
       const bare = Object.keys(Store.data).filter(k => /^wx:[^:]+$/.test(k) && String(Store.data[k]).startsWith('t:') && !Store.data['md:' + k] && !tried.has('md:' + k));
@@ -763,6 +763,13 @@
       clean: true, base: location.origin + '/u/' + name, lbProxy: '/api/lb/', mine: () => mine, site: C.siteName || 'Film Diary', top: inApp ? '' : brandBar(),
       // someone's profile as they published it; yours, as it is on this device
       source: own ? null : '/api/u/' + name, data: own ? ownData() : null,
+      // a film shown without a poster (a watchlist brought in from Letterboxd, say): the catalog's, if it has the film
+      fill: f => {
+        if (typeof fxCat === 'undefined') return null;
+        if (!fxCat.get()) { if (fxCat.status() === 'idle') fxCat.load().then(rer, () => {}); return null; }
+        const c = fxCat.find({t: String(f.t || '').replace(/\s*\(\d{4}\)\s*$/, ''), y: +f.y || 0});
+        return c && c.tm > 0 ? {tm: c.tm, p: /^\/[A-Za-z0-9._-]+$/.test(c.p || '') ? 'https://image.tmdb.org/t/p/w185' + c.p : ''} : null;
+      },
       // the tab's address follows the tab (Back still leaves the profile in one step)
       profileHref: '/u/' + name,
       // inside the app an entry is a screen of its own: Back returns to wherever you were (the feed, the film, the diary)
@@ -918,6 +925,8 @@
   home();
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+    // a phone keeps the site open in the background for days: coming back to it checks for a new version (which then loads)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });
     let reloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && navigator.serviceWorker.controller) { reloaded = true; location.reload(); } });
   }
