@@ -1149,7 +1149,7 @@ a.fx-tgbig{display:block}
 .fx-people li .fx-pn{flex:1}
 .fp-fr li .fx-who{gap:8px}
 /* the corner: your picture opens a small menu */
-.av-top{position:absolute; z-index:7; top:max(18px, env(safe-area-inset-top, 0px)); inset-inline-end:max(10px, env(safe-area-inset-right, 0px))}
+.av-top{position:absolute; z-index:60; top:max(18px, env(safe-area-inset-top, 0px)); inset-inline-end:max(10px, env(safe-area-inset-right, 0px))}
 .av-me{all:unset; box-sizing:border-box; cursor:pointer; position:relative; display:grid; place-items:center; width:42px; height:42px; border-radius:50%}
 .av-me .av{width:32px; height:32px; font-size:16px; box-shadow:0 0 0 2px var(--bg)}
 .av-me:hover .av, .av-me.on .av, .av-me[aria-expanded="true"] .av{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--star)}
@@ -1225,7 +1225,7 @@ a.fx-tgbig{display:block}
 .fx-word .w-on[fill]{fill:var(--osd)} .fx-word .w-on[stroke]{stroke:var(--osd)}
 /* over a backdrop: the wordmark sits on the picture like a channel's logo in the corner */
 .fx-app.fx-withbd > .fx-topbar:not(.fx-hero){position:absolute; z-index:7; margin:0; top:max(18px, env(safe-area-inset-top, 0px)); inset-inline-start:max(16px, env(safe-area-inset-left, 0px))}
-.fx-app.fx-withbd > .av-top:not(.fx-hero){position:absolute}
+.fx-app.fx-withbd > .av-top:not(.fx-hero){position:absolute; z-index:60}  /* above the page (which a backdrop lifts to z-index 1) and the tab bar */
 .fx-withbd > .fx-topbar .fx-brand{color:#E6EFE9; filter:drop-shadow(0 1px 8px rgba(0,0,0,.5))}
 .fx-withbd > .fx-topbar .w-on[fill]{fill:#4BE37E} .fx-withbd > .fx-topbar .w-on[stroke]{stroke:#4BE37E}
 .fx-brand{display:inline-flex; align-items:center; color:var(--ink); text-decoration:none; border-radius:6px; padding:6px 2px}

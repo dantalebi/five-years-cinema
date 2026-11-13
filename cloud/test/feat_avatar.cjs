@@ -41,6 +41,13 @@ function png(w, h) {
   const items = await p.$$eval('.av-menu [role=menuitem]', es => es.map(e => e.textContent));
   ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Invite friends|Settings|Help and about|Sign out', 'the menu: everything of hers, then Settings, About, Sign out', items);
   await p.screenshot({path: path.join(OUT, 'av-menu.png')});
+  // every item can be tapped where it shows: with a film's backdrop behind Home (which lifts the page above the corner), and on a
+  // short screen where the menu reaches the tab bar
+  await p.setViewportSize({width: 390, height: 600});
+  await p.evaluate(() => document.querySelector('.fx-app').classList.add('fx-withbd'));
+  const blocked = await p.evaluate(() => [...document.querySelectorAll('.av-menu [role=menuitem]')].filter(e => { const b = e.getBoundingClientRect(); if (b.bottom > innerHeight) return false; const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !(hit === e || e.contains(hit)); }).map(e => e.textContent));
+  ok(!blocked.length, 'nothing covers the menu: not the week’s films, not the tab bar', blocked);
+  await p.setViewportSize({width: 390, height: 844});
   await p.keyboard.press('Escape'); await p.waitForTimeout(150);
   ok(!(await p.$('.av-menu')), 'Escape closes it');
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
