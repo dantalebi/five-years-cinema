@@ -21,6 +21,7 @@ const Posters = (() => {
       : await fetch('https://api.themoviedb.org/3' + path, {headers: {Authorization: 'Bearer ' + token, accept: 'application/json'}});
     if (proxy && r.status === 401) throw new Error('signin');
     if (r.status === 401) { authFail = true; throw new Error('auth'); }
+    if (r.status === 429) throw Object.assign(new Error('slow'), {slow: true});  // asked to slow down: try again later
     if (!r.ok) throw new Error('http');
     return r.json();
   }

@@ -44,6 +44,8 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS tokens_uid ON tokens(uid, kind)`,
   // how the site is doing, for its owner: requests per hour (errors, slow ones, total time) and the latest errors
   `CREATE TABLE IF NOT EXISTS health (hour INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, errs INTEGER NOT NULL DEFAULT 0, slow INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0)`,
+  // the same, for each kind of request (its route), so a slowdown shows what it was
+  `CREATE TABLE IF NOT EXISTS hroutes (hour INTEGER NOT NULL, route TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, errs INTEGER NOT NULL DEFAULT 0, slow INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (hour, route))`,
   `CREATE TABLE IF NOT EXISTS errors (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL, status INTEGER NOT NULL, code TEXT NOT NULL, msg TEXT NOT NULL DEFAULT '')`,
   // each public profile's film indexes (films: the lines a film's page and Popular read; fmeta: title, year, poster),
   // one row each, apart from the profile itself: a big diary and watchlist would make one row too big for D1 (2 MB)
@@ -107,6 +109,14 @@ async function body(req, max) {
   if (t.length > max) throw Object.assign(new Error('too big'), {status: 413});
   try { return JSON.parse(t || '{}'); } catch (e) { throw Object.assign(new Error('bad json'), {status: 400}); }
 }
+// the same kind of limit kept in this server instance's memory: no database write, so it can guard the busiest requests
+// (each instance counts on its own, so it's approximate)
+const MEM = new Map();
+function memLimited(key, max, windowMs) {
+  const now = Date.now(); let c = MEM.get(key);
+  if (!c || now - c.since > windowMs) { if (MEM.size > 5000) MEM.clear(); c = {n: 0, since: now}; MEM.set(key, c); }
+  return ++c.n > max;
+}
 // at most `max` hits per window, per key (an address, a username)
 async function limited(db, key, max, windowMs) {
   const now = Date.now(), cut = now - windowMs;
@@ -114,10 +124,19 @@ async function limited(db, key, max, windowMs) {
       n = CASE WHEN hits.since < ? THEN 1 ELSE hits.n + 1 END, since = CASE WHEN hits.since < ? THEN ? ELSE hits.since END RETURNING n`).bind(key, now, cut, cut, now).first();
   return r && r.n > max;
 }
-async function who(req, env) {
+// who's asking. For the many small lookups the app makes (TMDB, Letterboxd), the answer is kept half a minute in this
+// server instance, so a big import's thousands of lookups don't each read the database
+const WHO = new Map();
+async function who(req, env, light) {
   const t = cookie(req, 'fd_s');
   if (!t || t.length > 100) return null;
   const h = await sha256(t);
+  if (light) { const c = WHO.get(h); if (c && Date.now() - c.at < 30e3) return c.u; }
+  const u = await whoDb(env, h);
+  if (light) { if (WHO.size > 2000) WHO.clear(); WHO.set(h, {u, at: Date.now()}); }
+  return u;
+}
+async function whoDb(env, h) {
   const r = await env.DB.prepare('SELECT s.uid, s.seen, u.username, u.name, u.banned FROM sessions s JOIN users u ON u.id = s.uid WHERE s.h = ?').bind(h).first();
   if (!r || r.banned) return null;
   const now = Date.now();
@@ -192,7 +211,7 @@ const noteError = (env, method, path, code, msg) => env.DB.prepare('INSERT INTO 
 
 // ---- the routes ----
 const routes = [];
-const on = (method, pattern, fn, opt = {}) => routes.push({method, re: new RegExp('^' + pattern + '$'), fn, opt});
+const on = (method, pattern, fn, opt = {}) => routes.push({method, re: new RegExp('^' + pattern + '$'), fn, opt, label: method + ' ' + pattern.replace(/\(.*?\)(\{[^}]*\})?|\\\\[a-z]\{?[\d,]*\}?/g, '…')});
 
 on('GET', '/api/config', async (req, env) => { const S = await siteSettings(env); return json({code: S.signup === 'invite', closed: S.signup === 'closed', contact: S.contact, tmdb: !!env.TMDB_TOKEN, mail: mailOn(env)}); });
 // who an invite link is from, for the page it opens (nothing for a link that's no good)
@@ -382,6 +401,7 @@ on('POST', '/api/delete', async (req, env, u) => {
 // sync: send what changed here, get back what changed elsewhere. Each change is [key, value, ms]; newest ms wins.
 // `seq` is the server's own order of arrival, so a device asks for everything after the last seq it saw.
 on('POST', '/api/sync', async (req, env, u) => {
+  if (memLimited('sync:' + u.id, 120, 60e3)) return fail('slow', 429);
   const b = await body(req, 1.2e6), since = Math.max(0, +b.since || 0), changes = Array.isArray(b.changes) ? b.changes : [];
   if (changes.length > 500) return fail('too many', 413);
   const base = Date.now() * 1000, stmts = [];
@@ -390,8 +410,10 @@ on('POST', '/api/sync', async (req, env, u) => {
     if (!Array.isArray(c) || typeof c[0] !== 'string' || !c[0] || c[0].length > 200 || !Number.isFinite(+c[2])) return fail('bad change', 400);
     const v = JSON.stringify(c[1] === undefined ? null : c[1]);
     if (v.length > 32000) return fail('too big', 413);
-    stmts.push(env.DB.prepare(`INSERT INTO kv (uid, k, v, ms, seq) VALUES (?, ?, ?, ?, ?) ON CONFLICT(uid, k) DO UPDATE SET
-      v = excluded.v, ms = excluded.ms, seq = excluded.seq WHERE excluded.ms > kv.ms`).bind(u.id, c[0], v, Math.floor(+c[2]), base + i));
+    // seq: one more than the account's latest, worked out as each change is saved (the batch saves them one by one), so the
+    // numbers follow the order changes reach the database and a device asking for "after n" can't miss one saved late
+    stmts.push(env.DB.prepare(`INSERT INTO kv (uid, k, v, ms, seq) VALUES (?, ?, ?, ?, MAX(?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM kv WHERE uid = ?))) ON CONFLICT(uid, k) DO UPDATE SET
+      v = excluded.v, ms = excluded.ms, seq = excluded.seq WHERE excluded.ms > kv.ms`).bind(u.id, c[0], v, Math.floor(+c[2]), base + i, u.id));
   }
   if (stmts.length >= 100) {  // a big import: keep each account to a sane size
     const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM kv WHERE uid = ?').bind(u.id).first();
@@ -473,6 +495,8 @@ async function indexes(env, uid) {
 }
 // the public profile: the app builds it (fxShare) and sends it whole; the latest diary entries are kept apart for the feed
 on('PUT', '/api/profile', async (req, env, u) => {
+  // the app sends it every few minutes at most; this keeps a runaway device from hogging the database
+  if (memLimited('profile:' + u.id, 6, 5 * 60e3)) return fail('slow', 429);
   const b = await body(req, 1.9e6), p = b.payload;
   if (!p || typeof p !== 'object' || !Array.isArray(p.diary)) return fail('bad profile', 400);
   const keep = ['id', 't', 'y', 'p', 'r', 'h', 'rw', 'w', 'd', 'tm', 'sp'];
@@ -933,17 +957,20 @@ on('DELETE', '/api/admin/news/(\\d{1,12})', async (req, env, u, m) => {
 // and Cloudflare's free limits to measure them against (requests and reads reset at midnight UTC)
 on('GET', '/api/admin/health', async (req, env, u) => {
   if (!isOwner(env, u)) return fail('none', 404);
-  const now = Date.now(), all = (q, ...a) => env.DB.prepare(q).bind(...a).all().then(r => r.results || []);
-  await env.DB.batch([env.DB.prepare('DELETE FROM health WHERE hour < ?').bind(Math.floor(now / 36e5) - 24 * 90), env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now - 30 * DAY)]);
-  const [hours, errors, rows, sz] = await Promise.all([
+  await flushHealth(env, true);
+  const now = Date.now(), all = (q, ...a) => env.DB.prepare(q).bind(...a).all().then(r => r.results || []), h0 = Math.floor(now / 36e5);
+  await env.DB.batch([env.DB.prepare('DELETE FROM health WHERE hour < ?').bind(h0 - 24 * 90), env.DB.prepare('DELETE FROM hroutes WHERE hour < ?').bind(h0 - 24 * 30), env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now - 30 * DAY)]);
+  const [hours, errors, rows, sz, heavy] = await Promise.all([
     all('SELECT hour, n, errs, slow, ms FROM health WHERE hour >= ? ORDER BY hour', Math.floor(now / 36e5) - 24 * 14),
     all('SELECT at, method, path, status, code, msg FROM errors ORDER BY at DESC LIMIT 60'),
     all(`SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM sessions) AS sessions, (SELECT COUNT(*) FROM kv) AS kv,
       (SELECT COUNT(*) FROM reacts) AS reacts, (SELECT COUNT(*) FROM lists) AS lists, (SELECT COUNT(*) FROM follows) AS follows`),
     // D1 says how big the database is after each query
     env.DB.prepare('SELECT 1').run().catch(() => null),
+    // the kinds of request that took the most time in the last day
+    all('SELECT route, SUM(n) AS n, SUM(errs) AS errs, SUM(slow) AS slow, SUM(ms) AS ms FROM hroutes WHERE hour > ? GROUP BY route ORDER BY SUM(ms) DESC LIMIT 8', h0 - 24),
   ]);
-  return json({at: now, hours, errors, rows: rows[0] || {}, size: (sz && sz.meta && +sz.meta.size_after) || 0, mail: mailOn(env),
+  return json({at: now, hours, errors, heavy, rows: rows[0] || {}, size: (sz && sz.meta && +sz.meta.size_after) || 0, mail: mailOn(env),
     limits: {requests: 100000, reads: 5e6, writes: 1e5, storage: 5e9}}, 200, {'cache-control': 'private, no-store'});
 }, {auth: true});
 // a test email to the owner's own confirmed address: is sending set up right?
@@ -1062,13 +1089,14 @@ on('GET', '/api/lb/([A-Za-z0-9_]{1,40})', async (req, env, u, m) => {
   const res = new Response(await r.text(), {headers: {'content-type': 'text/plain; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'public, max-age=1800'}});
   if (cache) await cache.put(key, res.clone());
   return res;
-}, {optionalAuth: true});
+}, {optionalAuth: true, light: true});
 
 // TMDB, for members only, through the site's own key; only the few lookups the app makes, answers kept for a day
 // (and what's new: this week's trending films, what's in cinemas now)
 const TMDB_OK = /^\/(search\/(movie|tv|person)|movie\/\d+(\/images)?|tv\/\d+|person\/\d+|configuration|trending\/(movie|tv)\/(day|week)|movie\/(now_playing|popular|upcoming))$/;
 on('GET', '/api/tmdb(/.*)', async (req, env, u, m) => {
   if (!env.TMDB_TOKEN) return fail('notmdb', 503);
+  if (memLimited('tmdb:' + u.id, 2400, 60e3)) return fail('slow', 429);  // (about TMDB's own limit)
   if (!TMDB_OK.test(m[1])) return fail('path', 400);
   const url = 'https://api.themoviedb.org/3' + m[1] + new URL(req.url).search, cache = typeof caches !== 'undefined' ? caches.default : null, key = new Request(url);
   const hit = cache && await cache.match(key);
@@ -1078,9 +1106,9 @@ on('GET', '/api/tmdb(/.*)', async (req, env, u, m) => {
   const res = new Response(await r.text(), {headers: {'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=86400'}});
   if (cache) await cache.put(key, new Response(res.clone().body, {headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=86400'}}));
   return res;
-}, {auth: true});
+}, {auth: true, light: true});
 
-async function route(req, env, path) {
+async function route(req, env, path, meta) {
   try {
     if (!env.DB) return fail('nodb', 500);
     await init(env.DB);
@@ -1088,8 +1116,9 @@ async function route(req, env, path) {
     if (!hits.length) return fail('notfound', 404);
     const route = hits.find(r => r.method === req.method);
     if (!route) return fail('method', 405);
+    meta.route = route.label;
     if (!sameSite(req)) return fail('origin', 403);
-    const u = route.opt.auth || route.opt.optionalAuth ? await who(req, env) : null;
+    const u = route.opt.auth || route.opt.optionalAuth ? await who(req, env, route.opt.light) : null;
     if (route.opt.auth && !u) return fail('signin', 401);
     return await route.fn(req, env, u, path.match(route.re));
   } catch (e) {
@@ -1098,22 +1127,42 @@ async function route(req, env, path) {
     return Object.assign(fail('server', 500), {crash: String(e && e.message || e)});
   }
 }
-// every request counted in its hour (and how long it took); a failure on the site's side kept with what it was
-async function record(env, method, path, res, ms) {
+// every request counted in its hour, with how long it took and what kind of request it was. The counts are kept in this
+// server instance's memory and written every 15 seconds or so (not a database write per request); a failure on the
+// site's side is kept at once, with what it was
+const HEALTH = {rows: new Map(), at: 0};
+function count(route, status, ms) {
+  const hour = Math.floor(Date.now() / 36e5), k = hour + '|' + route;
+  let c = HEALTH.rows.get(k); if (!c) HEALTH.rows.set(k, c = {hour, route, n: 0, errs: 0, slow: 0, ms: 0});
+  c.n++; if (status >= 500 || status === 413) c.errs++; if (ms > 3000) c.slow++; c.ms += ms;
+}
+async function flushHealth(env, force) {
+  if (!HEALTH.rows.size || (!force && Date.now() - HEALTH.at < 15e3)) return;
+  HEALTH.at = Date.now();
+  const rows = [...HEALTH.rows.values()]; HEALTH.rows.clear();
+  const hours = new Map();
+  rows.forEach(r => { const h = hours.get(r.hour) || {n: 0, errs: 0, slow: 0, ms: 0}; h.n += r.n; h.errs += r.errs; h.slow += r.slow; h.ms += r.ms; hours.set(r.hour, h); });
+  const st = [...hours].map(([hour, h]) => env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(hour) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(hour, h.n, h.errs, h.slow, h.ms))
+    .concat(rows.map(r => env.DB.prepare(`INSERT INTO hroutes (hour, route, n, errs, slow, ms) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(hour, route) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(r.hour, r.route.slice(0, 80), r.n, r.errs, r.slow, r.ms)));
+  try { await env.DB.batch(st); } catch (e) {}
+}
+async function record(env, method, path, res, ms, routeLabel) {
+  count(routeLabel || 'other', res.status, ms);
+  const bad = res.status >= 500 || res.status === 413;
   try {
-    const bad = res.status >= 500 || res.status === 413, st = [env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, 1, ?, ?, ?)
-      ON CONFLICT(hour) DO UPDATE SET n = n + 1, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(Math.floor(Date.now() / 36e5), bad ? 1 : 0, ms > 3000 ? 1 : 0, ms)];
     if (bad) {
       const j = await res.clone().json().catch(() => ({}));
-      st.push(env.DB.prepare('INSERT INTO errors (at, method, path, status, code, msg) VALUES (?, ?, ?, ?, ?, ?)').bind(Date.now(), method, path.slice(0, 160), res.status, String(j.error || ''), String(res.crash || '').slice(0, 500)));
+      await env.DB.prepare('INSERT INTO errors (at, method, path, status, code, msg) VALUES (?, ?, ?, ?, ?, ?)').bind(Date.now(), method, path.slice(0, 160), res.status, String(j.error || ''), String(res.crash || '').slice(0, 500)).run();
     }
-    await env.DB.batch(st);
   } catch (e) {}
+  await flushHealth(env);
 }
 export async function handle(req, env, ctx) {
-  const path = new URL(req.url).pathname, t0 = Date.now();
-  const res = await route(req, env, path);
-  if (env.DB && ready) { const p = record(env, req.method, path, res, Date.now() - t0); if (ctx && ctx.waitUntil) ctx.waitUntil(p); else await p; }
+  const path = new URL(req.url).pathname, t0 = Date.now(), meta = {};
+  const res = await route(req, env, path, meta);
+  if (env.DB && ready) { const p = record(env, req.method, path, res, Date.now() - t0, meta.route); if (ctx && ctx.waitUntil) ctx.waitUntil(p); else await p; }
   return res;
 }
 export const onRequest = ctx => handle(ctx.request, ctx.env, ctx);

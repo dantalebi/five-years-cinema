@@ -44,6 +44,28 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   ok(await q.$eval('input[name=p]', e => e.type) === 'text' && await q.$eval('.au-eye', e => e.textContent) === 'Hide', 'Show: the password can be checked before it’s sent');
   await q.click('.au-eye');
   ok(await q.$eval('input[name=p]', e => e.type) === 'password', 'and hidden again');
+  // a slow site: signing in says so after a while, and the answer still comes
+  await q.route('**/api/login', async r => { await new Promise(res => setTimeout(res, 9500)); await r.continue(); });
+  await q.fill('input[name=p]', 'not the password'); await q.click('form[data-auth] button[type=submit]');
+  await q.waitForFunction(() => /Still working… TVC15 is slow right now/.test((document.querySelector('form[data-auth] .fx-note') || {}).textContent || ''), null, {timeout: 15000});
+  ok(true, 'a slow sign-in says the site is slow, and that waiting is fine');
+  await q.waitForSelector('.fx-ferr', {timeout: 20000}); await q.unroute('**/api/login');
+  // an invite link that stopped working between opening it and signing up: said, not swallowed
+  const jn = await ctx();
+  await jn.route('**/api/invite/*', r => r.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({by: {username: 'jon', name: 'Jon', av: 0}})}));
+  await jn.route('**/api/signup', r => r.fulfill({status: 403, contentType: 'application/json', body: '{"error":"code"}'}));
+  await jn.goto(B + '/join/abcdefgh1234'); await jn.waitForSelector('.au-inv');
+  await jn.fill('input[name=u]', 'late_one'); await jn.fill('input[name=n]', 'Late'); await jn.fill('input[name=p]', 'pass for late');
+  await jn.click('form[data-auth] button[type=submit]');
+  await jn.waitForFunction(() => /invite link doesn’t work any more/.test(document.querySelector('form[data-auth]').innerText), null, {timeout: 20000});
+  ok(await jn.$eval('input[name=u]', e => e.value) === 'late_one', 'a dead invite link: said, with what was typed kept');
+  // the site failing: a bar says so, and that nothing is lost
+  await p.route('**/api/sync', r => r.fulfill({status: 503, contentType: 'text/html', body: 'Error 1102'}));
+  await p.evaluate(() => { Store.set('cfg:x-test', String(Date.now())); return CloudSync.run(); });
+  await p.waitForFunction(() => { const b = document.querySelector('.fx-offline'); return b && !b.hidden && /slow right now/.test(b.textContent); }, null, {timeout: 10000}).catch(() => {});
+  ok(await p.$eval('.fx-offline', e => !e.hidden && /saved on this device/.test(e.textContent)), 'the site failing: a bar says it’s slow and nothing is lost');
+  await p.unroute('**/api/sync'); await p.evaluate(() => CloudSync.run()); await p.waitForTimeout(500);
+  ok(await p.$eval('.fx-offline', e => e.hidden), 'and goes once it works again');
   // offline: said at the top while it lasts
   await q.context().setOffline(true); await q.waitForTimeout(200);
   ok(await q.$eval('.fx-offline', e => !e.hidden && /offline/.test(e.textContent)), 'offline: a note at the top');

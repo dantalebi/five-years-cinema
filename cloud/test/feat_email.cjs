@@ -111,6 +111,7 @@ const linkIn = (m, kind) => (m.text.match(new RegExp('https?://[^\\s]+/' + kind 
   const hh = await boss.$eval('.ad-health', e => e.innerText);
   ok(/Emails aren’t going out/.test(hh) && /POST \/api\/forgot/.test(hh) && /not verified/.test(hh), 'Your site: the failed email, with what Resend said', hh.slice(0, 300));
   ok(/requests today, of 100,000/.test(hh) && /Password-reset email is set up/.test(hh) && /Busy hours/.test(hh), 'requests against the free limit, email on, busy hours');
+  ok(/What takes the time/.test(hh) && /(GET|POST|PUT) \/api\//.test(await boss.$eval('.ad-heavy', e => e.innerText)), 'and what takes the time, by kind of request', (await boss.$eval('.ad-heavy', e => e.innerText).catch(() => '')).slice(0, 200));
   await boss.click('[data-ad-mailtest]'); await boss.waitForSelector('.ad-health .fx-note.bad');
   ok(/Add and confirm your own email/.test(await boss.$eval('.ad-health .fx-note.bad', e => e.textContent)), 'the test email needs the owner’s own email first');
   await boss.screenshot({path: path.join(OUT, 'admin-health.png'), fullPage: true});

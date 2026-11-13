@@ -125,12 +125,17 @@
       if (authMode === 'up' && p.length < 8) { authNote = t2.short; authField = 'p'; authScreen(); return; }
       if (authMode === 'up' && em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { authNote = CloudSync.say('email'); authField = 'e'; authScreen(); return; }
       const note = f.querySelector('.fx-note') || f.appendChild(Object.assign(document.createElement('p'), {className: 'fx-note busy'}));
-      note.className = 'fx-note busy'; note.textContent = t2.working;
+      note.className = 'fx-note busy'; note.textContent = t2.working; note.setAttribute('role', 'status');
+      // still waiting after a while: say why, and that waiting is fine
+      const slowT = setTimeout(() => { note.textContent = 'Still working… TVC15 is slow right now. You can wait: nothing you typed is lost.'; }, 8000);
       f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
       const name = authMode === 'up' ? f.elements.n.value.trim() : '', pub = authMode === 'up' && f.elements.pub.checked;
       const err = authMode === 'up' ? await CloudSync.signup(u, p, name, f.elements.c ? f.elements.c.value.trim() : '', em) : await CloudSync.login(u, p);
+      clearTimeout(slowT);
       if (err) {
         const c = CloudSync.errCode();
+        // an invite link that's been used up or taken back: the form asks for a code instead, with the reason under it
+        if (c === 'code' && join) { join = null; history.replaceState(null, '', '/'); authField = cfg.code ? 'c' : ''; authNote = 'This invite link doesn’t work any more: it’s been used, taken back or it’s expired. Ask for a new one' + (cfg.code ? ', or type an invite code.' : '.'); authScreen(); return; }
         authField = {username: 'u', taken: 'u', suspended: 'u', none: 'u', wrong: 'p', code: 'c', email: 'e'}[c] || '';
         if (authField === 'c' && !f.elements.c) authField = '';
         if (c === 'wrong') authVals.p = '';  // a wrong password is typed again
@@ -409,7 +414,7 @@
   let enriching = false; const tried = new Set();
   async function enrichSome() {
     if (enriching) return;  // (no plan needed: a watchlist fills in whatever plan, or none, is chosen)
-    enriching = true; let n = 0, more = false;
+    enriching = true; let n = 0, more = false, paused = false;  // paused: the site asked to slow down, so the rest waits a little
     try {
       const bare = Object.keys(Store.data).filter(k => /^wx:[^:]+$/.test(k) && String(Store.data[k]).startsWith('t:') && !Store.data['md:' + k] && !tried.has('md:' + k));
       await pool(bare, 3, async k => {
@@ -441,13 +446,17 @@
       const C = typeof fxCat !== 'undefined' ? fxCat.get() : null;
       more = allBare.length > bareWl.length;
       await pool(bareWl, 3, async k => {
+        if (paused) return;
         tried.add(k);
         let o; try { o = JSON.parse(Store.data[k]); } catch (e) { return; }
         if (!o || !o.t || +o.tm > 0) return;
         let tm = 0, p = '';
         const c = C ? fxCat.find({t: o.t, y: o.y}) : null;
         if (c && c.tm > 0) { tm = c.tm; p = c.p || ''; }
-        else { const m = await Posters.match(o.t, o.y).catch(() => null); if (m && m.id) { tm = m.id; p = m.p || ''; } else if (m && m.tv) { tm = -m.tv; p = m.p || ''; } }
+        else {
+          let m = null; try { m = await Posters.match(o.t, o.y); } catch (e) { if (e && e.slow) { tried.delete(k); paused = true; return; } }
+          if (m && m.id) { tm = m.id; p = m.p || ''; } else if (m && m.tv) { tm = -m.tv; p = m.p || ''; }
+        }
         if (!tm) return;
         const url = /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : (o.p || '');
         if (tm < 0) { Store.set(k, JSON.stringify(Object.assign({}, o, {tm, p: url}))); if (++n % 25 === 0 && FX) FX.render(); return; }
@@ -459,7 +468,7 @@
       });
     } finally { enriching = false; }
     if (n && FX) FX.render();
-    if (more) setTimeout(enrichSome, 3000);  // the rest of a big watchlist
+    if (more || paused) setTimeout(enrichSome, paused ? 30e3 : 3000);  // the rest of a big watchlist (after a pause, if asked)
     if (window.D) fxMetaFill(window.D, () => Store.data, Store.set, Posters).catch(() => {});
   }
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
@@ -943,8 +952,9 @@
   offBar.className = 'fx-offline'; offBar.setAttribute('role', 'status'); offBar.hidden = navigator.onLine !== false;
   offBar.textContent = 'You’re offline. Everything you do is saved on this device and syncs when you’re back.';
   document.body.appendChild(offBar);
-  window.addEventListener('offline', () => { offBar.hidden = false; });
-  window.addEventListener('online', () => { offBar.hidden = true; });
+  const OFF = offBar.textContent, SLOW = 'TVC15 is slow right now. Everything you do is saved on this device and syncs when it’s back.';
+  const bar = () => { const st = CloudSync.status(), slow = st.state === 'err' && /^(timeout|server|http5\d\d)$/.test(st.code || ''); offBar.textContent = navigator.onLine === false ? OFF : SLOW; offBar.hidden = navigator.onLine !== false && !slow; };
+  window.addEventListener('offline', bar); window.addEventListener('online', bar); CloudSync.onStatus(bar);
   CloudSync.onSignOut(() => { location.href = '/'; });
   CloudSync.onStatus(() => FX && FX.render());
   Store.onChange(() => { planChanged(); enrichSoon(); ownStamp++; });
