@@ -1802,3 +1802,13 @@ a.fx-pg:active{transform:scale(.97)}
 .ac-help dl{margin:6px 0 0}
 .ac-help dt{font-weight:650; margin-top:12px}
 .ac-help dd{margin:3px 0 0; color:var(--muted); line-height:1.5}
+
+/* first time in: three ways to start, as big buttons */
+.ob-opts{display:grid; gap:10px; margin:18px 0 12px}
+.fx .ob-opt{all:unset; box-sizing:border-box; position:relative; overflow:hidden; display:grid; gap:4px; padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--surface, transparent); cursor:pointer; text-align:start; transition:border-color .15s}
+.fx .ob-opt b{font-size:17px; font-weight:700; color:var(--ink)}
+.fx .ob-opt span{font-size:14.5px; line-height:1.45; color:var(--muted)}
+.fx .ob-opt.primary{border-color:var(--osd); box-shadow:inset 0 0 0 1px var(--osd)}
+.fx .ob-opt:hover{border-color:var(--ink)}
+.fx .ob-opt:focus-visible, .fx .ob-opt:focus-within{outline:2px solid var(--osd); outline-offset:2px}
+.fx .ob-old{margin:6px 0 14px}

@@ -37,7 +37,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await a.fill('input[name=u]', 'Danial'); await a.fill('input[name=n]', 'Danial Talebi'); await a.fill('input[name=p]', 'correct horse 1');
   await a.click('form[data-auth] button[type=submit]');
   await a.waitForSelector('[data-knext]', {timeout: 15000}); await a.check('[data-kok]'); await a.click('[data-knext]');
-  await a.waitForSelector('[data-omove]', {timeout: 15000});
+  await a.waitForSelector('[data-omove]', {state: 'attached', timeout: 15000});
   ok(true, 'signed up → setup screen');
   const reqs = []; a.on('request', r => { if (r.url().includes('/api/')) reqs.push(r.method() + ' ' + new URL(r.url()).pathname); });
   await a.setInputFiles('[data-omove]', path.join(OUT, 'film-diary-move.json'));

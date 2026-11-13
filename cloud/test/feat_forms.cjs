@@ -25,7 +25,12 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await p.fill('input[name=u]', 'dan_t');
   ok(!(await p.$('.fx-ferr')), 'fixing it clears the error');
   await p.click('form[data-auth] button[type=submit]'); await p.waitForSelector('[data-knext]', {timeout: 15000}); await p.check('[data-kok]'); await p.click('[data-knext]');
-  await p.waitForSelector('[data-ostart="list"]'); await p.click('[data-ostart="list"]'); await p.waitForSelector('.fx-tabbar');
+  await p.waitForSelector('[data-ostart="list"]');
+  // the first screen in: three ways to start, the quickest first; the old site's file folded away
+  const opts = await p.$$eval('.ob-opt b', es => es.map(e => e.textContent));
+  ok(opts.join('|') === 'Just keep a diary|Make me a plan|Start from my Letterboxd watchlist' && await p.$eval('details.ob-old', d => !d.open), 'three ways to start, the quickest first', opts);
+  await p.screenshot({path: path.join(OUT, 'onboard.png'), fullPage: true});
+  await p.click('[data-ostart="list"]'); await p.waitForSelector('.fx-tabbar');
   // taken; wrong password
   const q = await ctx(); await q.goto(B + '/'); await q.waitForSelector('form[data-auth]'); await q.click('[data-amode="up"]'); await q.waitForSelector('input[name=n]');
   await q.fill('input[name=u]', 'dan_t'); await q.fill('input[name=n]', 'Other'); await q.fill('input[name=p]', 'another password'); await q.click('form[data-auth] button[type=submit]'); await q.waitForSelector('.fx-ferr');

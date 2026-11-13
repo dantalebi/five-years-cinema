@@ -24,7 +24,7 @@ async function signup(p, u, n, lang) {
   await p.fill('input[name=u]', u); await p.fill('input[name=n]', n); await p.fill('input[name=p]', 'demo pass ' + u);
   await p.click('form[data-auth] button[type=submit]');
   await p.waitForSelector('[data-knext]', {timeout: 20000}); await p.check('[data-kok]'); await p.click('[data-knext]');
-  await p.waitForSelector('[data-omove]', {timeout: 20000});
+  await p.waitForSelector('[data-omove]', {state: 'attached', timeout: 20000});
 }
 (async () => {
   const b = await chromium.launch();

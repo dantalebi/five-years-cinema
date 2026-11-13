@@ -650,14 +650,19 @@
   function onboard(note, cls, intro) {
     fresh();
     const t = T(), pw = FXL.perWeek(Store.data), me = CloudSync.me();
-    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div></div><h1 class="fx-h1">${esc(t.site)}</h1><p class="fx-lede">${esc(t.tag)}</p></header>
+    // three ways in, as big buttons: a diary straight away (the shortest), a plan made for you, or a Letterboxd watchlist;
+    // the old site's file folded away (hardly anyone needs it). Nothing here is final: Settings → Your plan changes it.
+    shell(`<header class="fx-head"><div class="fx-hrow"><div class="fx-eye">${esc(t.hi(me ? me.username : ''))}</div></div><h1 class="fx-h1">${intro === 'retired' ? 'Your diary is all here' : 'You’re in'}</h1>
+      <p class="fx-lede">How do you want to start? You can change this any time in Settings.</p></header>
       ${intro === 'retired' ? `<section class="fx-card ob-retired"><h2>Time for a plan of your own</h2><p>“Five Years of Cinema” was one person’s plan, and TVC15 doesn’t offer it anymore. Your diary, ratings, reviews and likes are all still here. Choose how you’d like to fill your weeks from now on.</p></section>` : ''}
-      ${t.h0 && typeof fxPlanner === 'function' ? `<section class="fx-card fx-opt"><h2>${t.h0}</h2><p>${t.p0}</p><div class="fx-row"><button type="button" class="fx-btn primary" data-obuild>${t.b0}</button></div></section>` : ''}
-      <section class="fx-card fx-opt"><h2>${t.h1}</h2><p>${t.p1}</p><div class="fx-row"><button type="button" class="fx-btn" data-ostart="list">${t.b1}</button></div></section>
-      <section class="fx-card fx-opt"><h2>${t.h2}</h2><p>${t.p2}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b2}<input type="file" accept=".csv,text/csv" data-oimport multiple></label></div><p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p></section>
-      <section class="fx-card fx-opt"><h2>${t.h4}</h2><p>${t.p4}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></section>
-      <div class="fx-step" role="group" aria-label="${esc(t.per)}"><span>${t.per}</span><button type="button" data-opw="-1"${pw <= 1 ? ' disabled' : ''}>−</button><b>${num(pw)}</b><button type="button" data-opw="1"${pw >= 14 ? ' disabled' : ''}>+</button></div>
+      <div class="ob-opts">
+        <button type="button" class="ob-opt primary" data-ostart="list"><b>Just keep a diary</b><span>Log what you watch and follow your friends. You can add a plan later.</span></button>
+        ${typeof fxPlanner === 'function' ? `<button type="button" class="ob-opt" data-obuild><b>Make me a plan</b><span>Answer a few questions and get films week by week, from film history to new releases.</span></button>` : ''}
+        <label class="ob-opt fx-file"><b>Start from my Letterboxd watchlist</b><span>Upload watchlist.csv from your Letterboxd export. Your whole history can come in later, from Settings.</span><input type="file" accept=".csv,text/csv" data-oimport multiple></label>
+      </div>
+      <p class="fx-note" data-oprog ${busy ? '' : 'hidden'}></p>
       ${note ? `<p class="fx-note ${cls || 'bad'}">${esc(note)}</p>` : ''}
+      <details class="fx-more ob-old"><summary>${t.h4}</summary><p class="fx-muted">${t.p4}</p><div class="fx-row"><label class="fx-btn fx-file">${t.b4}<input type="file" accept=".json,application/json" data-omove></label></div></details>
       <div class="fx-row"><button type="button" class="fx-link" data-osignout>${t.signOut}</button></div>`);
     root.addEventListener('click', async e => {
       const b = e.target.closest('button'); if (!b) return;
