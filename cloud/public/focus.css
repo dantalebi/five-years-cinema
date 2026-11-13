@@ -978,10 +978,10 @@ span.fx-tgc{cursor:default}
 .dx-count b{color:var(--ink); font-weight:600}
 
 /* the poster grid */
-.dx-grid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px 12px}
-@media (min-width:460px){ .dx-grid{grid-template-columns:repeat(4, minmax(0, 1fr))} }
-@media (min-width:620px){ .dx-grid{grid-template-columns:repeat(5, minmax(0, 1fr)); gap:20px 14px} }
-.dx-grid li, .dx-row li{display:flex; flex-direction:column; gap:2px; min-width:0}
+.dx-grid, .dx-bgrid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px 12px}
+@media (min-width:460px){ .dx-grid, .dx-bgrid{grid-template-columns:repeat(4, minmax(0, 1fr))} }
+@media (min-width:620px){ .dx-grid, .dx-bgrid{grid-template-columns:repeat(5, minmax(0, 1fr)); gap:20px 14px} }
+.dx-grid li, .dx-bgrid li, .dx-row li{display:flex; flex-direction:column; gap:2px; min-width:0}
 .dx-cell{all:unset; cursor:pointer; position:relative; display:block; border-radius:5px; margin-bottom:6px}
 .dx-cell:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .fx-pos.dx-pos{width:100%; border-radius:5px}
@@ -1812,3 +1812,16 @@ a.fx-pg:active{transform:scale(.97)}
 .fx .ob-opt:hover{border-color:var(--ink)}
 .fx .ob-opt:focus-visible, .fx .ob-opt:focus-within{outline:2px solid var(--osd); outline-offset:2px}
 .fx .ob-old{margin:6px 0 14px}
+
+/* a film page opened from a row: the film before and after */
+.fx .dx-head .fx-hrow{justify-content:space-between; align-items:center}
+.fp-seq{display:flex; align-items:center; gap:4px; margin-inline-start:auto; font-size:13.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+.fp-sq{all:unset; box-sizing:border-box; width:40px; height:40px; display:grid; place-items:center; border-radius:50%; border:1px solid var(--line); cursor:pointer; color:var(--ink)}
+.fp-sq svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.fp-sq:hover:not(:disabled){border-color:var(--ink)}
+.fp-sq:disabled{opacity:.35; cursor:default}
+.fp-sq:focus-visible{outline:2px solid var(--osd); outline-offset:2px}
+.fp-seq span{min-width:64px; text-align:center}
+.dx-beyond{margin-top:22px}
+.dx-beyond h2{margin:0 0 4px; font-size:17px}
+.dx-beyond-wait{margin-top:14px}

@@ -46,8 +46,14 @@ globalThis.fetch = async (url, opts) => {
     const q = u.searchParams.get('query'), mm = u.pathname.match(/\/(movie|tv)\/(\d+)(\/images)?$/);
     // a steady id per title, so different films stay different (the same title always gets the same id)
     const qid = q ? 1000 + [...q.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 900000, 7) : 0;
-    if (u.pathname.endsWith('/search/movie')) return Response.json({results: q ? [{id: qid, title: q, release_date: (u.searchParams.get('year') || '2001') + '-01-01', poster_path: '/s' + qid + '.jpg'}] : []});
-    if (u.pathname.endsWith('/search/tv')) return Response.json({results: []});
+    // a mini-series (Dekalog) is only on TMDB's TV side
+    const tvOnly = /^dekalog$/i.test(q || '');
+    if (u.pathname.endsWith('/search/movie')) return Response.json({results: q && !tvOnly ? [{id: qid, title: q, release_date: (u.searchParams.get('year') || '2001') + '-01-01', poster_path: '/s' + qid + '.jpg', vote_count: 100}] : []});
+    if (u.pathname.endsWith('/search/tv')) return Response.json({results: tvOnly ? [{id: 990001, name: 'Dekalog', original_name: 'Dekalog', first_air_date: '1989-12-10', poster_path: '/dk.jpg', vote_count: 400}] : []});
+    // what's new: this week's trending films and what's in cinemas (one of them old, which "New and popular" leaves out)
+    const yr = new Date().getFullYear();
+    if (/\/trending\/movie\/(day|week)$/.test(u.pathname)) return Response.json({results: [{id: 880001, title: 'A New Film', release_date: yr + '-03-01', poster_path: '/nf1.jpg', vote_count: 900}, {id: 880003, title: 'An Old Favourite', release_date: '1994-09-10', poster_path: '/of.jpg', vote_count: 20000}]});
+    if (u.pathname.endsWith('/movie/now_playing')) return Response.json({results: [{id: 880002, title: 'In Cinemas Now', release_date: yr + '-10-01', poster_path: '/nf2.jpg', vote_count: 50}]});
     // people: a director by any name, with two films
     if (u.pathname.endsWith('/search/person')) { PEOPLE.set(qid, q); return Response.json({results: q ? [{id: qid, name: q, known_for_department: 'Directing', popularity: 5}] : []}); }
     const pm = u.pathname.match(/\/person\/(\d+)$/);

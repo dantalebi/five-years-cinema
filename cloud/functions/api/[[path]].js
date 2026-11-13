@@ -1065,7 +1065,8 @@ on('GET', '/api/lb/([A-Za-z0-9_]{1,40})', async (req, env, u, m) => {
 }, {optionalAuth: true});
 
 // TMDB, for members only, through the site's own key; only the few lookups the app makes, answers kept for a day
-const TMDB_OK = /^\/(search\/(movie|tv|person)|movie\/\d+(\/images)?|tv\/\d+|person\/\d+|configuration)$/;
+// (and what's new: this week's trending films, what's in cinemas now)
+const TMDB_OK = /^\/(search\/(movie|tv|person)|movie\/\d+(\/images)?|tv\/\d+|person\/\d+|configuration|trending\/(movie|tv)\/(day|week)|movie\/(now_playing|popular|upcoming))$/;
 on('GET', '/api/tmdb(/.*)', async (req, env, u, m) => {
   if (!env.TMDB_TOKEN) return fail('notmdb', 503);
   if (!TMDB_OK.test(m[1])) return fail('path', 400);

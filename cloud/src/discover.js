@@ -16,6 +16,49 @@ function fxDiscover(o) {
   const PAGE = 60;
   let C = null, redraw = null, root = null, qt = null, pending = null;
   const st = {page: 'home', f: {}, primary: '', q: '', sort: 'rec', n: PAGE, fOpen: false, seed: 1, allC: false};
+  // beyond the catalog, live from TMDB: what's new (this week's trending films, released lately, and what's in cinemas)
+  // and, while searching, the films and series the catalog doesn't have
+  const live = {fresh: null, freshAsked: false, q: '', res: null, qt: null};
+  const tmdbGet = path => fetch('/api/tmdb' + path, {credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
+  const okP = p => /^\/[A-Za-z0-9._-]+$/.test(p || '') ? p : '';
+  const fromTmdb = (m, tv) => { const f = {t: tv ? m.name : m.title, y: +((tv ? m.first_air_date : m.release_date) || '').slice(0, 4) || 0, tm: tv ? -m.id : m.id, p: okP(m.poster_path)}; return (!tv && U.find({tm: m.id})) || f; };
+  function askFresh() {
+    if (live.freshAsked) return; live.freshAsked = true;
+    Promise.all([tmdbGet('/trending/movie/week?language=en-US'), tmdbGet('/movie/now_playing?language=en-US&page=1')]).then(([tr, np]) => {
+      const cut = new Date().getFullYear() - 1, seen = new Set(), out = [];
+      // trending first (released lately, enough votes to mean something), then what's in cinemas
+      ((tr && tr.results) || []).filter(m => +String(m.release_date || '').slice(0, 4) >= cut && (m.vote_count || 0) >= 20).concat((np && np.results) || [])
+        .forEach(m => { if (m && m.id && m.poster_path && !seen.has(m.id)) { seen.add(m.id); out.push(fromTmdb(m, false)); } });
+      live.fresh = out.slice(0, 20); if (st.page === 'home') partial();
+    });
+  }
+  function freshRow(mk) {
+    askFresh();
+    if (!live.fresh || !live.fresh.length) return '';
+    return `<section class="fx-card dx-sec dx-fresh"><h2>New and popular</h2><p class="fx-muted">Films out lately that people are watching this week, and what’s in cinemas now. Fresh from TMDB every day.</p>
+      <ul class="dx-row">${live.fresh.map(f => U.cell(f, mk)).join('')}</ul></section>`;
+  }
+  function askSearch(q) {
+    clearTimeout(live.qt); live.want = q;
+    if (q.length < 2) { live.q = q; live.res = null; return; }
+    live.qt = setTimeout(() => {
+      Promise.all([tmdbGet('/search/movie?query=' + encodeURIComponent(q) + '&include_adult=false&language=en-US'), tmdbGet('/search/tv?query=' + encodeURIComponent(q) + '&include_adult=false&language=en-US')]).then(([mv, tv]) => {
+        if (st.q.trim() !== q) return;
+        const films = ((mv && mv.results) || []).filter(m => m.poster_path).map(m => fromTmdb(m, false));
+        // a series only when it's well known (mini-series and the like), so a film search isn't buried in TV
+        const series = ((tv && tv.results) || []).filter(m => m.poster_path && (m.vote_count || 0) >= 30).slice(0, 6).map(m => fromTmdb(m, true));
+        live.q = q; live.res = films.concat(series); partial();
+      });
+    }, 350);
+  }
+  function beyond(R) {
+    if (!st.q || st.q.trim().length < 2 || DIMS.some(d => st.f[d] != null)) return '';
+    if (live.want !== st.q.trim()) askSearch(st.q.trim());
+    if (live.q !== st.q.trim() || !live.res) return `<p class="fx-muted dx-beyond-wait">Searching all of TMDB…</p>`;
+    const have = new Set(R.list.map(f => f.tm)), more = live.res.filter(f => !have.has(f.tm)).slice(0, 24);
+    if (!more.length) return '';
+    return `<section class="dx-beyond"><h2>Beyond the catalog</h2><p class="fx-muted">More films and series from TMDB that match “${esc(st.q)}”.</p><ul class="dx-bgrid">${more.map(f => U.cell(f, R.mk)).join('')}</ul></section>`;
+  }
   const shownN = new Map();  // how far down each list you'd got, so Back returns to the same place
   const hides = () => String((typeof Store !== 'undefined' && Store.data['cfg:dxh']) || '');
   let asked = false;
@@ -141,7 +184,7 @@ function fxDiscover(o) {
   const gurl = g => '/discover/' + (g.kind === 'period' ? 'era' : 'movement') + '/' + g.id;
   function homeBody() {
     const n = C.n;
-    let h = (o && o.top ? o.top() : '') + `<section class="fx-card dx-sec"><h2>Where to start</h2><ul class="dx-doors">` + C.lenses.filter(l => n.lens.get(l.i)).map(l =>
+    let h = freshRow(U.marks(WL)) + (o && o.top ? o.top() : '') + `<section class="fx-card dx-sec"><h2>Where to start</h2><ul class="dx-doors">` + C.lenses.filter(l => n.lens.get(l.i)).map(l =>
       `<li>${link('/discover/collection/' + l.id, `<span class="dx-door">${esc(l.door)}</span><b>${esc(l.name)}</b><span class="dx-dd">${esc(l.desc)}</span><span class="dx-n">${filmsN(n.lens.get(l.i))}</span>`)}</li>`).join('') + '</ul></section>';
     // themes: what films are about; one in season comes first
     const today = new Date().toISOString().slice(0, 10), ths = (C.themes || []).filter(t => (n.theme.get(t.i) || 0) >= 8)
@@ -193,10 +236,11 @@ function fxDiscover(o) {
     if (chips.length) h += `<div class="dx-active">${chips.join('')}${chips.length > 1 ? '<button type="button" class="fx-link" data-dx-clear>Clear all</button>' : ''}</div>`;
     const hid = [R.hidS ? num(R.hidS) + ' watched' : '', R.hidW ? num(R.hidW) + ' on your watchlist' : ''].filter(Boolean);
     h += `<p class="dx-count"><b>${filmsN(R.list.length)}</b>${hid.length ? `<span>, ${hid.join(' and ')} hidden</span>` : ''}</p>`;
-    if (!R.list.length) h += `<div class="fx-blank"><p class="fx-muted dx-none">Nothing matches all of these. Remove a filter${R.hs || R.hw ? ' or show the films you’ve hidden' : ''} to see more.</p></div>`;
+    if (!R.list.length && st.q && !DIMS.some(d => st.f[d] != null) && !R.hidS && !R.hidW) h += `<p class="fx-muted dx-none">Nothing in the catalog matches “${esc(st.q)}”.</p>`;
+    else if (!R.list.length) h += `<div class="fx-blank"><p class="fx-muted dx-none">Nothing matches all of these. Remove a filter${R.hs || R.hw ? ' or show the films you’ve hidden' : ''} to see more.</p></div>`;
     else h += `<ul class="dx-grid">${R.list.slice(0, st.n).map(f => U.cell(f, R.mk)).join('')}</ul>`;
     if (R.list.length > st.n) h += `<div class="dx-more"><button type="button" class="fx-btn" data-dx-more>Show more</button><span class="fx-muted">${num(st.n)} of ${num(R.list.length)}</span></div>`;
-    return h;
+    return h + beyond(R);
   }
   function panel(R) {
     const sel = (dim, any, opts) => {
@@ -250,7 +294,7 @@ function fxDiscover(o) {
         const q = e.target.closest && e.target.closest('[data-dx-q]'); if (!q || !C) return;
         clearTimeout(qt);
         qt = setTimeout(() => {
-          st.q = q.value.slice(0, 80); st.n = PAGE;
+          st.q = q.value.slice(0, 80); st.n = PAGE; askSearch(st.q.trim());
           // typing on the front page turns it into a search of everything: a new step in history, then the address keeps up
           if (st.page === 'home' && st.q) { st.page = 'browse'; st.f = {}; st.primary = ''; partial(); if (typeof fxNav !== 'undefined') fxNav.note(url()); return; }
           partial(); keep();

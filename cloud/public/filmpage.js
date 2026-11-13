@@ -127,8 +127,14 @@ function fxFilmPages(o) {
       slug: f ? f.slug : pr && pr[5] ? pr[5] : fp.ref.slug || '', tv: !!tv || (f && f.tm < 0), f,
     };
   }
+  // where this film sits in the row or grid it was opened from, with the one before and after
+  function seqBar() {
+    const q = o.seq && o.seq(); if (!q) return '';
+    return `<div class="fp-seq" role="group" aria-label="Films in this row"><button type="button" class="fp-sq" data-fp-step="-1" aria-label="Previous film"${q.i ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>`
+      + `<span>${q.i + 1} of ${q.n}</span><button type="button" class="fp-sq" data-fp-step="1" aria-label="Next film"${q.i < q.n - 1 ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button></div>`;
+  }
   function filmView() {
-    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-fp-back>Back</button></div></header>`;
+    let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-fp-back>Back</button>${seqBar()}</div></header>`;
     if (!fp || fp.state === 'loading') return h + `<p class="fx-muted dx-wait">Loading…</p>`;
     if (fp.state === 'none') return h + `<section class="fx-card"><h2>Film not found</h2><p class="fx-muted">We couldn’t find this film. It may have been removed from TMDB.</p></section>`;
     const F = film(), C = U.get(), mk = U.marks(WL), seen = mk.seen(F), wl = mk.wl(F), entries = mk.entries(F);
@@ -237,8 +243,20 @@ function fxFilmPages(o) {
   const film_ = {
     id: 'film', hidden: true, label: {en: 'Film', fa: 'Film'},
     view: filmView,
+    // a swipe sideways goes to the film before or after (not on a row that scrolls sideways itself)
+    after(el) {
+      const app = el.querySelector('.fx-app'); if (!app || app.dataset.sw || !o.seq || !o.seq()) return;
+      app.dataset.sw = '1';
+      let x0 = 0, y0 = 0, t0 = 0, off = true;
+      app.addEventListener('touchstart', e => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); off = e.touches.length > 1 || !!e.target.closest('.dx-row, .fx-sheetwrap, input, textarea, select'); }, {passive: true});
+      app.addEventListener('touchend', e => {
+        if (off) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+        if (Date.now() - t0 < 700 && Math.abs(dx) > 70 && Math.abs(dy) < Math.abs(dx) * 0.5) o.step(dx < 0 ? 1 : -1);
+      }, {passive: true});
+    },
     click(b, render) {
       if (b.hasAttribute('data-fp-back')) { fxNav.back('/discover'); return true; }
+      if (b.dataset.fpStep && o.step) { o.step(+b.dataset.fpStep); return true; }
       if (!fp || fp.state !== 'ready') return false;
       if (b.hasAttribute('data-fp-wl') && WL) { const F = film(), r = wlRef(F), on = !WL.has(r); WL.set(r, on); render(); typeof fxOSD === 'function' && fxOSD(on ? 'On your watchlist' : 'Off your watchlist'); return true; }
       if (b.hasAttribute('data-fp-addlist') && o.addToList) { const F = film(); o.addToList({t: F.t, y: F.y, tm: F.tm, p: F.p}); return true; }

@@ -434,7 +434,9 @@
       });
       // watchlist films brought in from Letterboxd with only a title and year: their TMDB id and poster, from the
       // catalog when it has them, else from TMDB (a few hundred a visit, so a big watchlist fills in over a few)
-      const allBare = Object.keys(Store.data).filter(k => k.startsWith('wl:') && !/^wl:tm\d+$/.test(k) && Store.data[k] && !tried.has(k)), bareWl = allBare.slice(0, 400);
+      // (a series or mini-series, which TMDB keeps apart from films, keeps its title key, with tm set to minus its TV id)
+      const tvDone = k => { try { const o = JSON.parse(Store.data[k]); return +o.tm < 0 && !!o.p; } catch (e) { return true; } };
+      const allBare = Object.keys(Store.data).filter(k => k.startsWith('wl:') && !/^wl:tm\d+$/.test(k) && Store.data[k] && !tried.has(k) && !tvDone(k)), bareWl = allBare.slice(0, 400);
       if (bareWl.length > 30 && typeof fxCat !== 'undefined' && !fxCat.get() && fxCat.status() === 'idle') await fxCat.load().catch(() => {});
       const C = typeof fxCat !== 'undefined' ? fxCat.get() : null;
       more = allBare.length > bareWl.length;
@@ -445,10 +447,12 @@
         let tm = 0, p = '';
         const c = C ? fxCat.find({t: o.t, y: o.y}) : null;
         if (c && c.tm > 0) { tm = c.tm; p = c.p || ''; }
-        else { const m = await Posters.match(o.t, o.y).catch(() => null); if (m && m.id) { tm = m.id; p = m.p || ''; } }
+        else { const m = await Posters.match(o.t, o.y).catch(() => null); if (m && m.id) { tm = m.id; p = m.p || ''; } else if (m && m.tv) { tm = -m.tv; p = m.p || ''; } }
         if (!tm) return;
+        const url = /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : (o.p || '');
+        if (tm < 0) { Store.set(k, JSON.stringify(Object.assign({}, o, {tm, p: url}))); if (++n % 25 === 0 && FX) FX.render(); return; }
         // under its TMDB id from now on (the key the film's page and everything else use)
-        const nk = 'wl:tm' + tm, url = /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : (o.p || '');
+        const nk = 'wl:tm' + tm;
         if (!Store.data[nk]) Store.set(nk, JSON.stringify(Object.assign({}, o, {tm, p: url})));
         Store.set(k, null);
         if (++n % 25 === 0 && FX) FX.render();
@@ -509,7 +513,37 @@
     const a = e.target.closest && e.target.closest('a[href]'); if (!a || a.target) return;
     const href = a.getAttribute('href');
     if (!/^\/((u|film|director|discover|popular|activity|week|diary|stats|settings|plan|list|about|admin|invite|news)(\/|\?|#|$)|$)/.test(href)) return;
+    if (/^\/film\//.test(href)) seqFrom(a, href);
     e.preventDefault(); FX.closeSheet(); fxNav.open(href);
+  });
+  // a film opened from a row or grid of films: its page steps to the one before or after it (buttons, a swipe, the arrow
+  // keys) in place of this page, so Back still returns to the row or grid in one step, however many films you went through
+  let filmSeq = null;  // {list: [film addresses], i, loose: the address may be rewritten once the film is found}
+  function seqFrom(a, href) {
+    const box = a.closest('.dx-row, .dx-grid, .fx-pgrid, .hm-strip, .hm-feed, .pp-grid, ul, ol');
+    const list = box ? [...new Set([...box.querySelectorAll('a[href^="/film/"]')].map(x => x.getAttribute('href')))] : [];
+    filmSeq = list.length > 1 ? {list, i: Math.max(0, list.indexOf(href)), loose: /^\/film\/find\//.test(href)} : null;
+  }
+  function seqNow() {
+    if (!filmSeq || !location.pathname.startsWith('/film/')) return null;
+    let i = filmSeq.list.indexOf(location.pathname);
+    if (i < 0 && filmSeq.loose) { filmSeq.list[filmSeq.i] = location.pathname; i = filmSeq.i; }
+    if (i < 0) return null;
+    filmSeq.i = i; filmSeq.loose = false;
+    return {i, n: filmSeq.list.length};
+  }
+  function stepFilm(d) {
+    const q = seqNow(); if (!q) return false;
+    const j = q.i + d; if (j < 0 || j >= q.n) return false;
+    filmSeq.i = j; filmSeq.loose = /^\/film\/find\//.test(filmSeq.list[j]);
+    if (FX) FX.closeSheet();
+    fxNav.open(filmSeq.list[j], 'replace');
+    return true;
+  }
+  document.addEventListener('keydown', e => {
+    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.metaKey || e.ctrlKey || e.altKey || !location.pathname.startsWith('/film/')) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('.fx-sheetwrap:not([hidden])')) return;
+    if (stepFilm(e.key === 'ArrowRight' ? 1 : -1)) e.preventDefault();
   });
   // where a plan film sits in your plan, for its page
   function planWeek(key) {
@@ -580,7 +614,7 @@
     const PM = kind !== 'list' && typeof fxPlanMap === 'function' ? fxPlanMap() : null;
     // Discover: the shared catalog, after Diary in the bar (Settings moves to a gear at the top)
     if (!DX && typeof fxDiscover === 'function') DX = fxDiscover({wl: FR ? FR.wl : null, top: () => POP ? POP.teaser('everyone') : ''});
-    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
+    if (!FP && typeof fxFilmPages === 'function') FP = fxFilmPages({seq: seqNow, step: stepFilm, wl: FR ? FR.wl : null, friendsOn: FR ? FR.friendsOn : null, ratings: keys => CloudSync.filmRatings(keys).then(r => r.ok ? r.j : null), addToList: LISTS ? f => LISTS.addTo(f) : null, planWeek, openEntry: ek => FX && FX.openEntry(ek)});
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP, ADMIN, INV, NEWS && NEWS.tab].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
