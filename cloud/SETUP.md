@@ -27,6 +27,14 @@ Everything fits in Cloudflare's free plan.
    - `SIGNUP_CODE`: an invite code you give your friends. Without it, anyone could sign up.
    - `OWNER` *(optional)*: your username (or several, separated by commas). The owner gets one more page, **Your site** (`/admin`): how many people have joined and how active they are, and every account, public or private, with counts only. Until it's set, the owner is `talebi`.
    - `PEPPER` *(optional)*: any long random text. Set it **before the first account** and never change it. Moving to a new project with the same database: copy the same value over, or nobody can sign in.
+   - `RESEND_API_KEY` and `MAIL_FROM` *(optional, together)*: password-reset email. Without them the site has no email at all, and a forgotten password needs the recovery key. To set it up:
+     1. Get a domain of your own (a `pages.dev` address can't send email). Cloudflare Registrar sells them at cost.
+     2. Make a free account at resend.com (3,000 emails a month, 100 a day), add the domain under Domains, and add the DNS records it shows (with the domain on Cloudflare, Resend can add them for you). Wait until it says Verified.
+     3. In Resend, make an API key with "Sending access" only, and add it here as `RESEND_API_KEY`.
+     4. Add `MAIL_FROM` (it can be plain text, not secret): the name and address emails come from, on that domain, like `TVC15 <hello@your-domain.com>`.
+     5. After the redeploy: in Settings → Account, add your own email and open the link it sends. Then on **Your site**, under Site health, press **Send me a test email**.
+
+     With email on, members can add an email (at sign-up or in Settings → Account), confirmed by a link, and **Forgot your password?** sends a reset link that works once, for an hour. The recovery key stays as a second way back in.
 6. **Redeploy:** under Deployments, choose Retry deployment, so the database and the secrets take effect.
 
 *Moving to a new address:* make the new project as above with the same database, then set `MOVED_TO` in `build_cloud.py` to its address: the old one sends everyone there.

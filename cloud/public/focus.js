@@ -15,7 +15,7 @@ const FX_STR = {
     whenReady: 'Every film watched.', showNext: 'Start next week',
     restP: 'A week off. Nothing’s scheduled, so watch whatever you like, or nothing at all.', restSug: 'Want a suggestion?', restGo: 'Go to next week',
     tonight: 'Pick for me', tonightHint: '', tonightTag: 'Tonight',
-    dl: 'Next week’s films as a list', copy: 'Copy', copied: 'Copied', selected: 'Selected. Copy it.',
+    dl: 'Next week’s films as a list', weekMore: (all, rest, left) => 'All ' + all + ' films this week' + (+left ? ' (' + left + ' more to watch)' : ''), weekLess: 'Show fewer', copy: 'Copy', copied: 'Copied', selected: 'Selected. Copy it.',
     watchedN: n => 'Diary, ' + n + (n === '1' ? ' film' : ' films'), skipped: 'Skipped', notWatched: 'Remove', restore: 'Undo',
     skip: 'Skip', skipTitle: 'Skip this film', watched: 'Watched', other: 'Watched something else?', otherPh: 'Film title', save: 'Save',
     anything: 'Your choice', yourPick: 'Your pick', free: 'Your pick', lanes: {H: 'Classic', A: 'Auteur', C: 'Contemporary', P: 'Popular'},
@@ -487,6 +487,7 @@ function mountFocus(root, D, S, opts) {
   const dirName = i => L() === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
   const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
   let listAll = false, listRm = '', listNote = null, listBusy = '', lbBusy = '', bdPick = null;
+  let weekAll = false, weekKeep = {w: 0, ks: new Set()};  // films shown stay shown (ticking one doesn't make it vanish)  // a long week, folded: the films still to watch first (opts.weekFold films); all of them once asked
   let shown = null, pickK = null, altOpen = {}, view = opts.startView && (opts.tabs || []).some(x => x.id === opts.startView) ? opts.startView : 'week', note = {}, picker = null, diaryYear = null, calOpen = false, tmTimer = null, flash = '', just = '', sset = '';
 
   const res = k => { const s = seen(); return !!(s[k] || s['sk:' + k]); };
@@ -754,7 +755,22 @@ function mountFocus(root, D, S, opts) {
       const i = sugFor(w, 0), k = 'free:' + w + ':0';
       h += `<section class="fx-rest"><p>${t.restP}</p>${i != null ? `<p class="fx-muted">${t.restSug}</p><ul class="fx-list">${card(w, {k, i, free: true}, 0)}</ul>` : ''}${list.length ? `<ul class="fx-list">${list.map(it => card(w, it, 0)).join('')}</ul>` : ''}<button type="button" class="fx-btn primary" data-rest>${t.restGo}</button></section>`;
     } else {
-      h += `<ul class="fx-list">${list.map((it, k) => card(w, it, it.free ? it.n : k)).join('')}</ul>`;
+      // a long week folds to the films still to watch (in the plan's order), so the rest of Home isn't far below
+      const fold = opts.weekFold && !weekAll && list.length > opts.weekFold + 1 ? opts.weekFold : 0;
+      let keep = null;
+      if (fold) {
+        if (weekKeep.w !== w) weekKeep = {w, ks: new Set()};
+        const isOpen = it => !itemDone(it) && !seen()['sk:' + it.k];
+        keep = new Set(); list.forEach((it, k) => { if (weekKeep.ks.has(it.k) || pickK === it.k) keep.add(k); });
+        let open = [...keep].filter(k => isOpen(list[k])).length;
+        for (let k = 0; k < list.length && open < fold; k++) if (!keep.has(k) && isOpen(list[k])) { keep.add(k); open++; }
+        for (let k = 0; keep.size < fold && k < list.length; k++) keep.add(k);
+        keep.forEach(k => weekKeep.ks.add(list[k].k));
+      }
+      h += `<ul class="fx-list">${list.map((it, k) => keep && !keep.has(k) ? '' : card(w, it, it.free ? it.n : k)).join('')}</ul>`;
+      if (keep && keep.size < list.length) { const rest = list.length - keep.size, left = list.filter(it => !itemDone(it) && !seen()['sk:' + it.k]).length - [...keep].filter(k => !itemDone(list[k]) && !seen()['sk:' + list[k].k]).length;  // left: unwatched films folded away
+        h += `<button type="button" class="fx-btn fx-wkall" data-wkall aria-expanded="false">${esc(t.weekMore ? t.weekMore(fa(list.length), fa(rest), fa(left)) : '+' + rest)}</button>`; }
+      else if (opts.weekFold && weekAll && list.length > opts.weekFold + 1) h += `<button type="button" class="fx-btn fx-wkall" data-wkall aria-expanded="true">${esc(t.weekLess || '−')}</button>`;
     }
     if (!finished) {
       if (picker) h += pickerBox();
@@ -1447,6 +1463,7 @@ function mountFocus(root, D, S, opts) {
     else if (t.hasAttribute('data-pick-text')) { const q = (picker.q || '').trim(); if (q.length < 2) return; pick('t:' + q.slice(0, 120)); }
     else if (t.hasAttribute('data-open-alt')) { altOpen[t.dataset.openAlt] = true; render(); const inp = root.querySelector('.fx-alt input'); if (inp) inp.focus(); return; }
     else if (t.hasAttribute('data-advance')) { shown = null; picker = null; }
+    else if (t.hasAttribute('data-wkall')) { weekAll = !weekAll; }
     else if (t.hasAttribute('data-rest')) { S.set('wk:' + shown, today()); shown = null; picker = null; }
     else if (t.hasAttribute('data-tonight')) {
       const list = itemsOf(shown).filter(it => !itemDone(it));

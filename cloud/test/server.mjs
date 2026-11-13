@@ -27,7 +27,10 @@ const DB = {
     catch (e) { sql.exec('ROLLBACK'); throw e; }
   },
 };
-const env = {DB, TMDB_TOKEN: 'test-token', SIGNUP_CODE: process.env.SIGNUP_CODE || '', POP_TTL: process.env.POP_TTL || '0', OWNER: process.env.OWNER || 'boss'};
+const env = {DB, TMDB_TOKEN: 'test-token', SIGNUP_CODE: process.env.SIGNUP_CODE || '', POP_TTL: process.env.POP_TTL || '0', OWNER: process.env.OWNER || 'boss',
+  // email through a stand-in for Resend: what was sent is at /__mail (MAIL=0: no email set up)
+  RESEND_API_KEY: process.env.MAIL === '0' ? '' : 'test-resend', MAIL_FROM: 'TVC15 <hello@tvc15.test>'};
+const OUTBOX = []; let mailFails = false;
 
 // outside services, from fixtures
 const realFetch = globalThis.fetch, PEOPLE = new Map();
@@ -55,12 +58,18 @@ globalThis.fetch = async (url, opts) => {
       credits: {crew: [{job: 'Director', name: 'Agnès Varda'}], cast: [{name: 'Someone', order: 0}]}});
     return Response.json({});
   }
+  if (u.hostname === 'api.resend.com') {
+    if ((opts && opts.headers && opts.headers.Authorization) !== 'Bearer test-resend') return new Response('{"message":"API key is invalid"}', {status: 401});
+    if (mailFails) return new Response('{"message":"The tvc15.test domain is not verified"}', {status: 403});
+    const m = JSON.parse(opts.body); OUTBOX.push({to: m.to[0], from: m.from, subject: m.subject, text: m.text}); return Response.json({id: 'm' + OUTBOX.length});
+  }
   return realFetch(url, opts);
 };
 
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain'};
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost:' + PORT);
+  if (url.pathname === '/__mail') { if (url.searchParams.has('fail')) mailFails = url.searchParams.get('fail') === '1'; res.writeHead(200, {'content-type': 'application/json'}); res.end(JSON.stringify(OUTBOX)); return; }
   if (url.pathname.startsWith('/api/')) {
     const chunks = []; for await (const c of req) chunks.push(c);
     const r = await handle(new Request(url, {method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks)}), env);

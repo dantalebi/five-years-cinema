@@ -33,6 +33,17 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await q.click('[data-amode="in"]'); await q.waitForSelector('form[data-auth]'); await q.fill('input[name=u]', 'dan_t'); await q.fill('input[name=p]', 'not the password'); await q.click('form[data-auth] button[type=submit]'); await q.waitForSelector('.fx-ferr');
   const w = await q.evaluate(() => ({u: document.querySelector('input[name=u]').value, p: document.querySelector('input[name=p]').value, under: document.querySelector('.fx-ferr').closest('label').querySelector('input').name, focus: document.activeElement.name}));
   ok(w.u === 'dan_t' && w.p === '' && w.under === 'p' && w.focus === 'p', 'a wrong password: the username kept, the password to type again', w);
+  await q.fill('input[name=p]', 'x');
+  ok(!(await q.$('.fx-ferr')) && await q.$eval('input[name=p]', e => e.getAttribute('aria-invalid')) === null, 'typing the password again clears its error');
+  await q.click('.au-eye'); 
+  ok(await q.$eval('input[name=p]', e => e.type) === 'text' && await q.$eval('.au-eye', e => e.textContent) === 'Hide', 'Show: the password can be checked before it’s sent');
+  await q.click('.au-eye');
+  ok(await q.$eval('input[name=p]', e => e.type) === 'password', 'and hidden again');
+  // offline: said at the top while it lasts
+  await q.context().setOffline(true); await q.waitForTimeout(200);
+  ok(await q.$eval('.fx-offline', e => !e.hidden && /offline/.test(e.textContent)), 'offline: a note at the top');
+  await q.context().setOffline(false); await q.waitForTimeout(200);
+  ok(await q.$eval('.fx-offline', e => e.hidden), 'back online: gone');
 
   // the watchlist: films from Letterboxd's watchlist.csv, a title and a year each, get their TMDB id and poster
   await p.evaluate(() => { for (let i = 0; i < 40; i++) Store.set('wl:film number ' + i + '|' + (1960 + i), JSON.stringify({t: 'Film Number ' + i, y: 1960 + i, tm: 0, p: '', u: '', at: Date.now() - i})); });

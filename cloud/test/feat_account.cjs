@@ -76,10 +76,11 @@ const here = p => p.url().replace(B, '');
   ok(here(p) === '/' && await p.evaluate(() => !localStorage.getItem('fd-me')), 'back online: saved, then signed out, nothing left on the device');
 
   // ---- forgot the password: the old key no longer works, the new one does ----
-  await p.click('[data-amode="rec"]'); await p.waitForSelector('form[data-recover]');
+  await p.click('[data-amode="rec"]'); await p.waitForSelector('form[data-recover]', {state: 'attached'});
+  if (await p.$('details.au-rk')) await p.click('details.au-rk summary');  // with email set up, the recovery key is folded under it
   await p.fill('[name=u]', 'pia'); await p.fill('[name=k]', key); await p.fill('[name=p]', 'brand new pass'); await p.fill('[name=p2]', 'brand new pass');
-  await p.click('form[data-recover] button[type=submit]'); await p.waitForSelector('.fx-note.bad', {timeout: 10000});
-  ok(/don’t match/.test(await p.$eval('.fx-note.bad', e => e.textContent)), 'the replaced key is refused');
+  await p.click('form[data-recover] button[type=submit]'); await p.waitForSelector('form[data-recover] .fx-ferr', {timeout: 10000});
+  ok(/don’t match/.test(await p.$eval('form[data-recover] .fx-ferr', e => e.textContent)), 'the replaced key is refused, said under the key');
   await p.fill('[name=u]', 'pia'); await p.fill('[name=k]', key2.toLowerCase()); await p.fill('[name=p]', 'brand new pass'); await p.fill('[name=p2]', 'brand new pass');
   await p.click('form[data-recover] button[type=submit]'); await p.waitForSelector('.ac-keybig', {timeout: 15000});
   const key3 = await p.$eval('.ac-keybig', e => e.textContent);

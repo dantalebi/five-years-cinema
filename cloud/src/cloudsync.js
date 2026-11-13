@@ -13,7 +13,7 @@ const CloudSync = (() => {
   const L = () => langFn() === 'fa' ? 'fa' : 'en';
   const MSG = {
     en: {net: 'Can’t connect right now. Trying again automatically.', slow: 'Too many attempts. Try again in a few minutes.', wrong: 'Wrong username or password.', taken: 'That username’s already taken.',
-      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code or link doesn’t work. It may have been used, taken back or expired.', closed: 'TVC15 isn’t taking new members right now.', suspended: 'This account has been suspended.', 'none-left': 'You’ve used all your invites.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', none: 'That account isn’t available.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
+      username: 'Usernames need 3–24 characters: letters, numbers or underscores.', code: 'That invite code or link doesn’t work. It may have been used, taken back or expired.', closed: 'TVC15 isn’t taking new members right now.', suspended: 'This account has been suspended.', 'none-left': 'You’ve used all your invites.', full: 'This account has hit its storage limit.', signin: 'You’ve been signed out. Please sign in again.', wrongrk: 'That username and recovery key don’t match.', email: 'That doesn’t look like an email address. Check it and try again.', emailtaken: 'Another account already uses that email.', mailfail: 'The email couldn’t be sent just now. Try again in a little while.', nomail: 'Email isn’t set up on this site yet.', link: 'This link doesn’t work any more: it’s expired or it’s been used. You can ask for a new one.', noemail: 'Add and confirm your own email first (Settings → Account).', slow: 'Too many tries. Wait a little and try again.', none: 'That account isn’t available.', unsynced: 'Some changes haven’t been saved to your account yet.', other: 'Something went wrong'},
     fa: {net: 'به سایت وصل نشد؛ خودش دوباره امتحان می‌کنه.', slow: 'تلاش زیاد شد. چند دقیقه صبر کن.', wrong: 'یوزرنیم یا رمز درست نیست.', taken: 'این یوزرنیم گرفته شده.',
       username: 'یوزرنیم ۳ تا ۲۴ حرف انگلیسی، عدد یا _ باشه.', code: 'کد دعوت درست نیست.', full: 'این حساب پر شده.', signin: 'از حسابت بیرون اومدی. دوباره وارد شو.', other: 'یه مشکلی پیش اومد'},
   };
@@ -24,7 +24,7 @@ const CloudSync = (() => {
     try { r = await fetch('/api' + path, {method, credentials: 'same-origin', cache: 'no-store', headers: body !== undefined ? {'content-type': 'application/json'} : {}, body: body !== undefined ? JSON.stringify(body) : undefined}); }
     catch (e) { return {ok: false, status: 0, code: 'net'}; }
     let j = null; try { j = await r.json(); } catch (e) {}
-    if (r.status === 401 && me && !/^\/(login|signup|password|delete|recovery|recover)$/.test(path)) { signedOut(); }
+    if (r.status === 401 && me && !/^\/(login|signup|password|delete|recovery|recover|email|forgot|reset)(\/|$)/.test(path)) { signedOut(); }
     return {ok: r.ok, status: r.status, j, code: (j && j.error) || (r.ok ? '' : 'http' + r.status)};
   }
   // the password never leaves the device as typed: 600,000 rounds of PBKDF2, salted with the site and username
@@ -105,11 +105,28 @@ const CloudSync = (() => {
   }
   // a new account comes with a recovery key, shown once (lastKey) and never stored on this device
   let lastKey = '';
-  async function signup(username, password, name, code) {
-    const r = await api('POST', '/signup', {username, key: await stretch(username, password), name, code});
+  let lastEmail = '';  // the address a confirmation link just went to, at sign-up
+  async function signup(username, password, name, code, email) {
+    const r = await api('POST', '/signup', {username, key: await stretch(username, password), name, code, email: email || undefined});
     lastCode = r.ok ? '' : r.code || 'other';
     if (!r.ok) return say(r.code);
-    lastKey = r.j.rk || ''; signedIn(r.j.me); return null;
+    lastKey = r.j.rk || ''; lastEmail = r.j.emailSent || ''; signedIn(Object.assign(r.j.me, {emailPending: lastEmail})); return null;
+  }
+  // email for password resets: add or change it (a link confirms it), remove it; the link; forgot password; a reset link
+  const keepMe = j => { if (me && j) { me.email = j.email || ''; me.emailPending = j.emailPending || ''; put('fd-me', JSON.stringify(me)); } };
+  const email = {
+    async set(address, password) { const r = await api('POST', '/email', {email: address, key: await stretch(me.username, password)}); lastCode = r.ok ? '' : r.code; if (!r.ok) return say(r.code); keepMe(r.j); return null; },
+    async remove(password) { const r = await api('POST', '/email', {remove: true, key: await stretch(me.username, password)}); lastCode = r.ok ? '' : r.code; if (!r.ok) return say(r.code); keepMe(r.j); return null; },
+    async verify(t) { const r = await api('POST', '/email/verify', {t}); if (r.ok && me && me.username === r.j.username) keepMe({email: r.j.email}); return r.ok ? {email: r.j.email, username: r.j.username} : {err: say(r.code)}; },
+    sentTo: () => { const e = lastEmail; lastEmail = ''; return e; },
+  };
+  async function forgot(who) { const r = await api('POST', '/forgot', {who}); lastCode = r.ok ? '' : r.code || 'other'; return r.ok ? null : say(r.code); }
+  async function resetWho(t) { const r = await api('GET', '/reset/' + t); return r.ok ? {username: r.j.username} : {err: say(r.code), code: r.code}; }
+  async function reset(t, username, next) {
+    const r = await api('POST', '/reset', {t, next: await stretch(username, next)});
+    lastCode = r.ok ? '' : r.code || 'other';
+    if (!r.ok) return say(r.code);
+    signedIn(r.j.me); return null;
   }
   // sign out: first send what this device hasn't sent yet; if that fails, say so (force: sign out anyway)
   async function disconnect(o) {
@@ -122,6 +139,7 @@ const CloudSync = (() => {
   async function recover(username, rk, next) {
     username = String(username || '').toLowerCase().trim();
     const r = await api('POST', '/recover', {username, rk: String(rk || '').trim(), next: await stretch(username, next)});
+    lastCode = r.ok ? '' : r.code || 'other';
     if (!r.ok) return say(r.code);
     lastKey = r.j.rk || ''; signedIn(r.j.me); return null;
   }
@@ -163,7 +181,7 @@ const CloudSync = (() => {
   return {
     kind: 'cloud', status: () => ({connected: !!me, login: me ? me.username : '', state, msg, at: +ls('fd-at') || 0}),
     me: () => me, check, login, signup, disconnect, changePassword, deleteAccount, onSignOut: f => outs.push(f),
-    recover, newRecoveryKey, takeKey: () => { const k = lastKey; lastKey = ''; return k; }, unsent: () => dirty.size, say,
+    recover, newRecoveryKey, email, forgot, resetWho, reset, takeKey: () => { const k = lastKey; lastKey = ''; return k; }, unsent: () => dirty.size, say,
     sessions: () => api('GET', '/sessions'), endSession: id => api('POST', '/sessions/end', id === 'others' ? {others: true} : {id}),
     // a profile picture (base64 JPEG) or none; the account remembers its version, for its address
     async setAvatar(img) { const r = await api('PUT', '/avatar', {img}); if (r.ok && me) { me.av = r.j.av; put('fd-me', JSON.stringify(me)); } return r; },
@@ -182,7 +200,7 @@ const CloudSync = (() => {
     // the films the most members watched lately: who 'friends' or 'everyone'; span week, month, year, all or auto
     popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
     // the owner's page: the site's numbers and every account
-    admin: () => api('GET', '/admin'), errCode: () => lastCode,
+    admin: () => api('GET', '/admin'), health: () => api('GET', '/admin/health'), errCode: () => lastCode,
     adminDo: (what, o) => api('POST', '/admin/' + what, o),
     // invite links: yours, a new one, taking one back; who a link is from
     invites: {mine: () => api('GET', '/invites'), make: () => api('POST', '/invites', {}), revoke: c => api('DELETE', '/invites/' + c), who: c => api('GET', '/invite/' + c)},

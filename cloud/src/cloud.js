@@ -87,6 +87,7 @@
         <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required maxlength="24" placeholder="${esc(t.userPh)}"${bad('u')}>${fieldNote('u')}</label>
         ${up ? `<label class="fx-field"><span>${t.name}</span><input name="n" type="text" dir="auto" maxlength="60" autocomplete="name" placeholder="${esc(t.namePh)}"></label>` : ''}
         <label class="fx-field"><span>${up ? t.passNew : t.pass}</span><input name="p" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" required ${up ? 'minlength="8"' : ''}${bad('p')}>${fieldNote('p')}</label>
+        ${up && cfg.mail ? `<label class="fx-field"><span>Email <span class="au-optl">(optional)</span></span><input name="e" type="email" dir="ltr" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254"${bad('e')}>${fieldNote('e') || '<small class="fx-fsub">Only to reset your password if you forget it. Nobody else sees it.</small>'}</label>` : ''}
         ${up && cfg.code && !join ? `<label class="fx-field"><span>${t.code}</span><input name="c" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required${bad('c')}>${fieldNote('c')}</label>` : ''}
         ${up && join ? `<input type="hidden" name="c" value="${esc(join.code)}">` : ''}
         ${up ? `<label class="fx-check"><input type="checkbox" name="pub" checked> ${t.pub}</label>` : ''}
@@ -96,16 +97,17 @@
         <p class="fx-muted fx-small">${t.privacy}</p>
       </form>${ask}
       <p class="fx-muted fx-small fx-authfoot"><a href="/about">About ${esc(C.siteName || 'TVC15')} and your privacy</a></p>`, 'fx-auth');
+    pwToggles();
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authField = ''; authScreen(); }
     });
     // what was typed before an error, back in place; the field the error's about, ready to fix
     const F = root.querySelector('form[data-auth]');
-    ['u', 'n', 'c', 'p'].forEach(k => { const el = F.elements[k]; if (el && el.type !== 'hidden' && authVals[k]) el.value = authVals[k]; });
+    ['u', 'n', 'e', 'c', 'p'].forEach(k => { const el = F.elements[k]; if (el && el.type !== 'hidden' && authVals[k]) el.value = authVals[k]; });
     if (authField && F.elements[authField]) { const el = F.elements[authField]; el.focus(); if (el.select && authField !== 'p') el.select(); }
     // fixing the field clears its error; a username's rules are said while it's typed, before anything is sent
-    if (authField && F.elements[authField]) F.elements[authField].addEventListener('input', () => { const el = F.elements[authField], n = el && el.parentNode.querySelector('.fx-ferr'); if (n) n.remove(); if (el) el.removeAttribute('aria-invalid'); }, {once: true});
+    if (authField && F.elements[authField]) F.elements[authField].addEventListener('input', () => { const el = F.elements[authField], n = el && el.closest('label').querySelector('.fx-ferr'); if (n) n.remove(); if (el) el.removeAttribute('aria-invalid'); }, {once: true});
     const uh = F.querySelector('[data-uhint]');
     if (uh) F.elements.u.addEventListener('input', () => {
       const v = F.elements.u.value, ch = /[^A-Za-z0-9_]/.exec(v);
@@ -116,18 +118,20 @@
       e.preventDefault();
       const f = e.target, u = f.elements.u.value.trim().toLowerCase(), p = f.elements.p.value, t2 = T();
       // what was typed stays typed, whatever goes wrong
-      authVals = {u: f.elements.u.value, n: f.elements.n ? f.elements.n.value : '', c: f.elements.c && f.elements.c.type !== 'hidden' ? f.elements.c.value : '', p};
+      const em = f.elements.e ? f.elements.e.value.trim() : '';
+      authVals = {u: f.elements.u.value, n: f.elements.n ? f.elements.n.value : '', e: em, c: f.elements.c && f.elements.c.type !== 'hidden' ? f.elements.c.value : '', p};
       if (authMode === 'up' && !/^[a-z0-9_]{3,24}$/.test(u)) { authNote = CloudSync.say('username'); authField = 'u'; authScreen(); return; }
       if (!u || !p) return;
       if (authMode === 'up' && p.length < 8) { authNote = t2.short; authField = 'p'; authScreen(); return; }
+      if (authMode === 'up' && em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { authNote = CloudSync.say('email'); authField = 'e'; authScreen(); return; }
       const note = f.querySelector('.fx-note') || f.appendChild(Object.assign(document.createElement('p'), {className: 'fx-note busy'}));
       note.className = 'fx-note busy'; note.textContent = t2.working;
       f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
       const name = authMode === 'up' ? f.elements.n.value.trim() : '', pub = authMode === 'up' && f.elements.pub.checked;
-      const err = authMode === 'up' ? await CloudSync.signup(u, p, name, f.elements.c ? f.elements.c.value.trim() : '') : await CloudSync.login(u, p);
+      const err = authMode === 'up' ? await CloudSync.signup(u, p, name, f.elements.c ? f.elements.c.value.trim() : '', em) : await CloudSync.login(u, p);
       if (err) {
         const c = CloudSync.errCode();
-        authField = {username: 'u', taken: 'u', suspended: 'u', none: 'u', wrong: 'p', code: 'c'}[c] || '';
+        authField = {username: 'u', taken: 'u', suspended: 'u', none: 'u', wrong: 'p', code: 'c', email: 'e'}[c] || '';
         if (authField === 'c' && !f.elements.c) authField = '';
         if (c === 'wrong') authVals.p = '';  // a wrong password is typed again
         authNote = err; authScreen(); return;
@@ -141,43 +145,131 @@
         if (pub) Store.set('cfg:share', u);
       }
       await CloudSync.run();
-      const rk = CloudSync.takeKey();
-      if (rk) keyScreen(rk, true, home); else home();
+      const rk = CloudSync.takeKey(), sent = CloudSync.email.sentTo();
+      if (rk) keyScreen(rk, true, home, sent); else home();
     });
   }
-  // forgot your password: username, recovery key, a new password
-  function recoverScreen(note) {
+  // forgot your password: a link by email (when the site can send email), or the recovery key; and who to ask if neither
+  let rec = {};  // {sent, who, err, field, vals, open}
+  // a Show button in each password field, so what's typed can be checked before it's sent
+  function pwToggles() {
+    root.querySelectorAll('.fx-authf input[type=password]').forEach(i => {
+      if (i.parentNode.classList.contains('au-pw')) return;
+      const w = document.createElement('span'), b = document.createElement('button');
+      w.className = 'au-pw'; i.replaceWith(w); w.appendChild(i);
+      b.type = 'button'; b.className = 'au-eye'; b.textContent = 'Show'; b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Show password');
+      b.addEventListener('click', e => { e.preventDefault(); const on = i.type === 'password'; i.type = on ? 'text' : 'password'; b.textContent = on ? 'Hide' : 'Show'; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-label', on ? 'Hide password' : 'Show password'); });
+      w.appendChild(b);
+    });
+  }
+  const fieldErr = (on, text) => on ? `<small class="fx-ferr" role="alert">${esc(text)}</small>` : '';
+  function recoverScreen() {
     fresh();
-    shell(`<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-amode="in">Sign in</button></div><h1 class="fx-h1">Reset your password</h1>
-      <p class="fx-lede">Use the recovery key you saved when you made your account (or later, in Settings).</p></header>
-      <form class="fx-card fx-authf" data-recover novalidate>
-        <label class="fx-field"><span>Username</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
-        <label class="fx-field"><span>Recovery key</span><input name="k" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required></label>
-        <label class="fx-field"><span>New password (at least 8 characters)</span><input name="p" type="password" dir="ltr" autocomplete="new-password" minlength="8" required></label>
-        <label class="fx-field"><span>New password again</span><input name="p2" type="password" dir="ltr" autocomplete="new-password" minlength="8" required></label>
-        <div class="fx-row"><button type="submit" class="fx-btn primary">Reset password</button></div>
-        ${note ? `<p class="fx-note bad">${esc(note)}</p>` : ''}
-        <p class="fx-muted fx-small">No recovery key? Only someone who runs the site can help, and they’ll need to confirm it’s you.</p>
-      </form>`, 'fx-auth');
-    root.addEventListener('click', e => { const b = e.target.closest('button[data-amode]'); if (b) { authMode = b.dataset.amode; authNote = ''; authScreen(); } });
+    const mail = !!(cfg && cfg.mail), R = rec, v = R.vals || {}, bad = k => R.field === k ? ' aria-invalid="true"' : '';
+    const contact = /^https:\/\//.test((cfg && cfg.contact) || '') ? `<a href="${esc(cfg.contact)}" target="_blank" rel="noopener noreferrer">message the site’s owner${/^https:\/\/(t\.me|telegram\.me)\//.test(cfg.contact) ? ' on Telegram' : ''}</a>` : 'ask whoever runs the site';
+    const rkForm = `<form class="fx-authf" data-recover novalidate>
+        <label class="fx-field"><span>Username</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required value="${esc(v.u || '')}"${bad('u')}>${fieldErr(R.field === 'u', R.err)}</label>
+        <label class="fx-field"><span>Recovery key</span><input name="k" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required value="${esc(v.k || '')}"${bad('k')}>${fieldErr(R.field === 'k', R.err)}</label>
+        <label class="fx-field"><span>New password (at least 8 characters)</span><input name="p" type="password" dir="ltr" autocomplete="new-password" minlength="8" required${bad('p')}>${fieldErr(R.field === 'p', R.err)}</label>
+        <label class="fx-field"><span>New password again</span><input name="p2" type="password" dir="ltr" autocomplete="new-password" minlength="8" required${bad('p2')}>${fieldErr(R.field === 'p2', R.err)}</label>
+        <div class="fx-row"><button type="submit" class="fx-btn${mail ? '' : ' primary'}">Reset password</button></div>
+        ${R.err && !R.field && R.form === 'rk' ? `<p class="fx-note bad">${esc(R.err)}</p>` : ''}
+      </form>`;
+    const byMail = !mail ? '' : R.sent ? `<section class="fx-card" data-fsent role="status"><h2>Check your email</h2>
+        <p>If <b dir="ltr">${esc(R.who)}</b> has a confirmed email, a link to reset the password is on its way. It works for 60 minutes.</p>
+        <p class="fx-muted fx-small">Nothing after a few minutes? Check your spam folder, or <button type="button" class="fx-link" data-fagain>try again</button>.</p></section>`
+      : `<form class="fx-card fx-authf" data-forgot novalidate><h2>Email me a link</h2>
+        <label class="fx-field"><span>Username or email</span><input name="w" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required value="${esc(v.w || '')}"${bad('w')}>${fieldErr(R.field === 'w', R.err)}</label>
+        <div class="fx-row"><button type="submit" class="fx-btn primary">Send link</button></div>
+        ${R.err && !R.field && R.form === 'mail' ? `<p class="fx-note bad">${esc(R.err)}</p>` : ''}</form>`;
+    shell(`<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-amode="in">Sign in</button></div><h1 class="fx-h1">Forgot your password?</h1>
+      <p class="fx-lede">${mail ? 'We’ll email you a link to choose a new one. No email on your account? Use your recovery key.' : 'Use the recovery key you saved when you made your account (or later, in Settings).'}</p></header>
+      ${byMail}
+      ${mail ? `<details class="fx-card fx-more au-rk"${R.form === 'rk' || R.open ? ' open' : ''}><summary>Use your recovery key</summary>${rkForm}</details>` : `<section class="fx-card">${rkForm}</section>`}
+      <p class="fx-muted fx-small au-ask">${mail ? 'No email and no recovery key?' : 'No recovery key?'} You can ${contact}; they can help once they know it’s you.</p>`, 'fx-auth');
+    pwToggles();
+    root.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; rec = {}; if (location.pathname !== '/') history.replaceState(null, '', '/'); authScreen(); }
+      if (b.hasAttribute('data-fagain')) { rec = {vals: {w: R.who}}; recoverScreen(); }
+    });
+    const focusBad = () => { const i = root.querySelector('[aria-invalid="true"]'); if (i) { i.focus(); if (i.select && i.type !== 'password') i.select(); i.addEventListener('input', () => { i.removeAttribute('aria-invalid'); const n = i.closest('label').querySelector('.fx-ferr'); if (n) n.remove(); }, {once: true}); } };
+    focusBad();
+    const mf = root.querySelector('form[data-forgot]');
+    if (mf) mf.addEventListener('submit', async e => {
+      e.preventDefault();
+      const w = mf.elements.w.value.trim();
+      if (!w) { rec = {form: 'mail', field: 'w', err: 'Type your username or the email on your account.', vals: {w}}; recoverScreen(); return; }
+      mf.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
+      const err = await CloudSync.forgot(w);
+      rec = err ? {form: 'mail', err, vals: {w}} : {sent: true, who: w};
+      recoverScreen();
+    });
     root.querySelector('form[data-recover]').addEventListener('submit', async e => {
       e.preventDefault();
-      const f = e.target, u = f.elements.u.value.trim().toLowerCase(), k = f.elements.k.value.trim(), p = f.elements.p.value;
-      if (!u || !k || !p) return;
-      if (p.length < 8) { recoverScreen('Your new password needs at least 8 characters.'); return; }
-      if (p !== f.elements.p2.value) { recoverScreen('The two passwords don’t match.'); return; }
+      const f = e.target, u = f.elements.u.value.trim().toLowerCase(), k = f.elements.k.value.trim(), p = f.elements.p.value, vals = {u: f.elements.u.value, k};
+      const no = (field, err) => { rec = {form: 'rk', field, err, vals}; recoverScreen(); };
+      if (!u) return no('u', 'Type your username.');
+      if (!k) return no('k', 'Type your recovery key.');
+      if (p.length < 8) return no('p', 'Your new password needs at least 8 characters.');
+      if (p !== f.elements.p2.value) return no('p2', 'The two passwords don’t match.');
       f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
       const err = await CloudSync.recover(u, k, p);
-      if (err) { recoverScreen(err); return; }
-      authMode = 'in';
+      if (err) return no({wrongrk: 'k', suspended: 'u'}[CloudSync.errCode && CloudSync.errCode()] || (/recovery key/.test(err) ? 'k' : ''), err);
+      authMode = 'in'; rec = {};
       await Store.load(); await CloudSync.run();
       keyScreen(CloudSync.takeKey(), false, home);
     });
   }
+  // the link in a reset email: whose account it is, then a new password
+  async function resetScreen(token, R) {
+    R = R || {};
+    if (!R.who && !R.dead) { const r = await CloudSync.resetWho(token); if (r.err) R.dead = r.err; else R.who = r.username; }
+    fresh();
+    if (R.dead) {
+      shell(`<header class="fx-head"><h1 class="fx-h1">This link doesn’t work</h1><p class="fx-lede">${esc(R.dead)}</p></header>
+        <div class="fx-row"><button type="button" class="fx-btn primary" data-amode="rec">Get a new link</button><button type="button" class="fx-btn" data-amode="in">Sign in</button></div>`, 'fx-auth');
+    } else {
+      shell(`<header class="fx-head"><h1 class="fx-h1">Choose a new password</h1><p class="fx-lede">For <b>@${esc(R.who)}</b>. You’ll stay signed in here, and be signed out everywhere else.</p></header>
+        <form class="fx-card fx-authf" data-reset novalidate>
+          <input class="fx-sr" name="u" type="text" autocomplete="username" value="${esc(R.who)}" readonly tabindex="-1" aria-hidden="true">
+          <label class="fx-field"><span>New password (at least 8 characters)</span><input name="p" type="password" dir="ltr" autocomplete="new-password" minlength="8" required${R.field === 'p' ? ' aria-invalid="true"' : ''}>${fieldErr(R.field === 'p', R.err)}</label>
+          <label class="fx-field"><span>New password again</span><input name="p2" type="password" dir="ltr" autocomplete="new-password" minlength="8" required${R.field === 'p2' ? ' aria-invalid="true"' : ''}>${fieldErr(R.field === 'p2', R.err)}</label>
+          <div class="fx-row"><button type="submit" class="fx-btn primary">Save new password</button></div>
+          ${R.err && !R.field ? `<p class="fx-note bad">${esc(R.err)}</p>` : ''}
+        </form>`, 'fx-auth');
+      pwToggles();
+      const i = root.querySelector('[aria-invalid="true"]') || root.querySelector('input[name=p]'); if (i) i.focus();
+      root.querySelector('form[data-reset]').addEventListener('submit', async e => {
+        e.preventDefault();
+        const f = e.target, p = f.elements.p.value;
+        if (p.length < 8) { resetScreen(token, {who: R.who, field: 'p', err: 'Your new password needs at least 8 characters.'}); return; }
+        if (p !== f.elements.p2.value) { resetScreen(token, {who: R.who, field: 'p2', err: 'The two passwords don’t match.'}); return; }
+        f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
+        const err = await CloudSync.reset(token, R.who, p);
+        if (err) { resetScreen(token, CloudSync.errCode && CloudSync.errCode() === 'link' || /link/.test(err) ? {dead: err} : {who: R.who, err}); return; }
+        history.replaceState(null, '', '/');
+        await Store.load(); await CloudSync.run(); home();
+      });
+    }
+    root.addEventListener('click', e => { const b = e.target.closest('button[data-amode]'); if (b) { authMode = b.dataset.amode; rec = {}; history.replaceState(null, '', '/'); authScreen(); } });
+  }
+  // the link that confirms an email
+  async function verifyScreen(token) {
+    fresh(); shell(`<header class="fx-head"><h1 class="fx-h1">Confirming your email…</h1></header>`, 'fx-auth');
+    const r = await CloudSync.email.verify(token), me = CloudSync.me();
+    history.replaceState(null, '', '/');
+    fresh();
+    shell(r.err ? `<header class="fx-head"><h1 class="fx-h1">This link doesn’t work</h1><p class="fx-lede">${esc(r.err)}</p></header>
+        <div class="fx-row"><a class="fx-btn primary" href="${me ? '/settings/account' : '/'}">${me ? 'Go to Settings' : 'Sign in'}</a></div>`
+      : `<header class="fx-head"><div class="fx-eye">Email confirmed</div><h1 class="fx-h1">You’re all set</h1>
+        <p class="fx-lede"><b dir="ltr">${esc(r.email)}</b> is now the email for <b>@${esc(r.username)}</b>. If you ever forget your password, choose “Forgot your password?” when you sign in, and we’ll send a link there.</p></header>
+        <div class="fx-row"><a class="fx-btn primary" href="/">Continue</a></div>`, 'fx-auth');
+  }
   // a recovery key, shown once: copy it or download it, then carry on
   // while the recovery key is on screen, nothing (a sync bringing your plan in, say) replaces it
   let keyHold = false;
-  function keyScreen(rk, isNew, then) {
+  function keyScreen(rk, isNew, then, sentTo) {
     keyHold = true;
     fresh();
     shell(`<header class="fx-head"><div class="fx-eye">${isNew ? 'One more thing' : 'Password reset'}</div><h1 class="fx-h1">Your recovery key</h1>
@@ -185,7 +277,8 @@
       <section class="fx-card ac-key"><code class="ac-keybig" dir="ltr">${esc(rk)}</code>
         <div class="fx-row"><button type="button" class="fx-btn" data-kcopy>Copy</button><button type="button" class="fx-btn" data-kdl>Download as a text file</button></div>
         <label class="fx-check"><input type="checkbox" data-kok> I’ve saved my recovery key somewhere safe</label>
-        <div class="fx-row"><button type="button" class="fx-btn primary" data-knext disabled>Continue</button></div></section>`, 'fx-auth');
+        <div class="fx-row"><button type="button" class="fx-btn primary" data-knext disabled>Continue</button></div></section>
+      ${sentTo ? `<p class="fx-note ok au-sent">We also sent a link to <b dir="ltr">${esc(sentTo)}</b>. Open it to confirm your email, so you can reset your password that way too.</p>` : ''}`, 'fx-auth');
     root.addEventListener('change', e => { if (e.target.matches('[data-kok]')) root.querySelector('[data-knext]').disabled = !e.target.checked; });
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -491,7 +584,7 @@
     FX = mountFocus(root, D, S, {posters: Posters, settings: CloudSync, letterboxd: LBX, list: kind === 'list' ? listAdapter() : null, plan: {reset, own: kind === 'own'},
       tabs: [FR, PM, DX, FP && FP.film, FP && FP.director, STATS, planner(true), ABOUT, PV, POP, ADMIN, INV, NEWS && NEWS.tab].filter(Boolean), tabsFirst: !!FR, settingsGear: true, noLang: true, quickLog: true, startView: startView(), settingsExtra: homeChoice,
       fullView: PM ? 'plan' : '', filmHref: fxNav.film, diaryNav, accountUI: AC ? where => AC.ui(where, () => FX && FX.render()) : null,
-      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
+      topButton: AC ? on => AC.corner(on) : null, brand: v => v === 'film' || v === 'director' || v === 'build' ? '' : brandBar(), homeLabel: HM ? 'Home' : '', homeExtra: HM ? () => HM.html() : null, weekFold: HM ? 4 : 0, profileMore: true, onView: v => fxNav.note(pathOf(v)), onSettings: x => fxNav.note('/settings' + (x ? '/' + x : ''), x ? {fromIdx: 1} : {}),
       // a section's back link: to the list it was opened from, or to Settings when it was opened some other way
       settingsBack: () => { if (fxNav.state().fromIdx) history.back(); else fxNav.open('/settings', 'replace'); }, modal: {open: fxNav.modal, close: fxNav.unmodal}});
     const logTo = (t, y, md) => FX && FX.logFilm(t, y, md);
@@ -782,6 +875,11 @@
   async function home() {
     const um = location.pathname.match(U_PATH), jm = location.pathname.match(/^\/join\/([a-z0-9]{8,24})\/?$/);
     await Store.load();
+    // links from emails: confirming an address, resetting a password; and the forgot-password page
+    const vm = location.pathname.match(/^\/verify-email\/([A-Za-z0-9_-]{40,50})\/?$/), rm = location.pathname.match(/^\/reset\/([A-Za-z0-9_-]{40,50})\/?$/);
+    if (vm) { verifyScreen(vm[1]); return; }
+    if (rm) { resetScreen(rm[1]); return; }
+    if (/^\/forgot\/?$/.test(location.pathname) && !CloudSync.me()) { authMode = 'rec'; authScreen(); return; }
     // an invite link: the sign-up page, saying who it's from; already a member: Home
     if (jm) { if (CloudSync.me()) history.replaceState(null, '', '/'); else { join = {code: jm[1]}; authMode = 'up'; authScreen(); return; } }
     // a visitor sees a profile (or a list) on its own; a member, inside the app
@@ -794,6 +892,13 @@
     if (!me) { authScreen(); return; }
     CloudSync.run();
   }
+  // offline: said at the top while it lasts (what you do is kept on this device and goes up when you're back)
+  const offBar = document.createElement('div');
+  offBar.className = 'fx-offline'; offBar.setAttribute('role', 'status'); offBar.hidden = navigator.onLine !== false;
+  offBar.textContent = 'You’re offline. Everything you do is saved on this device and syncs when you’re back.';
+  document.body.appendChild(offBar);
+  window.addEventListener('offline', () => { offBar.hidden = false; });
+  window.addEventListener('online', () => { offBar.hidden = true; });
   CloudSync.onSignOut(() => { location.href = '/'; });
   CloudSync.onStatus(() => FX && FX.render());
   Store.onChange(() => { planChanged(); enrichSoon(); ownStamp++; });

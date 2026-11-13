@@ -33,7 +33,7 @@ const day = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
   await boss.reload(); await boss.waitForSelector('.fx-tabbar');
   await boss.click('[data-ac-menu]'); await boss.waitForSelector('.av-menu');
   const items = await boss.$$eval('.av-menu [role=menuitem]', es => es.map(e => e.textContent));
-  ok(items.slice(-5).join('|') === 'Your site|Invite friends|Settings|About|Sign out', 'the owner’s menu: Your site, above Settings', items);
+  ok(items.slice(-5).join('|') === 'Your site|Invite friends|Settings|Help and about|Sign out', 'the owner’s menu: Your site, above Settings', items);
   await boss.click('.av-menu a[href="/admin"]'); await boss.waitForSelector('.ad-list li', {timeout: 10000});
   ok(here(boss) === '/admin' && /Only you can see this page/.test(await boss.$eval('.ad-head', e => e.innerText)), 'Your site, at /admin');
   const big = await boss.$$eval('.ad-big div', ds => ds.map(d => d.innerText.replace(/\s+/g, ' ')));

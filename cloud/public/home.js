@@ -32,7 +32,7 @@ function fxHome(o) {
 
   function friends() {
     if (!FR) return '';
-    const rows = FR.recent ? FR.recent(6) : null;
+    const rows = FR.recent ? FR.recent(3) : null;  // three on Home; All activity has the rest
     if (rows === null) return sec('hm-fr', 'From people you follow', '', '<p class="fx-muted hm-wait">Tuning in…</p>');
     if (!rows.length) return sec('hm-fr', 'From people you follow', '', `<p class="fx-muted">Follow people to see what they’re watching. ${more('/activity/people', 'Find people')}</p>`);
     const av = e => typeof fxAvatar === 'function' ? fxAvatar(e.u, e.n, e.a, 's') : '';
@@ -50,14 +50,13 @@ function fxHome(o) {
     if (!FR || !FR.wl) return '';
     const list = FR.wl.list().slice().sort((a, b) => (+b.at || 0) - (+a.at || 0));
     if (!list.length) return '';
-    return sec('hm-wl', 'Your watchlist', `<span class="hm-count">${num(list.length)} ${list.length === 1 ? 'film' : 'films'}</span>`,
-      `<ul class="hm-strip">${list.slice(0, 14).map(f => `<li><a class="hm-sp" href="${esc(filmHref(f))}" data-app title="${esc(f.t + (f.y ? ' (' + f.y + ')' : ''))}">${okPoster(f.p) ? `<img src="${esc(small(f.p))}" alt="" loading="lazy">` : `<span>${esc(f.t)}</span>`}</a></li>`).join('')}</ul>`
-      + `<div class="fx-row"><button type="button" class="fx-btn" data-hm-pick>Pick one for me</button></div>`);
+    return sec('hm-wl', `Your watchlist <span class="hm-count">${num(list.length)}</span>`, `<button type="button" class="fx-link hm-more" data-hm-pick>Pick one for me</button>`,
+      `<ul class="hm-strip">${list.slice(0, 14).map(f => `<li><a class="hm-sp" href="${esc(filmHref(f))}" data-app title="${esc(f.t + (f.y ? ' (' + f.y + ')' : ''))}">${okPoster(f.p) ? `<img src="${esc(small(f.p))}" alt="" loading="lazy">` : `<span>${esc(f.t)}</span>`}</a></li>`).join('')}</ul>`);
   }
 
   function onThisDay() {
     const {list} = diary(), t = today(), md = t.slice(5), yr = t.slice(0, 4);
-    const hits = list.filter(e => e.date.slice(5) === md && e.date.slice(0, 4) < yr).slice(0, 4);
+    const hits = list.filter(e => e.date.slice(5) === md && e.date.slice(0, 4) < yr).slice(0, 3);
     if (!hits.length) return '';
     const D = diary().D;
     return sec('hm-otd', 'On this day', '', `<ul class="hm-days">${hits.map(e => {

@@ -6,7 +6,7 @@
 function fxAccount(CS, o) {
   o = o || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-  const st = {sessions: null, blocks: null, note: {}, rk: '', rkAsk: false, outWarn: false, allWarn: false, delSure: false, busy: '', menu: false};
+  const st = {sessions: null, blocks: null, note: {}, rk: '', rkAsk: false, mail: false, emAsk: '', emVals: {}, outWarn: false, allWarn: false, delSure: false, busy: '', menu: false};
   const pic = (u, n, a, size) => typeof fxAvatar === 'function' ? fxAvatar(u, n, a, size) : '';
   let loadedAt = 0;
   const ago = ms => {
@@ -26,7 +26,8 @@ function fxAccount(CS, o) {
   async function load(render) {
     if (Date.now() - loadedAt < 30e3) return;
     loadedAt = Date.now();
-    const [s, b] = await Promise.all([CS.sessions(), CS.blocks()]);
+    const [s, b, c] = await Promise.all([CS.sessions(), CS.blocks(), CS.config ? CS.config() : {}, CS.check ? CS.check() : null]);
+    if (c && c.ok) st.mail = !!c.j.mail;
     if (s.ok) st.sessions = s.j.sessions || [];
     if (b.ok) st.blocks = b.j.blocks || [];
     render();
@@ -68,7 +69,7 @@ function fxAccount(CS, o) {
         <input type="password" name="next" autocomplete="new-password" minlength="8" dir="ltr" placeholder="New password (at least 8 characters)" aria-label="New password" required>
         <input type="password" name="again" autocomplete="new-password" minlength="8" dir="ltr" placeholder="New password again" aria-label="New password again" required>
         <button type="submit" class="fx-btn primary">Change password</button></form>${msg('pw')}</details>
-      <div class="ac-sub"><h3>Recovery key</h3><p class="fx-muted">If you forget your password, your username and recovery key get you back in. ${me.rk ? 'You have one.' : '<b>You don’t have one yet.</b>'} Making a new key cancels the old one.</p>`;
+      ${st.mail ? emailPart() : ''}<div class="ac-sub"><h3>Recovery key</h3><p class="fx-muted">If you forget your password, your username and recovery key get you back in. ${me.rk ? 'You have one.' : '<b>You don’t have one yet.</b>'} Making a new key cancels the old one.</p>`;
     if (st.rk) h += `<div class="ac-key"><code dir="ltr">${esc(st.rk)}</code><div class="fx-row"><button type="button" class="fx-btn" data-ac-copyrk>Copy</button><button type="button" class="fx-btn primary" data-ac-rkdone>I’ve saved it</button></div>
       <p class="fx-muted">Keep it somewhere safe, like your password manager. It won’t be shown again.</p></div>`;
     else if (st.rkAsk) h += `<form class="fx-form ac-form" data-ac-rk><input type="password" name="pw" autocomplete="current-password" dir="ltr" placeholder="Your password" aria-label="Your password" required><button type="submit" class="fx-btn primary">Make a recovery key</button></form>`;
@@ -80,6 +81,23 @@ function fxAccount(CS, o) {
       if (st.sessions.length > 1) h += `<div class="fx-row"><button type="button" class="fx-btn" data-ac-endothers>Sign out of all other devices</button></div>`;
     }
     return h + msg('sessions') + `</div></section>`;
+  }
+  // an email for password resets (when the site can send email): add it, confirm it by the link, change or remove it
+  function emailPart() {
+    const me = CS.me() || {}, v = st.emVals, has = me.email || me.emailPending;
+    let h = `<div class="ac-sub" id="ac-email"><h3>Email</h3><p class="fx-muted">Only for resetting your password if you forget it. Nobody else sees it, and ${esc(siteName())} won’t send you anything else.</p>`;
+    if (me.email) h += `<p class="ac-em"><b dir="ltr">${esc(me.email)}</b> <span class="fx-ok">Confirmed</span></p>`;
+    if (me.emailPending) h += `<p class="fx-note busy">We sent a link to <b dir="ltr">${esc(me.emailPending)}</b>. Open it to confirm the address${me.email ? '; until then, reset links go to ' + esc(me.email) : ''}. Not there? Check your spam folder, or send it again.</p>`;
+    if (st.emAsk === 'set') h += `<form class="fx-form ac-form" data-ac-em="set" novalidate>
+      <label class="fx-field"><span>Email</span><input type="email" name="em" autocomplete="email" inputmode="email" dir="ltr" maxlength="254" required value="${esc(v.em != null ? v.em : me.emailPending || '')}"${st.emBad === 'em' ? ' aria-invalid="true"' : ''}>${st.emBad === 'em' ? msg('em').replace('<p class="fx-note bad">', '<small class="fx-ferr" role="alert">').replace(/<\/p>$/, '</small>') : ''}</label>
+      <label class="fx-field"><span>Your password</span><input type="password" name="pw" autocomplete="current-password" dir="ltr" required${st.emBad === 'pw' ? ' aria-invalid="true"' : ''}>${st.emBad === 'pw' ? msg('em').replace('<p class="fx-note bad">', '<small class="fx-ferr" role="alert">').replace(/<\/p>$/, '</small>') : ''}</label>
+      <div class="fx-row"><button type="submit" class="fx-btn primary">Send confirmation link</button><button type="button" class="fx-btn" data-ac-emcancel>Cancel</button></div></form>`;
+    else if (st.emAsk === 'remove') h += `<form class="fx-form ac-form" data-ac-em="remove" novalidate>
+      <p>Without an email, only your recovery key can reset a forgotten password.</p>
+      <label class="fx-field"><span>Your password</span><input type="password" name="pw" autocomplete="current-password" dir="ltr" required${st.emBad === 'pw' ? ' aria-invalid="true"' : ''}>${st.emBad === 'pw' ? msg('em').replace('<p class="fx-note bad">', '<small class="fx-ferr" role="alert">').replace(/<\/p>$/, '</small>') : ''}</label>
+      <div class="fx-row"><button type="submit" class="fx-btn fx-danger">Remove email</button><button type="button" class="fx-btn" data-ac-emcancel>Cancel</button></div></form>`;
+    else h += `<div class="fx-row">${has ? `<button type="button" class="fx-btn" data-ac-emset>${me.emailPending ? 'Send again or change' : 'Change email'}</button><button type="button" class="fx-btn" data-ac-emrm>Remove</button>` : `<button type="button" class="fx-btn primary" data-ac-emset>Add an email</button>`}</div>`;
+    return h + (st.emBad ? '' : msg('em')) + '</div>';
   }
   function del() {
     return `<section class="fx-card"><h2>Delete your account</h2><p class="fx-muted">This deletes everything: your diary, plan, profile, follows, reactions and comments. It can’t be undone, so download your data first if you want a copy.</p>
@@ -112,6 +130,11 @@ function fxAccount(CS, o) {
       if (r.ok) st.blocks = (st.blocks || []).filter(x => x.username !== d.acUnblock); else st.note.blocks = ['bad', CS.say(r.code)];
       render(); return true;
     }
+    if (b.hasAttribute('data-ac-emset') || b.hasAttribute('data-ac-emrm')) {
+      st.emAsk = b.hasAttribute('data-ac-emset') ? 'set' : 'remove'; st.emVals = {}; st.emBad = ''; st.note.em = null; render();
+      const i = document.querySelector('form[data-ac-em] input'); if (i) i.focus(); return true;
+    }
+    if (b.hasAttribute('data-ac-emcancel')) { st.emAsk = ''; st.emVals = {}; st.emBad = ''; st.note.em = null; render(); return true; }
     if (b.hasAttribute('data-ac-rkask')) { st.rkAsk = true; st.note.rk = null; render(); const i = document.querySelector('form[data-ac-rk] input'); if (i) i.focus(); return true; }
     if (b.hasAttribute('data-ac-copyrk')) { (navigator.clipboard ? navigator.clipboard.writeText(st.rk) : Promise.reject()).then(() => { b.textContent = 'Copied'; }, () => {}); return true; }
     if (b.hasAttribute('data-ac-rkdone')) { st.rk = ''; st.note.rk = ['ok', 'Recovery key saved.']; render(); return true; }
@@ -137,6 +160,17 @@ function fxAccount(CS, o) {
       st.note.pw = r ? ['bad', r] : ['ok', 'Password changed. Your other devices will need to sign in again.'];
       loadedAt = 0; render(); return true;
     }
+    if (f.hasAttribute('data-ac-em')) {
+      const mode = f.dataset.acEm, em = f.elements.em ? f.elements.em.value.trim() : '', pw = f.elements.pw.value;
+      st.emVals = {em}; st.emBad = '';
+      const focus = () => { const i = document.querySelector('form[data-ac-em] [aria-invalid="true"]'); if (i) i.focus(); };
+      if (mode === 'set' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { st.emBad = 'em'; st.note.em = ['bad', CS.say('email')]; render(); focus(); return true; }
+      if (!pw) { st.emBad = 'pw'; st.note.em = ['bad', 'Type your password to confirm it’s you.']; render(); focus(); return true; }
+      st.note.em = ['busy', mode === 'set' ? 'Sending…' : 'Removing…']; render();
+      const r = mode === 'set' ? await CS.email.set(em, pw) : await CS.email.remove(pw);
+      if (r) { const c = CS.errCode(); st.emBad = c === 'wrong' ? 'pw' : c === 'email' || c === 'emailtaken' ? 'em' : ''; st.note.em = ['bad', r]; render(); focus(); return true; }
+      st.emAsk = ''; st.emVals = {}; st.note.em = mode === 'set' ? null : ['ok', 'Email removed.']; render(); return true;
+    }
     if (f.hasAttribute('data-ac-rk')) {
       st.note.rk = ['busy', 'Making a new key…']; render();
       const r = await CS.newRecoveryKey(f.elements.pw.value);
@@ -158,10 +192,19 @@ function fxAccount(CS, o) {
     const n = esc(siteName());
     return `<header class="fx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-ac-back>Back</button></div><h1 class="fx-h1">${n}</h1>
       <p class="dx-lede">A film diary for friends: log what you watch, follow what your friends are watching, plan what to see next.</p></header>
+      <section class="fx-card ac-doc ac-help" id="help"><h2>Help</h2><dl>
+        <dt>How do I log a film?</dt><dd>Press <b>+</b> in the bar at the bottom, find the film, and choose the day you watched it. A rating and a review are up to you.</dd>
+        <dt>Can I bring my Letterboxd history?</dt><dd>Yes. On Letterboxd: Settings → Data → Export your data. Then here: Settings → Letterboxd, and choose the .zip. Your diary, ratings, likes and watchlist come in. Doing it again later adds only what’s new.</dd>
+        <dt>How do I invite a friend?</dt><dd>Open the menu under your picture and choose Invite friends. Each link works for one person, for two weeks.</dd>
+        <dt>I forgot my password.</dt><dd>On the sign-in page, choose “Forgot your password?”. If your account has a confirmed email, we’ll send a link; if not, use your recovery key.</dd>
+        <dt>Who can see my diary?</dt><dd>Only you, unless you make your profile public in Settings → Privacy. You can keep your diary or watchlist private even then.</dd>
+        <dt>It says “not synced”.</dt><dd>You’re probably offline. Keep going: everything is saved on this device and goes to your account when you’re back online.</dd>
+        <dt>Something’s broken.</dt><dd>Tell whoever runs the site what you did and what happened. A screenshot helps.</dd></dl></section>
       <section class="fx-card ac-doc"><h2>What ${n} keeps</h2><ul>
         <li>Your username and display name.</li>
         <li>Your password, but never as you type it: your device scrambles it first, and the server scrambles that again before storing it. Nobody, including whoever runs the site, can read it.</li>
         <li>Your recovery key, stored the same way.</li>
+        <li>Your email, only if you add one, and only to send you a link when you forget your password. Whoever runs the site can see whether you have one, not what it is.</li>
         <li>Your diary, ratings, reviews, watchlist, plan and settings, so they’re the same on every device.</li>
         <li>Who you follow and block, and the hearts and comments you leave.</li>
         <li>For each device you’re signed in on: the browser’s name and when it was last used, so you can sign it out.</li>
@@ -196,7 +239,7 @@ function fxAccount(CS, o) {
     return `<div class="av-top"><button type="button" class="av-me${onSettings ? ' on' : ''}" data-ac-menu aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="Your account" title="Your account">${pic(me.username, me.name, me.av, 's')}${sync.state === 'err' ? '<i class="av-err" aria-hidden="true"></i>' : ''}</button>
       ${st.menu ? `<div class="av-menu" role="menu"><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
         <div class="av-mg">${yours.map(item).join('')}</div>
-        <div class="av-mg av-msys">${(me.owner ? [['/admin', 'Your site']] : []).concat([['/invite', 'Invite friends'], ['/settings', 'Settings'], ['/about', 'About']]).map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
+        <div class="av-mg av-msys">${(me.owner ? [['/admin', 'Your site']] : []).concat([['/invite', 'Invite friends'], ['/settings', 'Settings'], ['/about', 'Help and about']]).map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
   }
   const closeMenu = () => { if (!st.menu) return false; st.menu = false; return true; };
   return {ui, click, submit, about, device, corner, closeMenu, file};

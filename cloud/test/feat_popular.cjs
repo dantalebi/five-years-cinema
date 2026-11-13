@@ -99,7 +99,7 @@ CAT.fields.push('themes');
   await bob.goto(B + '/'); await bob.waitForSelector('.fx-tabbar');
   await bob.click('[data-ac-menu]'); await bob.waitForSelector('.av-menu');
   const items = await bob.$$eval('.av-menu [role=menuitem]', es => es.map(e => e.textContent));
-  ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Invite friends|Settings|About|Sign out', 'the menu, Letterboxd’s', items);
+  ok(items.join('|') === 'Home|Profile|Films|Diary|Reviews|Watchlist|Lists|Stats|Invite friends|Settings|Help and about|Sign out', 'the menu, Letterboxd’s', items);
   ok(await bob.$eval('.av-menu [aria-current="page"]', e => e.textContent) === 'Home', 'the screen you’re on is marked');
   await bob.waitForTimeout(300); await bob.screenshot({path: path.join(OUT, 'av-menu-full.png')});
   // Bob keeps his profile private

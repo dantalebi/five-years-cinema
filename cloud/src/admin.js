@@ -6,11 +6,12 @@
 // fxAdmin(CS, {redraw, onNews}) → a hidden tab for mountFocus.
 function fxAdmin(CS, o) {
   const U = fxCat, esc = U.esc, num = U.num;
-  let got = null, at = 0, busy = false, sort = 'seen', manage = '', delAsk = '', armed = '', edit = null, note = '';
+  let got = null, at = 0, busy = false, sort = 'seen', manage = '', delAsk = '', armed = '', edit = null, note = '', hl = null, hlBusy = false, mailNote = null;
   function load(force) {
     if (busy || (!force && got && Date.now() - at < 60e3)) return;
     busy = true;
     CS.admin().then(r => { busy = false; got = r.ok ? {ok: true, j: r.j} : {ok: false, status: r.status}; at = Date.now(); if (o.redraw) o.redraw(); });
+    if (!hlBusy && CS.health) { hlBusy = true; CS.health().then(r => { hlBusy = false; hl = r.ok ? r.j : null; if (o.redraw) o.redraw(); }); }
   }
   const day = ms => new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric'}).format(new Date(ms));
   const ago = ms => {
@@ -59,6 +60,37 @@ function fxAdmin(CS, o) {
       + `<button type="button" class="fx-link fx-warn" data-ad-ndel="${p.id}">${armed === 'n' + p.id ? 'Delete for good?' : 'Delete'}</button></div></li>`).join('')}</ul>`;
     return h + '</section>';
   }
+  // how the site is doing: requests against Cloudflare's free limits, busy hours, errors, the database's size, email
+  const bytes = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+  function health() {
+    if (!hl) return `<section class="fx-card ad-sec ad-health"><h2>Site health</h2><p class="fx-muted">${hlBusy ? 'Checking…' : 'Couldn’t load the numbers.'}</p></section>`;
+    const H = hl.hours || [], L = hl.limits || {}, now = hl.at || Date.now(), h0 = Math.floor(Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate()) / 36e5);
+    const today = H.filter(x => x.hour >= h0).reduce((a, x) => a + x.n, 0), dayAgo = Math.floor(now / 36e5) - 24, week = Math.floor(now / 36e5) - 24 * 7;
+    const errDay = H.filter(x => x.hour > dayAgo).reduce((a, x) => a + x.errs, 0), wk = H.filter(x => x.hour > week);
+    const wkN = wk.reduce((a, x) => a + x.n, 0), wkMs = wk.reduce((a, x) => a + x.ms, 0), wkSlow = wk.reduce((a, x) => a + x.slow, 0);
+    const mailErr = (hl.errors || []).filter(e => e.code === 'mail' && e.at > now - 864e5).length;
+    const pct = v => Math.min(100, Math.round(v * 1000) / 10);
+    const meter = (v, of) => `<span class="ad-meter" role="img" aria-label="${pct(v / of)}% of the free limit"><i style="width:${Math.max(v ? 1 : 0, pct(v / of))}%"></i></span>`;
+    const ok = !errDay && !mailErr && today < L.requests * 0.8;
+    // busy hours: the average requests in each hour of the day (your time), over the last two weeks
+    const by = Array(24).fill(0), days = Math.max(1, Math.min(14, Math.ceil((now - (H.length ? H[0].hour * 36e5 : now)) / 864e5)));
+    H.forEach(x => { by[new Date(x.hour * 36e5).getHours()] += x.n; });
+    const mx = Math.max(1, ...by), peak = by.indexOf(Math.max(...by)), hh = k => String(k).padStart(2, '0') + ':00';
+    let h = `<section class="fx-card ad-sec ad-health"><h2>Site health</h2>
+      <p class="ad-status ${ok ? 'good' : 'bad'}">${ok ? 'All good.' : errDay ? n(errDay, 'error', 'errors') + ' in the last 24 hours. See below.' : mailErr ? 'Emails aren’t going out. See below.' : 'Close to the free limit for today.'}</p>
+      <ul class="ad-lines">
+        <li><b>${num(today)}</b><span>requests today, of ${num(L.requests)} a day on Cloudflare’s free plan (it starts again at midnight UTC)${meter(today, L.requests)}</span></li>
+        <li><b>${wkN ? num(Math.round(wkMs / wkN)) + ' ms' : '—'}</b><span>for an average request this week${wkSlow ? `; ${num(wkSlow)} took longer than 3 seconds` : ''}</span></li>
+        ${hl.size ? `<li><b>${bytes(hl.size)}</b><span>database, of ${bytes(L.storage)} free${meter(hl.size, L.storage)}</span></li>` : ''}
+        <li><b>${hl.mail ? 'On' : 'Off'}</b><span>${hl.mail ? 'Password-reset email is set up.' : 'Password-reset email isn’t set up yet: add RESEND_API_KEY and MAIL_FROM in Cloudflare (see SETUP.md).'}</span></li></ul>`;
+    if (hl.mail) h += `<div class="fx-row"><button type="button" class="fx-btn" data-ad-mailtest>Send me a test email</button></div>${mailNote ? `<p class="fx-note ${mailNote[0]}">${esc(mailNote[1])}</p>` : ''}`;
+    if (H.length) h += `<h3>Busy hours</h3><p class="fx-muted ad-help">Average requests in each hour of the day, your time, over the last ${n(days, 'day', 'days')}. Busiest around ${hh(peak)}.</p>
+      <div class="ad-hours" role="img" aria-label="Busiest around ${hh(peak)}">${by.map((v, k) => `<div title="${hh(k)}: about ${num(Math.round(v / days))} requests"><i style="--h:${v ? Math.max(4, Math.round(v / mx * 100)) : 0}%"></i>${k % 6 === 0 ? `<span>${hh(k).slice(0, 2)}</span>` : ''}</div>`).join('')}</div>`;
+    const E = hl.errors || [];
+    h += `<h3>Errors</h3>${E.length ? `<p class="fx-muted ad-help">Kept for 30 days. Each says what was asked for and what went wrong.</p><ul class="ad-errs">${E.slice(0, 20).map(e => `<li><span class="ad-ew">${esc(ago(e.at))}</span><code dir="ltr">${esc(e.method)} ${esc(e.path)}${e.status ? ' → ' + e.status : ''}${e.code ? ' ' + esc(e.code) : ''}</code>${e.msg ? `<span class="ad-em" dir="ltr">${esc(e.msg)}</span>` : ''}</li>`).join('')}</ul>` : '<p class="fx-muted">None in the last 30 days.</p>'}
+      <p class="fx-muted ad-help">The database itself: Cloudflare → Workers &amp; Pages → D1 → your database → Console. Reads and writes per day are under Metrics there.</p></section>`;
+    return h;
+  }
   function comments(j) {
     const list = j.comments || [];
     if (!list.length) return '';
@@ -77,6 +109,7 @@ function fxAdmin(CS, o) {
     h += `<section class="fx-big ad-big" dir="ltr">${[[T.members, T.members === 1 ? 'Member' : 'Members'], [T.activeWeek, 'Active this week'], [T.newMonth, 'New this month'], [T.entries, 'Diary entries']]
       .map(([v, l]) => `<div><b data-n="${Math.min(8, num(v).length)}">${num(v)}</b><span>${esc(l)}</span></div>`).join('')}</section>`;
     const line = (b, rest) => `<li><b>${b}</b><span>${rest}</span></li>`;
+    h += health();
     h += `<section class="fx-card ad-sec"><h2>Members</h2><ul class="ad-lines">
       ${line(num(T.publicProfiles), `public ${T.publicProfiles === 1 ? 'profile' : 'profiles'}, and ${n(T.members - T.publicProfiles, 'private one', 'private ones')}`)}
       ${line(num(T.publicDiaries), `${T.publicDiaries === 1 ? 'shows its diary' : 'show their diaries'}; the rest keep it to themselves`)}
@@ -100,7 +133,7 @@ function fxAdmin(CS, o) {
     h += `<section class="ad-people"><div class="ad-ph"><h2>Everyone</h2>${seg('data-ad-sort', sort, [['seen', 'Last active'], ['joined', 'Newest'], ['entries', 'Most entries']])}</div><ul class="ad-list">${P.slice().sort(by).map(x => {
       const who = `${typeof fxAvatar === 'function' ? fxAvatar(x.username, x.name, x.av, 'm') : ''}<span class="ad-n"><b dir="auto">${esc(x.name || x.username)}</b><small>@${esc(x.username)}</small></span>`;
       const facts = [n(x.entries, 'entry', 'entries'), x.reviews ? n(x.reviews, 'review', 'reviews') : '', x.seenOnly ? num(x.seenOnly) + ' seen without a date' : '', x.wl ? num(x.wl) + ' on the watchlist' : '',
-        n(x.followers, 'follower', 'followers'), num(x.following) + ' following', x.lists ? n(x.lists, 'list', 'lists') : '', x.plan ? 'on ' + (PLAN[x.plan] || x.plan) : 'no plan yet', x.lb ? 'Letterboxd connected' : ''].filter(Boolean);
+        n(x.followers, 'follower', 'followers'), num(x.following) + ' following', x.lists ? n(x.lists, 'list', 'lists') : '', x.plan ? 'on ' + (PLAN[x.plan] || x.plan) : 'no plan yet', x.lb ? 'Letterboxd connected' : '', x.email ? 'has an email for resets' : ''].filter(Boolean);
       const tags = (x.owner ? '<span class="fx-badge">You</span>' : '') + (x.banned ? '<span class="ad-tag ban">Suspended</span>' : x.public ? (x.diary ? '' : '<span class="ad-tag">Diary private</span>') : '<span class="ad-tag priv">Private profile</span>');
       return `<li class="${x.banned ? 'ad-banned' : ''}">${x.public && !x.banned ? `<a class="ad-who" href="/u/${esc(x.username)}">${who}</a>` : `<span class="ad-who">${who}</span>`}
         <div class="ad-tags">${tags}${x.owner ? '' : `<button type="button" class="fx-link ad-man" data-ad-manage="${esc(x.username)}" aria-expanded="${manage === x.username}">Manage</button>`}</div>
@@ -124,6 +157,11 @@ function fxAdmin(CS, o) {
       const d = b.dataset, set = o2 => act(CS.adminDo('settings', o2));
       if (d.adSort) { sort = ['seen', 'joined', 'entries'].includes(d.adSort) ? d.adSort : 'seen'; render(); return true; }
       if (b.hasAttribute('data-ad-retry')) { got = null; load(true); render(); return true; }
+      if (b.hasAttribute('data-ad-mailtest')) {
+        mailNote = ['busy', 'Sending…']; render();
+        CS.adminDo('mailtest', {}).then(r => { mailNote = r.ok ? ['ok', 'Sent to ' + r.j.to + '. Check your inbox (and spam).'] : ['bad', r.code === 'noemail' ? 'Add and confirm your own email in Settings → Account first.' : CS.say(r.code)]; render(); if (!r.ok) { hl = null; load(true); } });
+        return true;
+      }
       if (busy) return true;
       if (d.adMode) { set({signup: d.adMode}); return true; }
       if (b.hasAttribute('data-ad-newcode')) { set({newCode: true}); return true; }

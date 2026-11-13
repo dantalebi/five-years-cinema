@@ -39,6 +39,12 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
   // results worked out now and then rather than on every request (Popular), with when they were
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
+  // one-time links sent by email (kept only as a hash): 'verify' confirms an address, 'reset' sets a new password
+  `CREATE TABLE IF NOT EXISTS tokens (h TEXT PRIMARY KEY, uid INTEGER NOT NULL, kind TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', expires INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS tokens_uid ON tokens(uid, kind)`,
+  // how the site is doing, for its owner: requests per hour (errors, slow ones, total time) and the latest errors
+  `CREATE TABLE IF NOT EXISTS health (hour INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, errs INTEGER NOT NULL DEFAULT 0, slow INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS errors (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL, status INTEGER NOT NULL, code TEXT NOT NULL, msg TEXT NOT NULL DEFAULT '')`,
   `CREATE TABLE IF NOT EXISTS lists (id INTEGER PRIMARY KEY, uid INTEGER NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', pub INTEGER NOT NULL DEFAULT 1, ranked INTEGER NOT NULL DEFAULT 0, films TEXT NOT NULL DEFAULT '[]', n INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE (uid, slug))`,
 ];
 // columns added after the first release (each is added once; on later starts the database says it's already there)
@@ -46,9 +52,14 @@ const SCHEMA = [
 const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN rk TEXT NOT NULL DEFAULT ''`, `ALTER TABLE users ADD COLUMN av INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE profiles ADD COLUMN films TEXT`, `ALTER TABLE profiles ADD COLUMN fmeta TEXT`,
   // users.banned: when the owner suspended the account (0: never); users.invited_by: who brought them in
-  `ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE users ADD COLUMN invited_by INTEGER NOT NULL DEFAULT 0`];
+  `ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE users ADD COLUMN invited_by INTEGER NOT NULL DEFAULT 0`,
+  // users.email: a confirmed address for password resets (optional; '' for none)
+  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`];
+// indexes on those columns, once they're there
+const AFTER = [`CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email) WHERE email != ''`];
 let ready = null;
-const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
+const init = db => ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {}))))
+  .then(() => Promise.all(AFTER.map(c => db.prepare(c).run().catch(() => {})))).catch(e => { ready = null; throw e; }));
 
 const HDR = {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'};
 const json = (o, status = 200, h) => new Response(JSON.stringify(o), {status, headers: Object.assign({}, HDR, h || {})});
@@ -141,11 +152,46 @@ const rkHash = (rk, env) => sha256('rk|' + (env.PEPPER || '') + '|' + String(rk 
 // is either of two people blocking the other?
 const blocked = async (env, x, y) => !!await env.DB.prepare('SELECT 1 FROM blocks WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(x, y, y, x).first();
 
+// ---- email: only for resetting a forgotten password, and only once the owner has set it up ----
+// RESEND_API_KEY (secret) and MAIL_FROM ("TVC15 <hello@your-domain>", an address on a domain verified with Resend)
+const mailOn = env => !!(env.RESEND_API_KEY && env.MAIL_FROM);
+const EMAIL = /^[^\s@<>"',;:\\()[\]]{1,64}@[a-z0-9-]{1,63}(\.[a-z0-9-]{1,63})*\.[a-z]{2,24}$/i;
+const cleanEmail = e => { const v = String(e || '').trim().toLowerCase(); return v.length <= 254 && EMAIL.test(v) ? v : ''; };
+async function sendMail(env, to, subject, text) {
+  const r = await fetch('https://api.resend.com/emails', {method: 'POST', headers: {Authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},
+    body: JSON.stringify({from: env.MAIL_FROM, to: [to], subject, text})});
+  if (!r.ok) throw new Error('email not sent: ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 300));
+}
+const TOKEN = /^[A-Za-z0-9_-]{40,50}$/, VERIFY_HOURS = 48, RESET_MINUTES = 60;
+async function newToken(env, uid, kind, email, ms) {
+  const t = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  await env.DB.batch([env.DB.prepare('DELETE FROM tokens WHERE uid = ? AND kind = ?').bind(uid, kind),
+    env.DB.prepare('INSERT INTO tokens (h, uid, kind, email, expires) VALUES (?, ?, ?, ?, ?)').bind(await sha256(t), uid, kind, email, Date.now() + ms)]);
+  return t;
+}
+const findToken = async (env, t, kind) => TOKEN.test(String(t || '')) ? env.DB.prepare(`SELECT t.h, t.uid, t.email, x.username, x.name, x.banned FROM tokens t JOIN users x ON x.id = t.uid
+  WHERE t.h = ? AND t.kind = ? AND t.expires > ?`).bind(await sha256(t), kind, Date.now()).first() : null;
+const siteName = env => String(env.SITE_NAME || 'TVC15');
+async function sendVerify(env, req, uid, username, email) {
+  const t = await newToken(env, uid, 'verify', email, VERIFY_HOURS * 36e5), link = new URL(req.url).origin + '/verify-email/' + t;
+  await sendMail(env, email, 'Confirm your email for ' + siteName(env), `Hi @${username},
+
+Open this link to confirm this address for ${siteName(env)}:
+
+${link}
+
+We’ll only use it to send you a link if you ever forget your password. The link works for ${VERIFY_HOURS} hours.
+
+If you didn’t ask for this, ignore this email.`);
+}
+// an error worth the owner knowing about, though the request itself went fine (an email that didn't go out)
+const noteError = (env, method, path, code, msg) => env.DB.prepare('INSERT INTO errors (at, method, path, status, code, msg) VALUES (?, ?, ?, ?, ?, ?)').bind(Date.now(), method, path, 0, code, String(msg || '').slice(0, 500)).run().catch(() => {});
+
 // ---- the routes ----
 const routes = [];
 const on = (method, pattern, fn, opt = {}) => routes.push({method, re: new RegExp('^' + pattern + '$'), fn, opt});
 
-on('GET', '/api/config', async (req, env) => { const S = await siteSettings(env); return json({code: S.signup === 'invite', closed: S.signup === 'closed', contact: S.contact, tmdb: !!env.TMDB_TOKEN}); });
+on('GET', '/api/config', async (req, env) => { const S = await siteSettings(env); return json({code: S.signup === 'invite', closed: S.signup === 'closed', contact: S.contact, tmdb: !!env.TMDB_TOKEN, mail: mailOn(env)}); });
 // who an invite link is from, for the page it opens (nothing for a link that's no good)
 on('GET', '/api/invite/([a-z0-9]{8,24})', async (req, env, u, m) => {
   if (await limited(env.DB, 'invite:' + ip(req), 60, 36e5)) return fail('slow', 429);
@@ -169,7 +215,11 @@ on('POST', '/api/signup', async (req, env, ctx) => {
   if (invite) { const t = await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code = ? AND uses < max AND revoked = 0 RETURNING code').bind(invite.code).first(); if (!t && S.signup === 'invite' && !(S.code && same(given, S.code))) return fail('code', 403); }
   const r = await env.DB.prepare('INSERT INTO users (username, name, pw, created, rk, invited_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').bind(username, name, await hashKey(key, env), Date.now(), await rkHash(rk, env), invite ? invite.uid : 0).first();
   if (invite) await env.DB.prepare('UPDATE invites SET used_by = ? WHERE code = ?').bind(r.id, invite.code).run();
-  return json({me: {username, name, rk: true}, rk}, 200, {'set-cookie': await startSession(env, r.id, req)});
+  // an email, if one was given: confirmed by a link before it's used for anything
+  const email = mailOn(env) ? cleanEmail(b.email) : '';
+  let sent = false;
+  if (email) { try { await sendVerify(env, req, r.id, username, email); sent = true; } catch (e) { await noteError(env, 'POST', '/api/signup', 'mail', e.message); } }
+  return json({me: {username, name, rk: true}, rk, emailSent: sent ? email : ''}, 200, {'set-cookie': await startSession(env, r.id, req)});
 });
 on('POST', '/api/login', async (req, env) => {
   const b = await body(req, 2000), username = String(b.username || '').toLowerCase().trim(), key = String(b.key || '');
@@ -187,8 +237,9 @@ on('POST', '/api/logout', async (req, env, u) => {
   return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
 }, {auth: true});
 on('GET', '/api/me', async (req, env, u) => {
-  const r = await env.DB.prepare('SELECT rk, av FROM users WHERE id = ?').bind(u.id).first();
-  return json({me: Object.assign(me(u), {rk: !!(r && r.rk), av: (r && r.av) || 0}, isOwner(env, u) ? {owner: true} : {})});
+  const r = await env.DB.prepare('SELECT rk, av, email FROM users WHERE id = ?').bind(u.id).first();
+  const p = await env.DB.prepare("SELECT email FROM tokens WHERE uid = ? AND kind = 'verify' AND expires > ?").bind(u.id, Date.now()).first();
+  return json({me: Object.assign(me(u), {rk: !!(r && r.rk), av: (r && r.av) || 0, email: (r && r.email) || '', emailPending: (p && p.email) || ''}, isOwner(env, u) ? {owner: true} : {})});
 }, {auth: true});
 // where you're signed in: each session with its browser and when it was last used (id: the start of the session's hash)
 on('GET', '/api/sessions', async (req, env, u) => {
@@ -227,6 +278,81 @@ on('POST', '/api/recover', async (req, env) => {
   ]);
   return json({me: Object.assign(me(u), {rk: true}), rk}, 200, {'set-cookie': await startSession(env, u.id, req)});
 });
+// your email for password resets: add or change it (a link confirms it), or remove it. Asks for the password first
+on('POST', '/api/email', async (req, env, u) => {
+  if (!mailOn(env)) return fail('nomail', 503);
+  const b = await body(req, 1000);
+  if (await limited(env.DB, 'email:' + u.id, 8, 36e5)) return fail('slow', 429);
+  const row = await env.DB.prepare('SELECT pw, email FROM users WHERE id = ?').bind(u.id).first();
+  if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
+  if (b.remove) {
+    await env.DB.batch([env.DB.prepare("UPDATE users SET email = '' WHERE id = ?").bind(u.id), env.DB.prepare("DELETE FROM tokens WHERE uid = ? AND kind = 'verify'").bind(u.id)]);
+    return json({email: '', emailPending: ''});
+  }
+  const email = cleanEmail(b.email);
+  if (!email) return fail('email', 400);
+  if (email === row.email) return json({email, emailPending: ''});
+  if (await env.DB.prepare('SELECT 1 FROM users WHERE email = ? AND id != ?').bind(email, u.id).first()) return fail('emailtaken', 409);
+  try { await sendVerify(env, req, u.id, u.username, email); }
+  catch (e) { await env.DB.prepare("DELETE FROM tokens WHERE uid = ? AND kind = 'verify'").bind(u.id).run(); await noteError(env, 'POST', '/api/email', 'mail', e.message); return fail('mailfail', 502); }
+  return json({email: row.email, emailPending: email});
+}, {auth: true});
+// the link in the email: the address is confirmed (it works signed out too, on any device)
+on('POST', '/api/email/verify', async (req, env) => {
+  const b = await body(req, 500);
+  if (await limited(env.DB, 'verify:' + ip(req), 30, 36e5)) return fail('slow', 429);
+  const t = await findToken(env, b.t, 'verify');
+  if (!t) return fail('link', 404);
+  if (await env.DB.prepare('SELECT 1 FROM users WHERE email = ? AND id != ?').bind(t.email, t.uid).first()) return fail('emailtaken', 409);
+  await env.DB.batch([env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(t.email, t.uid), env.DB.prepare('DELETE FROM tokens WHERE h = ?').bind(t.h)]);
+  return json({email: t.email, username: t.username});
+});
+// forgot your password: a username or an email; if the account has a confirmed email, a link goes there.
+// The answer is the same either way, so nobody can find out from here who has an account or an email
+on('POST', '/api/forgot', async (req, env) => {
+  if (!mailOn(env)) return fail('nomail', 503);
+  const b = await body(req, 500), w = String(b.who || '').trim().toLowerCase().replace(/^@/, '');
+  if (!w || w.length > 254) return fail('who', 400);
+  if (await limited(env.DB, 'forgot:' + ip(req), 10, 36e5) || await limited(env.DB, 'forgot:' + w, 3, 36e5)) return fail('slow', 429);
+  const x = USERNAME.test(w) ? await env.DB.prepare('SELECT id, username, email, banned FROM users WHERE username = ?').bind(w).first()
+    : cleanEmail(w) ? await env.DB.prepare('SELECT id, username, email, banned FROM users WHERE email = ?').bind(cleanEmail(w)).first() : null;
+  if (x && x.email && !x.banned) {
+    try {
+      const t = await newToken(env, x.id, 'reset', x.email, RESET_MINUTES * 6e4), link = new URL(req.url).origin + '/reset/' + t;
+      await sendMail(env, x.email, 'Reset your ' + siteName(env) + ' password', `Hi @${x.username},
+
+Someone (hopefully you) asked to reset your ${siteName(env)} password. Open this link to choose a new one:
+
+${link}
+
+The link works for ${RESET_MINUTES} minutes, once.
+
+If it wasn’t you, ignore this email. Your password stays the same.`);
+    } catch (e) { await noteError(env, 'POST', '/api/forgot', 'mail', e.message); }
+  }
+  return json({ok: true});
+});
+// the reset link: whose it is (the app needs the username to scramble the new password), then the new password
+on('GET', '/api/reset/([A-Za-z0-9_-]{40,50})', async (req, env, u, m) => {
+  if (await limited(env.DB, 'reset:' + ip(req), 30, 36e5)) return fail('slow', 429);
+  const t = await findToken(env, m[1], 'reset');
+  return t && !t.banned ? json({username: t.username}) : fail('link', 404);
+});
+on('POST', '/api/reset', async (req, env) => {
+  const b = await body(req, 1000);
+  if (await limited(env.DB, 'reset:' + ip(req), 30, 36e5)) return fail('slow', 429);
+  const t = await findToken(env, b.t, 'reset');
+  if (!t) return fail('link', 404);
+  if (t.banned) return fail('suspended', 403);
+  if (!KEY.test(String(b.next || ''))) return fail('key', 400);
+  await env.DB.batch([
+    env.DB.prepare('UPDATE users SET pw = ? WHERE id = ?').bind(await hashKey(b.next, env), t.uid),
+    env.DB.prepare('DELETE FROM sessions WHERE uid = ?').bind(t.uid),  // anyone signed in with the old password is signed out
+    env.DB.prepare("DELETE FROM tokens WHERE uid = ? AND kind = 'reset'").bind(t.uid),
+  ]);
+  const r = await env.DB.prepare('SELECT rk FROM users WHERE id = ?').bind(t.uid).first();
+  return json({me: Object.assign(me(t), {rk: !!(r && r.rk)})}, 200, {'set-cookie': await startSession(env, t.uid, req)});
+});
 on('POST', '/api/password', async (req, env, u) => {
   const b = await body(req, 2000);
   if (!KEY.test(String(b.key || '')) || !KEY.test(String(b.next || ''))) return fail('key', 400);
@@ -242,7 +368,7 @@ on('POST', '/api/password', async (req, env, u) => {
 // everything an account has, gone at once
 const wipe = (env, id) => env.DB.batch(['DELETE FROM kv WHERE uid = ?', 'DELETE FROM plans WHERE uid = ?', 'DELETE FROM profiles WHERE uid = ?', 'DELETE FROM sessions WHERE uid = ?',
   'DELETE FROM follows WHERE a = ?', 'DELETE FROM follows WHERE b = ?', 'DELETE FROM reacts WHERE uid = ?', 'DELETE FROM reacts WHERE owner = ?', 'DELETE FROM blocks WHERE a = ?', 'DELETE FROM blocks WHERE b = ?', 'DELETE FROM avatars WHERE uid = ?',
-  'DELETE FROM lists WHERE uid = ?', 'DELETE FROM invites WHERE uid = ?', 'DELETE FROM users WHERE id = ?'].map(q => env.DB.prepare(q).bind(id)));
+  'DELETE FROM lists WHERE uid = ?', 'DELETE FROM invites WHERE uid = ?', 'DELETE FROM tokens WHERE uid = ?', 'DELETE FROM users WHERE id = ?'].map(q => env.DB.prepare(q).bind(id)));
 on('POST', '/api/delete', async (req, env, u) => {
   const b = await body(req, 2000), row = await env.DB.prepare('SELECT pw FROM users WHERE id = ?').bind(u.id).first();
   if (!KEY.test(String(b.key || '')) || !await keyOk(b.key, row.pw, env)) return fail('wrong', 401);
@@ -663,7 +789,7 @@ on('GET', '/api/admin', async (req, env, u) => {
   if (!isOwner(env, u)) return fail('none', 404);
   const all = q => env.DB.prepare(q).all().then(r => r.results || []);
   const [users, sess, profs, kv, cfg, fol, fby, rx, ls] = await Promise.all([
-    all('SELECT id, username, name, av, created, banned, invited_by FROM users ORDER BY created'),
+    all("SELECT id, username, name, av, created, banned, invited_by, email != '' AS em FROM users ORDER BY created"),
     all('SELECT uid, MAX(seen) AS seen, COUNT(*) AS n FROM sessions GROUP BY uid'),
     all('SELECT uid, public, updated FROM profiles'),
     // a diary entry: a date under v:<entry> or a film ticked in a plan (a key with no prefix); seen without a date: wx:
@@ -686,7 +812,7 @@ on('GET', '/api/admin', async (req, env, u) => {
       public: !!(p && p.public), diary: !!(p && p.public) && c.pubdiary !== '0', plan: typeof c.plan === 'string' ? c.plan : '', lb: !!c.lb,
       entries: +k.entries || 0, reviews: +k.reviews || 0, seenOnly: +k.seen || 0, wl: +k.wl || 0,
       following: +(F1.get(x.id) || {}).n || 0, followers: +(F2.get(x.id) || {}).n || 0, lists: +l.n || 0, publicLists: +l.pub || 0,
-      banned: +x.banned || 0, invitedBy: nameOf.get(x.invited_by) || '', owner: owners(env).includes(x.username)};
+      banned: +x.banned || 0, invitedBy: nameOf.get(x.invited_by) || '', owner: owners(env).includes(x.username), email: !!x.em};
   });
   const [SET, inv, cm] = await Promise.all([siteSettings(env),
     all(`SELECT i.code, i.created, i.expires, i.uses, i.max, x.username FROM invites i JOIN users x ON x.id = i.uid WHERE i.revoked = 0 AND i.expires > ${now} AND i.uses < i.max ORDER BY i.created DESC LIMIT 200`),
@@ -793,6 +919,33 @@ on('DELETE', '/api/admin/news/(\\d{1,12})', async (req, env, u, m) => {
   if (!isOwner(env, u)) return fail('none', 404);
   await env.DB.prepare('DELETE FROM news WHERE id = ?').bind(+m[1]).run();
   return json({ok: true});
+}, {auth: true});
+// how the site is doing: requests per hour for two weeks (errors, slow ones), the latest errors, the database's size,
+// and Cloudflare's free limits to measure them against (requests and reads reset at midnight UTC)
+on('GET', '/api/admin/health', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  const now = Date.now(), all = (q, ...a) => env.DB.prepare(q).bind(...a).all().then(r => r.results || []);
+  await env.DB.batch([env.DB.prepare('DELETE FROM health WHERE hour < ?').bind(Math.floor(now / 36e5) - 24 * 90), env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now - 30 * DAY)]);
+  const [hours, errors, rows, sz] = await Promise.all([
+    all('SELECT hour, n, errs, slow, ms FROM health WHERE hour >= ? ORDER BY hour', Math.floor(now / 36e5) - 24 * 14),
+    all('SELECT at, method, path, status, code, msg FROM errors ORDER BY at DESC LIMIT 60'),
+    all(`SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM sessions) AS sessions, (SELECT COUNT(*) FROM kv) AS kv,
+      (SELECT COUNT(*) FROM reacts) AS reacts, (SELECT COUNT(*) FROM lists) AS lists, (SELECT COUNT(*) FROM follows) AS follows`),
+    // D1 says how big the database is after each query
+    env.DB.prepare('SELECT 1').run().catch(() => null),
+  ]);
+  return json({at: now, hours, errors, rows: rows[0] || {}, size: (sz && sz.meta && +sz.meta.size_after) || 0, mail: mailOn(env),
+    limits: {requests: 100000, reads: 5e6, writes: 1e5, storage: 5e9}}, 200, {'cache-control': 'private, no-store'});
+}, {auth: true});
+// a test email to the owner's own confirmed address: is sending set up right?
+on('POST', '/api/admin/mailtest', async (req, env, u) => {
+  if (!isOwner(env, u)) return fail('none', 404);
+  if (!mailOn(env)) return fail('nomail', 503);
+  const x = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(u.id).first();
+  if (!x || !x.email) return fail('noemail', 400);
+  try { await sendMail(env, x.email, siteName(env) + ' can send email', `This is a test from Your site. Password-reset emails will come from the same address.`); }
+  catch (e) { await noteError(env, 'POST', '/api/admin/mailtest', 'mail', e.message); return fail('mailfail', 502); }
+  return json({to: x.email});
 }, {auth: true});
 on('POST', '/api/admin/revoke', async (req, env, u) => {
   if (!isOwner(env, u)) return fail('none', 404);
@@ -917,8 +1070,7 @@ on('GET', '/api/tmdb(/.*)', async (req, env, u, m) => {
   return res;
 }, {auth: true});
 
-export async function handle(req, env) {
-  const path = new URL(req.url).pathname;
+async function route(req, env, path) {
   try {
     if (!env.DB) return fail('nodb', 500);
     await init(env.DB);
@@ -933,7 +1085,25 @@ export async function handle(req, env) {
   } catch (e) {
     if (e && e.status) return fail(e.message, e.status);
     console.error(e && e.stack || e);
-    return fail('server', 500);
+    return Object.assign(fail('server', 500), {crash: String(e && e.message || e)});
   }
 }
-export const onRequest = ctx => handle(ctx.request, ctx.env);
+// every request counted in its hour (and how long it took); a failure on the site's side kept with what it was
+async function record(env, method, path, res, ms) {
+  try {
+    const bad = res.status >= 500, st = [env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, 1, ?, ?, ?)
+      ON CONFLICT(hour) DO UPDATE SET n = n + 1, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(Math.floor(Date.now() / 36e5), bad ? 1 : 0, ms > 3000 ? 1 : 0, ms)];
+    if (bad) {
+      const j = await res.clone().json().catch(() => ({}));
+      st.push(env.DB.prepare('INSERT INTO errors (at, method, path, status, code, msg) VALUES (?, ?, ?, ?, ?, ?)').bind(Date.now(), method, path.slice(0, 160), res.status, String(j.error || ''), String(res.crash || '').slice(0, 500)));
+    }
+    await env.DB.batch(st);
+  } catch (e) {}
+}
+export async function handle(req, env, ctx) {
+  const path = new URL(req.url).pathname, t0 = Date.now();
+  const res = await route(req, env, path);
+  if (env.DB && ready) { const p = record(env, req.method, path, res, Date.now() - t0); if (ctx && ctx.waitUntil) ctx.waitUntil(p); else await p; }
+  return res;
+}
+export const onRequest = ctx => handle(ctx.request, ctx.env, ctx);
