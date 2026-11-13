@@ -1748,3 +1748,7 @@ a.fx-pg:active{transform:scale(.97)}
 .fx[dir] .fx-card h2.nw-t{margin:2px 0 4px; font-family:var(--display); font-size:22px; font-weight:800; font-stretch:118%; line-height:1.15; letter-spacing:-.02em; color:var(--ink); text-transform:none}
 .fx .fx-card.nw-card{gap:6px; padding-inline-start:16px; box-shadow:inset 3px 0 0 var(--osd)}
 .nw-post{gap:6px}
+/* a field's own error, and the hint while a username is typed */
+.fx-field input[aria-invalid="true"]{box-shadow:0 0 0 2px var(--bad); border-color:var(--bad)}
+.fx-ferr, .fx-fhint{display:block; margin-top:6px; font-size:13px; line-height:1.4; color:var(--bad)}
+.fx-fhint[hidden]{display:none}

@@ -755,17 +755,17 @@ on('POST', '/api/admin/settings', async (req, env, u) => {
 }, {auth: true});
 // news: what's new on the site, written by its owner; every member reads it on Home
 // the first post, written once when there's no news yet, in the owner's name (theirs to edit or delete)
-const FIRST_POST = {title: 'Bring your friends', body: `TVC15 has always been invitation-only. Now every member can do the inviting.
+const FIRST_POST = {title: 'Bring your friends', body: `TVC15 is still invite-only, but now any member can send invites.
 
-Open the menu under your picture and choose Invite friends. Make a link and send it however you like: it lets one person join, it works for two weeks, and it opens the sign-up page with your name on it. Changed your mind? Take it back any time before it’s used.
+Open the menu under your picture and tap Invite friends. Each link works for one person for two weeks, and their sign-up page shows it came from you. Changed your mind? Take it back before it’s used.
 
-Also new this month:
+Also new:
 
-- Lists, ranked or not, public or private. A public list opens for anyone with its link, account or not.
-- Popular: what the people you follow, or everyone here, watched most this week, this month, this year or ever.
-- Themes in Discover: thirty-four ways in, from Queer Cinema and folk horror to road movies, trains and films about films.
-- World Cinema, a new collection, and close to 15,000 films in the catalog.
-- A name opens a profile, a poster opens the film, a date or a rating opens the diary entry. And Back goes back.
+- Lists: ranked or unranked, public or private. Share a public list with anyone, account or not.
+- Popular: what your friends, or everyone here, watched most this week, this month, this year or all time.
+- Themes in Discover: 34 ways in, from Queer Cinema and folk horror to road movies and films about films.
+- World Cinema, a new collection, and nearly 15,000 films in the catalog.
+- Tap a name for the profile, a poster for the film, a date or rating for the diary entry. And Back now takes you back.
 
 Happy watching.`};
 async function seedNews(env) {

@@ -66,8 +66,8 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   const x = await dev('X');
   await x.goto(B + '/'); await x.waitForSelector('form[data-auth]');
   await x.fill('input[name=u]', 'danial'); await x.fill('input[name=p]', 'wrong pass');
-  await x.click('form[data-auth] button[type=submit]'); await x.waitForSelector('.fx-note.bad', {timeout: 15000});
-  ok(/Wrong username or password/.test(await text(x, '.fx-note.bad')), 'wrong password says so', await text(x, '.fx-note.bad'));
+  await x.click('form[data-auth] button[type=submit]'); await x.waitForSelector('.fx-ferr', {timeout: 15000});
+  ok(/Wrong username or password/.test(await text(x, '.fx-ferr')), 'wrong password says so', await text(x, '.fx-ferr'));
 
   // Sara: English, sample plan, a couple of films Danial has too
   const s = await dev('S');

@@ -95,8 +95,11 @@ const CloudSync = (() => {
     if (r.status === 401) { me = null; return null; }
     return me;
   }
+  // the last sign-in or sign-up error's code, so the form can point at the field it's about
+  let lastCode = '';
   async function login(username, password) {
     const r = await api('POST', '/login', {username, key: await stretch(username, password)});
+    lastCode = r.ok ? '' : r.code || 'other';
     if (!r.ok) return say(r.code);
     signedIn(r.j.me); return null;
   }
@@ -104,6 +107,7 @@ const CloudSync = (() => {
   let lastKey = '';
   async function signup(username, password, name, code) {
     const r = await api('POST', '/signup', {username, key: await stretch(username, password), name, code});
+    lastCode = r.ok ? '' : r.code || 'other';
     if (!r.ok) return say(r.code);
     lastKey = r.j.rk || ''; signedIn(r.j.me); return null;
   }
@@ -178,7 +182,7 @@ const CloudSync = (() => {
     // the films the most members watched lately: who 'friends' or 'everyone'; span week, month, year, all or auto
     popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
     // the owner's page: the site's numbers and every account
-    admin: () => api('GET', '/admin'),
+    admin: () => api('GET', '/admin'), errCode: () => lastCode,
     adminDo: (what, o) => api('POST', '/admin/' + what, o),
     // invite links: yours, a new one, taking one back; who a link is from
     invites: {mine: () => api('GET', '/invites'), make: () => api('POST', '/invites', {}), revoke: c => api('DELETE', '/invites/' + c), who: c => api('GET', '/invite/' + c)},

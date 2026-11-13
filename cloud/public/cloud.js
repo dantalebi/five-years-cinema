@@ -59,12 +59,15 @@
   };
 
   // ================= signed out =================
-  let authMode = 'in', authNote = '', cfg = null, join = null;  // join: an invite link being used ({code, by})
+  let authMode = 'in', authNote = '', cfg = null, join = null, authVals = {}, authField = '';  // join: an invite link being used ({code, by})
   async function authScreen() {
     fresh();
     if (!cfg) { const r = await CloudSync.config(); cfg = r.ok ? r.j : {}; }
     const t = T(), up = authMode === 'up';
     if (authMode === 'rec') { recoverScreen(); return; }
+    // an error belongs to the field it's about: said under it, and the field marked
+    const bad = k => authField === k && authNote ? ' aria-invalid="true"' : '';
+    const fieldNote = k => authField === k && authNote ? `<small class="fx-ferr" role="alert">${esc(authNote)}</small>` : (k === 'u' && up ? '<small class="fx-fhint" data-uhint hidden></small>' : '');
     // an invite link: who it's from (or that it's no good); sign-ups closed; where to ask for an invite
     if (join && join.by === undefined) { const r = await CloudSync.invites.who(join.code); join.by = r.ok ? r.j.by : null; }
     const inviter = join && join.by ? `<p class="fx-card au-inv">${typeof fxAvatar === 'function' ? fxAvatar(join.by.username, join.by.name, join.by.av, 'm') : ''}<span><b dir="auto">${esc(join.by.name || '@' + join.by.username)}</b> invited you to ${esc(C.siteName || 'TVC15')}. Choose a username and a password, and you’re in.</span></p>`
@@ -81,34 +84,55 @@
     shell(`<header class="fx-head fx-authhead">${typeof FX_BRAND !== 'undefined' ? `${FX_BRAND.mark({h: 64, id: 'auth', cls: 'fx-authmark'})}<h1 class="fx-authword">${FX_BRAND.word({h: 40})}</h1>` : `<h1 class="fx-h1">${esc(t.site)}</h1>`}<p class="fx-lede">${esc(t.tag)}</p>${t.about ? `<p class="fx-muted fx-small fx-about">${esc(t.about)}</p>` : ''}</header>
       ${up ? inviter : ''}<div class="fx-years fx-seg fx-authtabs" role="tablist"><button type="button" role="tab" data-amode="in" aria-pressed="${!up}">${t.signin}</button><button type="button" role="tab" data-amode="up" aria-pressed="${up}">${t.signup}</button></div>
       <form class="fx-card fx-authf" data-auth="${authMode}" novalidate>
-        <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="${esc(t.userPh)}"></label>
+        <label class="fx-field"><span>${t.user}</span><input name="u" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required maxlength="24" placeholder="${esc(t.userPh)}"${bad('u')}>${fieldNote('u')}</label>
         ${up ? `<label class="fx-field"><span>${t.name}</span><input name="n" type="text" dir="auto" maxlength="60" autocomplete="name" placeholder="${esc(t.namePh)}"></label>` : ''}
-        <label class="fx-field"><span>${up ? t.passNew : t.pass}</span><input name="p" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" required ${up ? 'minlength="8"' : ''}></label>
-        ${up && cfg.code && !join ? `<label class="fx-field"><span>${t.code}</span><input name="c" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>` : ''}
+        <label class="fx-field"><span>${up ? t.passNew : t.pass}</span><input name="p" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" required ${up ? 'minlength="8"' : ''}${bad('p')}>${fieldNote('p')}</label>
+        ${up && cfg.code && !join ? `<label class="fx-field"><span>${t.code}</span><input name="c" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required${bad('c')}>${fieldNote('c')}</label>` : ''}
         ${up && join ? `<input type="hidden" name="c" value="${esc(join.code)}">` : ''}
         ${up ? `<label class="fx-check"><input type="checkbox" name="pub" checked> ${t.pub}</label>` : ''}
         <div class="fx-row"><button type="submit" class="fx-btn primary">${up ? t.make : t.go}</button></div>
-        ${authNote ? `<p class="fx-note ${authNote === t.working ? 'busy' : 'bad'}">${esc(authNote)}</p>` : ''}
+        ${authNote && !authField ? `<p class="fx-note ${authNote === t.working ? 'busy' : 'bad'}">${esc(authNote)}</p>` : ''}
         ${up ? '' : `<p class="fx-small"><button type="button" class="fx-link" data-amode="rec">Forgot your password?</button></p>`}
         <p class="fx-muted fx-small">${t.privacy}</p>
       </form>${ask}
       <p class="fx-muted fx-small fx-authfoot"><a href="/about">About ${esc(C.siteName || 'TVC15')} and your privacy</a></p>`, 'fx-auth');
     root.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authScreen(); }
+      if (b.dataset.amode) { authMode = b.dataset.amode; authNote = ''; authField = ''; authScreen(); }
+    });
+    // what was typed before an error, back in place; the field the error's about, ready to fix
+    const F = root.querySelector('form[data-auth]');
+    ['u', 'n', 'c', 'p'].forEach(k => { const el = F.elements[k]; if (el && el.type !== 'hidden' && authVals[k]) el.value = authVals[k]; });
+    if (authField && F.elements[authField]) { const el = F.elements[authField]; el.focus(); if (el.select && authField !== 'p') el.select(); }
+    // fixing the field clears its error; a username's rules are said while it's typed, before anything is sent
+    if (authField && F.elements[authField]) F.elements[authField].addEventListener('input', () => { const el = F.elements[authField], n = el && el.parentNode.querySelector('.fx-ferr'); if (n) n.remove(); if (el) el.removeAttribute('aria-invalid'); }, {once: true});
+    const uh = F.querySelector('[data-uhint]');
+    if (uh) F.elements.u.addEventListener('input', () => {
+      const v = F.elements.u.value, ch = /[^A-Za-z0-9_]/.exec(v);
+      const msg = ch ? (ch[0] === ' ' ? 'No spaces. Use letters, numbers and underscores (_).' : `“${ch[0]}” can’t be used. Use letters, numbers and underscores (_).`) : '';
+      uh.textContent = msg; uh.hidden = !msg; if (msg) F.elements.u.setAttribute('aria-invalid', 'true'); else F.elements.u.removeAttribute('aria-invalid');
     });
     root.querySelector('form[data-auth]').addEventListener('submit', async e => {
       e.preventDefault();
       const f = e.target, u = f.elements.u.value.trim().toLowerCase(), p = f.elements.p.value, t2 = T();
+      // what was typed stays typed, whatever goes wrong
+      authVals = {u: f.elements.u.value, n: f.elements.n ? f.elements.n.value : '', c: f.elements.c && f.elements.c.type !== 'hidden' ? f.elements.c.value : '', p};
+      if (authMode === 'up' && !/^[a-z0-9_]{3,24}$/.test(u)) { authNote = CloudSync.say('username'); authField = 'u'; authScreen(); return; }
       if (!u || !p) return;
-      if (authMode === 'up' && p.length < 8) { authNote = t2.short; authScreen(); return; }
+      if (authMode === 'up' && p.length < 8) { authNote = t2.short; authField = 'p'; authScreen(); return; }
       const note = f.querySelector('.fx-note') || f.appendChild(Object.assign(document.createElement('p'), {className: 'fx-note busy'}));
       note.className = 'fx-note busy'; note.textContent = t2.working;
       f.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
       const name = authMode === 'up' ? f.elements.n.value.trim() : '', pub = authMode === 'up' && f.elements.pub.checked;
       const err = authMode === 'up' ? await CloudSync.signup(u, p, name, f.elements.c ? f.elements.c.value.trim() : '') : await CloudSync.login(u, p);
-      if (err) { authNote = err; authScreen(); return; }
-      authNote = '';
+      if (err) {
+        const c = CloudSync.errCode();
+        authField = {username: 'u', taken: 'u', suspended: 'u', none: 'u', wrong: 'p', code: 'c'}[c] || '';
+        if (authField === 'c' && !f.elements.c) authField = '';
+        if (c === 'wrong') authVals.p = '';  // a wrong password is typed again
+        authNote = err; authScreen(); return;
+      }
+      authNote = ''; authField = ''; authVals = {};
       if (join) { join = null; history.replaceState(null, '', '/'); }
       await Store.load();
       if (authMode === 'up') {
@@ -239,12 +263,16 @@
         } else {
           const txt = await f.text(), r = FXLB.fromCsv(txt);
           if (r) rows = rows.concat(r);
-          else if (/^watched\.csv$/i.test(f.name)) fw.w = txt; else if (/^ratings\.csv$/i.test(f.name)) fw.r = txt; else if (/^films\.csv$/i.test(f.name)) fw.l = txt; else if (/^watchlist\.csv$/i.test(f.name)) fw.wl = txt;
+          else {
+            // a file downloaded twice comes out as "watchlist (1).csv" or "watchlist-1.csv"
+            const nm = f.name.toLowerCase().replace(/(\s*\(\d+\)|[-_ ]\d+)?\.csv$/, '.csv');
+            if (nm === 'watched.csv') fw.w = txt; else if (nm === 'ratings.csv') fw.r = txt; else if (nm === 'films.csv') fw.l = txt; else if (nm === 'watchlist.csv') fw.wl = txt;
+          }
         }
       }
       const films = FXLB.fromFilms(fw.w, fw.r, fw.l) || [];
-      const wlN = fw.wl && FR ? importWatchlist(fw.wl) : 0;
-      if (!rows.length && !films.length) return wlN ? {added: 0, ticked: 0, merged: 0, wl: wlN} : {bad: true};
+      const wlN = fw.wl && FR ? importWatchlist(fw.wl) : null;  // null: no watchlist.csv (or not one)
+      if (!rows.length && !films.length) return wlN != null ? {added: 0, ticked: 0, merged: 0, wl: wlN} : {bad: true};
       const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
       rows.forEach(r => { if (!isPlan(r)) { const k = FXLB.norm(r.t) + '|' + r.y; (need[k] = need[k] || []).push(r); } });
       const keys = Object.keys(need); let done = 0;
@@ -266,16 +294,18 @@
       const fr = FXLB.mergeFilms(films, Store.data, D.F);
       fr.sets.forEach(([kk, v]) => Store.set(kk, v));
       enrichSoon();
-      return Object.assign(res, {liked: fr.liked, undated: fr.undated});
+      return Object.assign(res, {liked: fr.liked, undated: fr.undated, wl: wlN});
     },
   };
   // Letterboxd's watchlist.csv → your watchlist here (films you've already seen are left out)
   function importWatchlist(text) {
-    const rows = FXLB.csv(text), hi = rows.findIndex(r => r.includes('Name') && r.includes('Year')); if (hi < 0) return 0;
+    const rows = FXLB.csv(text), hi = rows.findIndex(r => r.includes('Name') && r.includes('Year')); if (hi < 0) return null;
     const H = rows[hi], cN = H.indexOf('Name'), cY = H.indexOf('Year'), cD = H.indexOf('Date');
     const seen = new Set(); try { fxDiary(window.D, Store.data).concat(fxWatched(window.D, Store.data)).forEach(e => seen.add(norm(String(e.t).replace(/\s*\(\d{4}\)\s*$/, '')) + '|' + (+e.y || 0))); } catch (e) {}
+    // already on the watchlist, under its TMDB id since an earlier import: importing the same file again adds only what's new
+    Object.keys(Store.data).forEach(k => { if (k.startsWith('wl:') && Store.data[k]) try { const o = JSON.parse(Store.data[k]); if (o && o.t) seen.add(norm(o.t) + '|' + (+o.y || 0)); } catch (e) {} });
     let n = 0;
-    rows.slice(hi + 1).slice(0, 3000).forEach(r => {
+    rows.slice(hi + 1).slice(0, 20000).forEach(r => {
       const t = String(r[cN] || '').trim(), y = +(r[cY] || 0) || 0; if (!t || seen.has(norm(t) + '|' + y)) return;
       const k = FR.wl.key({t, y, tm: 0}); if (Store.data[k]) return;
       Store.set(k, JSON.stringify({t, y, tm: 0, p: '', u: '', at: Date.parse(r[cD] || '') || Date.now()})); n++;
@@ -286,7 +316,7 @@
   let enriching = false; const tried = new Set();
   async function enrichSome() {
     if (enriching || !window.D) return;
-    enriching = true; let n = 0;
+    enriching = true; let n = 0, more = false;
     try {
       const bare = Object.keys(Store.data).filter(k => /^wx:[^:]+$/.test(k) && String(Store.data[k]).startsWith('t:') && !Store.data['md:' + k] && !tried.has('md:' + k));
       await pool(bare, 3, async k => {
@@ -309,8 +339,30 @@
           if (++n % 10 === 0 && FX) FX.render();
         } catch (e) {}
       });
+      // watchlist films brought in from Letterboxd with only a title and year: their TMDB id and poster, from the
+      // catalog when it has them, else from TMDB (a few hundred a visit, so a big watchlist fills in over a few)
+      const allBare = Object.keys(Store.data).filter(k => k.startsWith('wl:') && !/^wl:tm\d+$/.test(k) && Store.data[k] && !tried.has(k)), bareWl = allBare.slice(0, 400);
+      if (bareWl.length > 30 && typeof fxCat !== 'undefined' && !fxCat.get() && fxCat.status() === 'idle') await fxCat.load().catch(() => {});
+      const C = typeof fxCat !== 'undefined' ? fxCat.get() : null;
+      more = allBare.length > bareWl.length;
+      await pool(bareWl, 3, async k => {
+        tried.add(k);
+        let o; try { o = JSON.parse(Store.data[k]); } catch (e) { return; }
+        if (!o || !o.t || +o.tm > 0) return;
+        let tm = 0, p = '';
+        const c = C ? fxCat.find({t: o.t, y: o.y}) : null;
+        if (c && c.tm > 0) { tm = c.tm; p = c.p || ''; }
+        else { const m = await Posters.match(o.t, o.y).catch(() => null); if (m && m.id) { tm = m.id; p = m.p || ''; } }
+        if (!tm) return;
+        // under its TMDB id from now on (the key the film's page and everything else use)
+        const nk = 'wl:tm' + tm, url = /^\/[A-Za-z0-9._-]+$/.test(p) ? 'https://image.tmdb.org/t/p/w185' + p : (o.p || '');
+        if (!Store.data[nk]) Store.set(nk, JSON.stringify(Object.assign({}, o, {tm, p: url})));
+        Store.set(k, null);
+        if (++n % 25 === 0 && FX) FX.render();
+      });
     } finally { enriching = false; }
     if (n && FX) FX.render();
+    if (more) setTimeout(enrichSome, 3000);  // the rest of a big watchlist
     if (window.D) fxMetaFill(window.D, () => Store.data, Store.set, Posters).catch(() => {});
   }
   let et = null; const enrichSoon = () => { clearTimeout(et); et = setTimeout(enrichSome, 1500); };
@@ -469,7 +521,7 @@
     CloudSync.setPayload(() => {
       const out = fxShare(FX.plan(), Store.data, k => Posters.src(k));
       if (!FR || Store.data['cfg:pubdiary'] === '0' || Store.data['cfg:pubwl'] === '0') return out;
-      const o = JSON.parse(out); o.wl = FR.wl.list().slice(0, 1500).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
+      const o = JSON.parse(out); o.wl = FR.wl.list().slice(0, 6000).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
       return JSON.stringify(o);
     });
     enrichSoon(); setTimeout(lbPull, 2500);
@@ -582,7 +634,7 @@
   function ownData() {
     let d;
     try { d = JSON.parse(fxShare(FX ? FX.plan() : (window.D || {F: [], W: []}), Object.assign({}, Store.data, {'cfg:pubdiary': null}), k => Posters.src(k))); } catch (e) { d = {diary: []}; }
-    if (FR && FR.wl) d.wl = FR.wl.list().slice(0, 3000).map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
+    if (FR && FR.wl) d.wl = FR.wl.list().map(x => ({t: x.t, y: x.y || 0, tm: x.tm || 0, p: x.p || ''}));
     d.av = +((CloudSync.me() || {}).av) || 0;
     return d;
   }
