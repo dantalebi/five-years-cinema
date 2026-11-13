@@ -59,7 +59,10 @@ const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, 
   // users.banned: when the owner suspended the account (0: never); users.invited_by: who brought them in
   `ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE users ADD COLUMN invited_by INTEGER NOT NULL DEFAULT 0`,
   // users.email: a confirmed address for password resets (optional; '' for none)
-  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`];
+  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''`,
+  // health.rr / rw: database rows read and written (D1's free plan allows 5 million and 100,000 a day)
+  `ALTER TABLE health ADD COLUMN rr INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE health ADD COLUMN rw INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE hroutes ADD COLUMN rr INTEGER NOT NULL DEFAULT 0`, `ALTER TABLE hroutes ADD COLUMN rw INTEGER NOT NULL DEFAULT 0`];
 // indexes on those columns, once they're there
 const AFTER = [`CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email) WHERE email != ''`];
 let ready = null;
@@ -400,6 +403,7 @@ on('POST', '/api/delete', async (req, env, u) => {
 
 // sync: send what changed here, get back what changed elsewhere. Each change is [key, value, ms]; newest ms wins.
 // `seq` is the server's own order of arrival, so a device asks for everything after the last seq it saw.
+const KEYS = new Map();  // account → {n: how many keys it has (about), at: when counted}
 on('POST', '/api/sync', async (req, env, u) => {
   if (memLimited('sync:' + u.id, 120, 60e3)) return fail('slow', 429);
   const b = await body(req, 1.2e6), since = Math.max(0, +b.since || 0), changes = Array.isArray(b.changes) ? b.changes : [];
@@ -415,9 +419,13 @@ on('POST', '/api/sync', async (req, env, u) => {
     stmts.push(env.DB.prepare(`INSERT INTO kv (uid, k, v, ms, seq) VALUES (?, ?, ?, ?, MAX(?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM kv WHERE uid = ?))) ON CONFLICT(uid, k) DO UPDATE SET
       v = excluded.v, ms = excluded.ms, seq = excluded.seq WHERE excluded.ms > kv.ms`).bind(u.id, c[0], v, Math.floor(+c[2]), base + i, u.id));
   }
-  if (stmts.length >= 100) {  // a big import: keep each account to a sane size
-    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM kv WHERE uid = ?').bind(u.id).first();
-    if (n.n + stmts.length > 80000) return fail('full', 413);
+  // a big import: keep each account to a sane size. Counting an account's keys reads every one of them (and D1 counts
+  // each row read against the day's limit), so it's counted at most every half hour, with what's added since kept here
+  if (stmts.length >= 100) {
+    let c = KEYS.get(u.id);
+    if (!c || Date.now() - c.at > 30 * 60e3) { const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM kv WHERE uid = ?').bind(u.id).first(); c = {n: +n.n || 0, at: Date.now()}; if (KEYS.size > 2000) KEYS.clear(); KEYS.set(u.id, c); }
+    if (c.n + stmts.length > 80000) return fail('full', 413);
+    c.n += stmts.length;
   }
   if (stmts.length) await env.DB.batch(stmts);
   const rows = (await env.DB.prepare('SELECT k, v, ms, seq FROM kv WHERE uid = ? AND seq > ? ORDER BY seq LIMIT 1000').bind(u.id, since).all()).results || [];
@@ -820,16 +828,28 @@ on('GET', '/api/popular', async (req, env, u) => {
 // anyone wrote, and nothing from a private diary but how many entries it has ----
 on('GET', '/api/admin', async (req, env, u) => {
   if (!isOwner(env, u)) return fail('none', 404);
+  return adminNow(env, u, new URL(req.url).searchParams.get('fresh') === '1');
+}, {auth: true});
+// each account's counts of entries, reviews and so on read every key on the site, so they're kept a few minutes
+// (fresh: after a change made on the page); everything else on the page is read as it is
+async function kvCounts(env, key, q, fresh) {
+  const hit = !fresh && await env.DB.prepare('SELECT v, at FROM cache WHERE k = ?').bind(key).first();
+  if (hit && Date.now() - hit.at < 3 * 60e3) { try { return JSON.parse(hit.v); } catch (e) {} }
+  const rows = (await env.DB.prepare(q).all()).results || [];
+  await env.DB.prepare('INSERT INTO cache (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(key, JSON.stringify(rows), Date.now()).run();
+  return rows;
+}
+async function adminNow(env, u, fresh) {
   const all = q => env.DB.prepare(q).all().then(r => r.results || []);
   const [users, sess, profs, kv, cfg, fol, fby, rx, ls] = await Promise.all([
     all("SELECT id, username, name, av, created, banned, invited_by, email != '' AS em FROM users ORDER BY created"),
     all('SELECT uid, MAX(seen) AS seen, COUNT(*) AS n FROM sessions GROUP BY uid'),
     all('SELECT uid, public, updated FROM profiles'),
     // a diary entry: a date under v:<entry> or a film ticked in a plan (a key with no prefix); seen without a date: wx:
-    all(`SELECT uid, SUM(CASE WHEN (k LIKE 'v:%' OR instr(k, ':') = 0) AND v LIKE '"____-__-__"' THEN 1 ELSE 0 END) AS entries,
+    kvCounts(env, 'admin-kv', `SELECT uid, SUM(CASE WHEN (k LIKE 'v:%' OR instr(k, ':') = 0) AND v LIKE '"____-__-__"' THEN 1 ELSE 0 END) AS entries,
       SUM(CASE WHEN k LIKE 'rv:%' THEN 1 ELSE 0 END) AS reviews, SUM(CASE WHEN k LIKE 'wx:%' THEN 1 ELSE 0 END) AS seen,
-      SUM(CASE WHEN k LIKE 'wl:%' THEN 1 ELSE 0 END) AS wl, MAX(ms) AS last FROM kv WHERE v IS NOT NULL AND v != 'null' GROUP BY uid`),
-    all(`SELECT uid, k, v FROM kv WHERE k IN ('cfg:plan', 'cfg:pubdiary', 'cfg:pubwl', 'cfg:lb') AND v IS NOT NULL`),
+      SUM(CASE WHEN k LIKE 'wl:%' THEN 1 ELSE 0 END) AS wl, MAX(ms) AS last FROM kv WHERE v IS NOT NULL AND v != 'null' GROUP BY uid`, fresh),
+    kvCounts(env, 'admin-cfg', `SELECT uid, k, v FROM kv WHERE k IN ('cfg:plan', 'cfg:pubdiary', 'cfg:pubwl', 'cfg:lb') AND v IS NOT NULL`, fresh),
     all('SELECT a AS uid, COUNT(*) AS n FROM follows GROUP BY a'),
     all('SELECT b AS uid, COUNT(*) AS n FROM follows GROUP BY b'),
     all('SELECT kind, COUNT(*) AS n FROM reacts GROUP BY kind'),
@@ -862,7 +882,7 @@ on('GET', '/api/admin', async (req, env, u) => {
     hearts: R.h || 0, comments: R.c || 0, seenToo: R.s || 0, wants: R.w || 0}, months,
     settings: SET, invites: inv.map(i => ({code: i.code, by: i.username, created: i.created, expires: i.expires})),
     comments: cm.map(c => ({id: c.id, text: c.text, film: c.ft || '', at: c.at, by: c.by, on: c.ownr}))}, 200, {'cache-control': 'private, no-store'});
-}, {auth: true});
+}
 // the owner's controls. Nothing here can touch another owner's account
 async function target(env, u, name) {
   if (!isOwner(env, u)) return null;
@@ -960,17 +980,15 @@ on('GET', '/api/admin/health', async (req, env, u) => {
   await flushHealth(env, true);
   const now = Date.now(), all = (q, ...a) => env.DB.prepare(q).bind(...a).all().then(r => r.results || []), h0 = Math.floor(now / 36e5);
   await env.DB.batch([env.DB.prepare('DELETE FROM health WHERE hour < ?').bind(h0 - 24 * 90), env.DB.prepare('DELETE FROM hroutes WHERE hour < ?').bind(h0 - 24 * 30), env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now - 30 * DAY)]);
-  const [hours, errors, rows, sz, heavy] = await Promise.all([
-    all('SELECT hour, n, errs, slow, ms FROM health WHERE hour >= ? ORDER BY hour', Math.floor(now / 36e5) - 24 * 14),
+  const [hours, errors, sz, heavy] = await Promise.all([
+    all('SELECT hour, n, errs, slow, ms, rr, rw FROM health WHERE hour >= ? ORDER BY hour', Math.floor(now / 36e5) - 24 * 14),
     all('SELECT at, method, path, status, code, msg FROM errors ORDER BY at DESC LIMIT 60'),
-    all(`SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM sessions) AS sessions, (SELECT COUNT(*) FROM kv) AS kv,
-      (SELECT COUNT(*) FROM reacts) AS reacts, (SELECT COUNT(*) FROM lists) AS lists, (SELECT COUNT(*) FROM follows) AS follows`),
     // D1 says how big the database is after each query
     env.DB.prepare('SELECT 1').run().catch(() => null),
     // the kinds of request that took the most time in the last day
-    all('SELECT route, SUM(n) AS n, SUM(errs) AS errs, SUM(slow) AS slow, SUM(ms) AS ms FROM hroutes WHERE hour > ? GROUP BY route ORDER BY SUM(ms) DESC LIMIT 8', h0 - 24),
+    all('SELECT route, SUM(n) AS n, SUM(errs) AS errs, SUM(slow) AS slow, SUM(ms) AS ms, SUM(rr) AS rr, SUM(rw) AS rw FROM hroutes WHERE hour > ? GROUP BY route ORDER BY SUM(ms) DESC LIMIT 8', h0 - 24),
   ]);
-  return json({at: now, hours, errors, heavy, rows: rows[0] || {}, size: (sz && sz.meta && +sz.meta.size_after) || 0, mail: mailOn(env),
+  return json({at: now, hours, errors, heavy, size: (sz && sz.meta && +sz.meta.size_after) || 0, mail: mailOn(env),
     limits: {requests: 100000, reads: 5e6, writes: 1e5, storage: 5e9}}, 200, {'cache-control': 'private, no-store'});
 }, {auth: true});
 // a test email to the owner's own confirmed address: is sending set up right?
@@ -1131,25 +1149,34 @@ async function route(req, env, path, meta) {
 // server instance's memory and written every 15 seconds or so (not a database write per request); a failure on the
 // site's side is kept at once, with what it was
 const HEALTH = {rows: new Map(), at: 0};
-function count(route, status, ms) {
+function count(route, status, ms, t) {
   const hour = Math.floor(Date.now() / 36e5), k = hour + '|' + route;
-  let c = HEALTH.rows.get(k); if (!c) HEALTH.rows.set(k, c = {hour, route, n: 0, errs: 0, slow: 0, ms: 0});
-  c.n++; if (status >= 500 || status === 413) c.errs++; if (ms > 3000) c.slow++; c.ms += ms;
+  let c = HEALTH.rows.get(k); if (!c) HEALTH.rows.set(k, c = {hour, route, n: 0, errs: 0, slow: 0, ms: 0, rr: 0, rw: 0});
+  c.n++; if (status >= 500 || status === 413) c.errs++; if (ms > 3000) c.slow++; c.ms += ms; c.rr += (t && t.rr) || 0; c.rw += (t && t.rw) || 0;
+}
+// the database, with each query's rows read and written added up (D1 reports them with each result; a single-row
+// lookup doesn't say, so the totals run a little low)
+function metered(db, t) {
+  const add = m => { if (m) { t.rr += +m.rows_read || 0; t.rw += +m.rows_written || 0; } };
+  const wrap = st => ({_raw: st, bind: (...a) => wrap(st.bind(...a)), first: c => st.first(c), raw: o => st.raw(o),
+    all: async () => { const r = await st.all(); add(r && r.meta); return r; }, run: async () => { const r = await st.run(); add(r && r.meta); return r; }});
+  return {prepare: q => wrap(db.prepare(q)), batch: async list => { const r = await db.batch(list.map(s => s._raw || s)); (r || []).forEach(x => add(x && x.meta)); return r; },
+    exec: q => db.exec(q), dump: () => db.dump()};
 }
 async function flushHealth(env, force) {
   if (!HEALTH.rows.size || (!force && Date.now() - HEALTH.at < 15e3)) return;
   HEALTH.at = Date.now();
   const rows = [...HEALTH.rows.values()]; HEALTH.rows.clear();
   const hours = new Map();
-  rows.forEach(r => { const h = hours.get(r.hour) || {n: 0, errs: 0, slow: 0, ms: 0}; h.n += r.n; h.errs += r.errs; h.slow += r.slow; h.ms += r.ms; hours.set(r.hour, h); });
-  const st = [...hours].map(([hour, h]) => env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(hour) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(hour, h.n, h.errs, h.slow, h.ms))
-    .concat(rows.map(r => env.DB.prepare(`INSERT INTO hroutes (hour, route, n, errs, slow, ms) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(hour, route) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms`).bind(r.hour, r.route.slice(0, 80), r.n, r.errs, r.slow, r.ms)));
+  rows.forEach(r => { const h = hours.get(r.hour) || {n: 0, errs: 0, slow: 0, ms: 0, rr: 0, rw: 0}; ['n', 'errs', 'slow', 'ms', 'rr', 'rw'].forEach(k => { h[k] += r[k]; }); hours.set(r.hour, h); });
+  const st = [...hours].map(([hour, h]) => env.DB.prepare(`INSERT INTO health (hour, n, errs, slow, ms, rr, rw) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(hour) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms, rr = rr + excluded.rr, rw = rw + excluded.rw`).bind(hour, h.n, h.errs, h.slow, h.ms, h.rr, h.rw))
+    .concat(rows.map(r => env.DB.prepare(`INSERT INTO hroutes (hour, route, n, errs, slow, ms, rr, rw) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(hour, route) DO UPDATE SET n = n + excluded.n, errs = errs + excluded.errs, slow = slow + excluded.slow, ms = ms + excluded.ms, rr = rr + excluded.rr, rw = rw + excluded.rw`).bind(r.hour, r.route.slice(0, 80), r.n, r.errs, r.slow, r.ms, r.rr, r.rw)));
   try { await env.DB.batch(st); } catch (e) {}
 }
-async function record(env, method, path, res, ms, routeLabel) {
-  count(routeLabel || 'other', res.status, ms);
+async function record(env, method, path, res, ms, routeLabel, t) {
+  count(routeLabel || 'other', res.status, ms, t);
   const bad = res.status >= 500 || res.status === 413;
   try {
     if (bad) {
@@ -1160,9 +1187,9 @@ async function record(env, method, path, res, ms, routeLabel) {
   await flushHealth(env);
 }
 export async function handle(req, env, ctx) {
-  const path = new URL(req.url).pathname, t0 = Date.now(), meta = {};
-  const res = await route(req, env, path, meta);
-  if (env.DB && ready) { const p = record(env, req.method, path, res, Date.now() - t0, meta.route); if (ctx && ctx.waitUntil) ctx.waitUntil(p); else await p; }
+  const path = new URL(req.url).pathname, t0 = Date.now(), meta = {}, t = {rr: 0, rw: 0};
+  const res = await route(req, env.DB ? Object.assign({}, env, {DB: metered(env.DB, t)}) : env, path, meta);
+  if (env.DB && ready) { const p = record(env, req.method, path, res, Date.now() - t0, meta.route, t); if (ctx && ctx.waitUntil) ctx.waitUntil(p); else await p; }
   return res;
 }
 export const onRequest = ctx => handle(ctx.request, ctx.env, ctx);

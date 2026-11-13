@@ -8,9 +8,9 @@ function fxAdmin(CS, o) {
   const U = fxCat, esc = U.esc, num = U.num;
   let got = null, at = 0, busy = false, sort = 'seen', manage = '', delAsk = '', armed = '', edit = null, note = '', hl = null, hlBusy = false, mailNote = null;
   function load(force) {
-    if (busy || (!force && got && Date.now() - at < 60e3)) return;
+    if (busy || (!force && got && Date.now() - at < 5 * 60e3)) return;
     busy = true;
-    CS.admin().then(r => { busy = false; got = r.ok ? {ok: true, j: r.j} : {ok: false, status: r.status}; at = Date.now(); if (o.redraw) o.redraw(); });
+    CS.admin(!!force).then(r => { busy = false; got = r.ok ? {ok: true, j: r.j} : {ok: false, status: r.status}; at = Date.now(); if (o.redraw) o.redraw(); });
     if (!hlBusy && CS.health) { hlBusy = true; CS.health().then(r => { hlBusy = false; hl = r.ok ? r.j : null; if (o.redraw) o.redraw(); }); }
   }
   const day = ms => new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric'}).format(new Date(ms));
@@ -74,16 +74,21 @@ function fxAdmin(CS, o) {
     const pct = v => Math.min(100, Math.round(v * 1000) / 10);
     const meter = (v, of) => `<span class="ad-meter" role="img" aria-label="${pct(v / of)}% of the free limit"><i style="width:${Math.max(v ? 1 : 0, pct(v / of))}%"></i></span>`;
     const struggling = slowNow >= 5 && slowNow / Math.max(1, nNow) > 0.05;
-    const ok = !errDay && !mailErr && !struggling && today < L.requests * 0.8;
+    // the database's day so far, against the free plan's limits (rows read and written; they start again at midnight UTC)
+    const rrDay = H.filter(x => x.hour >= h0).reduce((a, x) => a + (+x.rr || 0), 0), rwDay = H.filter(x => x.hour >= h0).reduce((a, x) => a + (+x.rw || 0), 0);
+    const dbFull = rrDay > (L.reads || 5e6) * 0.7 || rwDay > (L.writes || 1e5) * 0.7;
+    const ok = !errDay && !mailErr && !struggling && !dbFull && today < L.requests * 0.8;
     // busy hours: the average requests in each hour of the day (your time), over the last two weeks
     const by = Array(24).fill(0), days = Math.max(1, Math.min(14, Math.ceil((now - (H.length ? H[0].hour * 36e5 : now)) / 864e5)));
     H.forEach(x => { by[new Date(x.hour * 36e5).getHours()] += x.n; });
     const mx = Math.max(1, ...by), peak = by.indexOf(Math.max(...by)), hh = k => String(k).padStart(2, '0') + ':00';
     let h = `<section class="fx-card ad-sec ad-health"><h2>Site health</h2>
-      <p class="ad-status ${ok ? 'good' : 'bad'}">${ok ? 'All good.' : struggling ? `Slow right now: ${num(slowNow)} requests in the last hour took longer than 3 seconds. What’s taking the time is listed below.` : errDay ? n(errDay, 'error', 'errors') + ' in the last 24 hours. See below.' : mailErr ? 'Emails aren’t going out. See below.' : 'Close to the free limit for today.'}</p>
+      <p class="ad-status ${ok ? 'good' : 'bad'}">${ok ? 'All good.' : dbFull ? 'The database is close to today’s free limit. If it’s reached, the site stops answering until midnight UTC (3:30 in Tehran). What reads or writes the most is listed below.' : struggling ? `Slow right now: ${num(slowNow)} requests in the last hour took longer than 3 seconds. What’s taking the time is listed below.` : errDay ? n(errDay, 'error', 'errors') + ' in the last 24 hours. See below.' : mailErr ? 'Emails aren’t going out. See below.' : 'Close to the free limit for today.'}</p>
       <ul class="ad-lines">
         <li><b>${num(today)}</b><span>requests today, of ${num(L.requests)} a day on Cloudflare’s free plan (it starts again at midnight UTC)${meter(today, L.requests)}</span></li>
         <li><b>${wkN ? num(Math.round(wkMs / wkN)) + ' ms' : '—'}</b><span>for an average request this week${wkSlow ? `; ${num(wkSlow)} took longer than 3 seconds (${num(slowDay)} of them in the last day)` : ''}</span></li>
+        <li><b>${num(rrDay)}</b><span>database rows read today, of ${num(L.reads || 5e6)} a day free (about: a few small lookups aren’t counted)${meter(rrDay, L.reads || 5e6)}</span></li>
+        <li><b>${num(rwDay)}</b><span>database rows written today, of ${num(L.writes || 1e5)} a day free${meter(rwDay, L.writes || 1e5)}</span></li>
         ${hl.size ? `<li><b>${bytes(hl.size)}</b><span>database, of ${bytes(L.storage)} free${meter(hl.size, L.storage)}</span></li>` : ''}
         <li><b>${hl.mail ? 'On' : 'Off'}</b><span>${hl.mail ? 'Password-reset email is set up.' : 'Password-reset email isn’t set up yet: add RESEND_API_KEY and MAIL_FROM in Cloudflare (see SETUP.md).'}</span></li></ul>`;
     if (hl.mail) h += `<div class="fx-row"><button type="button" class="fx-btn" data-ad-mailtest>Send me a test email</button></div>${mailNote ? `<p class="fx-note ${mailNote[0]}">${esc(mailNote[1])}</p>` : ''}`;
@@ -92,7 +97,7 @@ function fxAdmin(CS, o) {
     // what took the time: each kind of request, by its total time in the last day
     const HV = (hl.heavy || []).filter(x => x.n);
     if (HV.length) h += `<h3>What takes the time</h3><p class="fx-muted ad-help">The last 24 hours, by each kind of request’s total time. When the site is slow, the top line is usually why.</p>
-      <ul class="ad-heavy">${HV.map(x => `<li><code dir="ltr">${esc(x.route)}</code><span>${n(x.n, 'request', 'requests')}, ${num(Math.round(x.ms / Math.max(1, x.n)))} ms each on average${x.slow ? `, ${num(x.slow)} slow` : ''}${x.errs ? `, ${n(x.errs, 'failed', 'failed')}` : ''}</span></li>`).join('')}</ul>`;
+      <ul class="ad-heavy">${HV.map(x => `<li><code dir="ltr">${esc(x.route)}</code><span>${n(x.n, 'request', 'requests')}, ${num(Math.round(x.ms / Math.max(1, x.n)))} ms each on average${x.slow ? `, ${num(x.slow)} slow` : ''}${x.errs ? `, ${n(x.errs, 'failed', 'failed')}` : ''}${+x.rr ? `, ${num(x.rr)} rows read` : ''}${+x.rw ? `, ${num(x.rw)} written` : ''}</span></li>`).join('')}</ul>`;
     const E = hl.errors || [];
     h += `<h3>Errors</h3>${E.length ? `<p class="fx-muted ad-help">Kept for 30 days. Each says what was asked for and what went wrong.</p><ul class="ad-errs">${E.slice(0, 20).map(e => `<li><span class="ad-ew">${esc(ago(e.at))}</span><code dir="ltr">${esc(e.method)} ${esc(e.path)}${e.status ? ' → ' + e.status : ''}${e.code ? ' ' + esc(e.code) : ''}</code>${e.msg ? `<span class="ad-em" dir="ltr">${esc(e.msg)}</span>` : ''}</li>`).join('')}</ul>` : '<p class="fx-muted">None in the last 30 days.</p>'}
       <p class="fx-muted ad-help">The database itself: Cloudflare → Workers &amp; Pages → D1 → your database → Console. Reads and writes per day are under Metrics there.</p></section>`;

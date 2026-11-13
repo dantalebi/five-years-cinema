@@ -228,7 +228,7 @@ const CloudSync = (() => {
     // the films the most members watched lately: who 'friends' or 'everyone'; span week, month, year, all or auto
     popular: (who, span, min) => api('GET', '/popular?who=' + (who === 'friends' ? 'friends' : 'everyone') + '&span=' + encodeURIComponent(span || 'week') + (min ? '&min=' + (+min) : '')),
     // the owner's page: the site's numbers and every account
-    admin: () => api('GET', '/admin'), health: () => api('GET', '/admin/health'), errCode: () => lastCode,
+    admin: fresh => api('GET', '/admin' + (fresh ? '?fresh=1' : '')), health: () => api('GET', '/admin/health'), errCode: () => lastCode,
     adminDo: (what, o) => api('POST', '/admin/' + what, o),
     // invite links: yours, a new one, taking one back; who a link is from
     invites: {mine: () => api('GET', '/invites'), make: () => api('POST', '/invites', {}), revoke: c => api('DELETE', '/invites/' + c), who: c => api('GET', '/invite/' + c)},

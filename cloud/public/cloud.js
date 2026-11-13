@@ -369,6 +369,8 @@
         }
       }
       const films = FXLB.fromFilms(fw.w, fw.r, fw.l) || [];
+      // (the catalog first: films it knows go straight under their TMDB id, with a poster, so they're written once)
+      if (fw.wl && FR && typeof fxCat !== 'undefined' && !fxCat.get() && fxCat.status() === 'idle') await fxCat.load().catch(() => {});
       const wlN = fw.wl && FR ? importWatchlist(fw.wl) : null;  // null: no watchlist.csv (or not one)
       if (!rows.length && !films.length) return wlN != null ? {added: 0, ticked: 0, merged: 0, wl: wlN} : {bad: true};
       const D = window.D, isPlan = FXLB.matcher(D.F), need = {};
@@ -405,8 +407,9 @@
     let n = 0;
     rows.slice(hi + 1).slice(0, 20000).forEach(r => {
       const t = String(r[cN] || '').trim(), y = +(r[cY] || 0) || 0; if (!t || seen.has(norm(t) + '|' + y)) return;
-      const k = FR.wl.key({t, y, tm: 0}); if (Store.data[k]) return;
-      Store.set(k, JSON.stringify({t, y, tm: 0, p: '', u: '', at: Date.parse(r[cD] || '') || Date.now()})); n++;
+      const c = typeof fxCat !== 'undefined' && fxCat.get() ? fxCat.find({t, y}) : null, tm = c && c.tm > 0 ? c.tm : 0;
+      const k = FR.wl.key({t, y, tm}); if (Store.data[k]) return;
+      Store.set(k, JSON.stringify({t, y, tm, p: tm && /^\/[A-Za-z0-9._-]+$/.test(c.p || '') ? 'https://image.tmdb.org/t/p/w185' + c.p : '', u: '', at: Date.parse(r[cD] || '') || Date.now()})); n++;
     });
     return n;
   }

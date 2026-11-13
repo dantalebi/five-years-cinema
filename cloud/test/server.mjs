@@ -16,14 +16,15 @@ class Stmt {
   bind(...a) { this.a = a; return this; }
   exec(kind) { const st = sql.prepare(this.q); return kind === 'first' ? st.get(...this.a) || null : kind === 'all' ? st.all(...this.a) : st.run(...this.a); }
   async first() { return this.exec('first'); }
-  async all() { return {results: this.exec('all')}; }
-  async run() { this.exec('run'); return {success: true}; }
+  // like D1, each result says how many rows it read and wrote (here: rows returned, rows changed)
+  async all() { const results = this.exec('all'); return {results, meta: {rows_read: results.length, rows_written: 0}}; }
+  async run() { const r = this.exec('run'); return {success: true, meta: {rows_read: 0, rows_written: +r.changes || 0}}; }
 }
 const DB = {
   prepare: q => new Stmt(q),
   async batch(list) {
     sql.exec('BEGIN');
-    try { const out = list.map(s => (/^\s*(SELECT|.*RETURNING)/is.test(s.q) ? {results: s.exec('all')} : (s.exec('run'), {success: true}))); sql.exec('COMMIT'); return out; }
+    try { const out = list.map(s => { if (/^\s*(SELECT|.*RETURNING)/is.test(s.q)) { const results = s.exec('all'); return {results, meta: {rows_read: results.length, rows_written: 0}}; } const r = s.exec('run'); return {success: true, meta: {rows_read: 0, rows_written: +r.changes || 0}}; }); sql.exec('COMMIT'); return out; }
     catch (e) { sql.exec('ROLLBACK'); throw e; }
   },
 };
