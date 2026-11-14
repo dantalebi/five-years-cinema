@@ -121,7 +121,7 @@ function fxAccount(CS, o) {
       st.note.out = null; b.disabled = true; st.menu = false;
       const r = await CS.disconnect();
       if (r === 'unsynced') { st.outWarn = true; render(); if (o.toSettings) o.toSettings(); }
-      else if (r) { st.note.out = ['bad', r]; render(); }
+      else if (r) { st.note.out = ['bad', r]; render(); if (typeof fxOSD === 'function') fxOSD('Couldn’t sign out'); if (o.toSettings) o.toSettings(); }  // said where it can be read, with the reason
       return true;
     }
     if (b.hasAttribute('data-ac-outforce')) { await CS.disconnect({force: true}); return true; }

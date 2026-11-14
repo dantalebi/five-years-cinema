@@ -72,6 +72,12 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   await p.waitForTimeout(400);
   ok(await p.$eval('.fx-offline', e => !e.hidden && /used up today’s free database allowance/.test(e.textContent) && /3:30 Tehran/.test(e.textContent)), 'the daily database limit: said, with when it’s back');
   await p.unroute('**/api/sync'); await p.evaluate(() => CloudSync.run()); await p.waitForTimeout(500);
+  // signing out when the site can't answer: it says why, where it can be read (not a button that seems to do nothing)
+  await p.route('**/api/logout', r => r.fulfill({status: 503, contentType: 'application/json', body: '{"error":"dblimit"}'}));
+  await p.click('[data-ac-menu]'); await p.click('.av-menu [data-ac-out]');
+  await p.waitForFunction(() => /free database allowance/.test(document.body.innerText) && location.pathname.startsWith('/settings'), null, {timeout: 15000}).catch(() => {});
+  ok(/free database allowance/.test(await p.evaluate(() => document.body.innerText)) && (await p.evaluate(() => location.pathname)).startsWith('/settings') && await p.evaluate(() => !!CloudSync.me()), 'a sign-out the site can’t do: the reason is shown, and you’re still in');
+  await p.unroute('**/api/logout'); await p.goto(B + '/'); await p.waitForSelector('.fx-tabbar');
   // offline: said at the top while it lasts
   await q.context().setOffline(true); await q.waitForTimeout(200);
   ok(await q.$eval('.fx-offline', e => !e.hidden && /offline/.test(e.textContent)), 'offline: a note at the top');

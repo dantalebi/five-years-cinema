@@ -7,10 +7,10 @@
 function fxAdmin(CS, o) {
   const U = fxCat, esc = U.esc, num = U.num;
   let got = null, at = 0, busy = false, sort = 'seen', manage = '', delAsk = '', armed = '', edit = null, note = '', hl = null, hlBusy = false, mailNote = null;
-  function load(force) {
+  function load(force, fresh) {  // fresh: new counts too (they read the whole site)
     if (busy || (!force && got && Date.now() - at < 5 * 60e3)) return;
     busy = true;
-    CS.admin(!!force).then(r => { busy = false; got = r.ok ? {ok: true, j: r.j} : {ok: false, status: r.status}; at = Date.now(); if (o.redraw) o.redraw(); });
+    CS.admin(!!fresh).then(r => { busy = false; got = r.ok ? {ok: true, j: r.j} : {ok: false, status: r.status}; at = Date.now(); if (o.redraw) o.redraw(); });
     if (!hlBusy && CS.health) { hlBusy = true; CS.health().then(r => { hlBusy = false; hl = r.ok ? r.j : null; if (o.redraw) o.redraw(); }); }
   }
   const day = ms => new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric'}).format(new Date(ms));
@@ -142,7 +142,10 @@ function fxAdmin(CS, o) {
     h += joining(j) + news(j);
     // everyone, public or private
     const by = {seen: (a, b) => b.seen - a.seen, joined: (a, b) => b.joined - a.joined, entries: (a, b) => b.entries - a.entries || b.seen - a.seen}[sort];
-    h += `<section class="ad-people"><div class="ad-ph"><h2>Everyone</h2>${seg('data-ad-sort', sort, [['seen', 'Last active'], ['joined', 'Newest'], ['entries', 'Most entries']])}</div><ul class="ad-list">${P.slice().sort(by).map(x => {
+    // each account's counts read every key on the site, so they're made at most every half hour (Refresh: now)
+    const cAt = j.countsAt || j.at, cOld = Math.max(0, Math.round((Date.now() - cAt) / 60e3));
+    h += `<section class="ad-people"><div class="ad-ph"><h2>Everyone</h2>${seg('data-ad-sort', sort, [['seen', 'Last active'], ['joined', 'Newest'], ['entries', 'Most entries']])}</div>
+      <p class="fx-muted ad-help">Counts ${cOld < 1 ? 'from just now' : `from ${n(cOld, 'minute', 'minutes')} ago`}. <button type="button" class="fx-link" data-ad-refresh>Refresh</button></p><ul class="ad-list">${P.slice().sort(by).map(x => {
       const who = `${typeof fxAvatar === 'function' ? fxAvatar(x.username, x.name, x.av, 'm') : ''}<span class="ad-n"><b dir="auto">${esc(x.name || x.username)}</b><small>@${esc(x.username)}</small></span>`;
       const facts = [n(x.entries, 'entry', 'entries'), x.reviews ? n(x.reviews, 'review', 'reviews') : '', x.seenOnly ? num(x.seenOnly) + ' seen without a date' : '', x.wl ? num(x.wl) + ' on the watchlist' : '',
         n(x.followers, 'follower', 'followers'), num(x.following) + ' following', x.lists ? n(x.lists, 'list', 'lists') : '', x.plan ? 'on ' + (PLAN[x.plan] || x.plan) : 'no plan yet', x.lb ? 'Letterboxd connected' : '', x.email ? 'has an email for resets' : ''].filter(Boolean);
@@ -169,6 +172,7 @@ function fxAdmin(CS, o) {
       const d = b.dataset, set = o2 => act(CS.adminDo('settings', o2));
       if (d.adSort) { sort = ['seen', 'joined', 'entries'].includes(d.adSort) ? d.adSort : 'seen'; render(); return true; }
       if (b.hasAttribute('data-ad-retry')) { got = null; load(true); render(); return true; }
+      if (b.hasAttribute('data-ad-refresh')) { load(true, true); render(); return true; }
       if (b.hasAttribute('data-ad-mailtest')) {
         mailNote = ['busy', 'Sending…']; render();
         CS.adminDo('mailtest', {}).then(r => { mailNote = r.ok ? ['ok', 'Sent to ' + r.j.to + '. Check your inbox (and spam).'] : ['bad', r.code === 'noemail' ? 'Add and confirm your own email in Settings → Account first.' : CS.say(r.code)]; render(); if (!r.ok) { hl = null; load(true); } });

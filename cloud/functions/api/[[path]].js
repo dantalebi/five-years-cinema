@@ -67,11 +67,21 @@ const COLUMNS = [`ALTER TABLE sessions ADD COLUMN ua TEXT NOT NULL DEFAULT ''`, 
 const AFTER = [`CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email) WHERE email != ''`];
 // making sure the tables are there: if the database won't take it (it can refuse writes for the rest of the day once the
 // free plan's limit is reached), the tables are there already, so requests go ahead and it's tried again in a while
+// The tables' shape has a version number, kept in settings: a server instance starting up reads that one row and, if
+// it's current, goes straight to work (one quick query, not fifty), so the first request after a quiet spell isn't slow
+const SCHEMA_V = String(SCHEMA.length + COLUMNS.length + AFTER.length) + ':' + [...SCHEMA, ...COLUMNS, ...AFTER].join('').length;
 let ready = null, readyFail = 0;
+async function setup(db) {
+  const v = await db.prepare("SELECT v FROM settings WHERE k = 'schema'").first().catch(() => null);
+  if (v && v.v === SCHEMA_V) return;
+  await db.batch(SCHEMA.map(s => db.prepare(s)));
+  await Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {})));
+  await Promise.all(AFTER.map(c => db.prepare(c).run().catch(() => {})));
+  await db.prepare("INSERT INTO settings (k, v) VALUES ('schema', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(SCHEMA_V).run();
+}
 function init(db) {
   if (ready && readyFail && Date.now() - readyFail > 5 * 60e3) { ready = null; readyFail = 0; }
-  return ready || (ready = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => Promise.all(COLUMNS.map(c => db.prepare(c).run().catch(() => {}))))
-    .then(() => Promise.all(AFTER.map(c => db.prepare(c).run().catch(() => {})))).then(() => {}, e => { readyFail = Date.now(); console.error('init', e && e.message); }));
+  return ready || (ready = setup(db).then(() => {}, e => { readyFail = Date.now(); console.error('init', e && e.message); }));
 }
 // the database's own refusals, said plainly: the free plan's daily limits (reads or writes) reached
 const dbLimit = e => /limit|exceed|quota/i.test(String(e && e.message || '')) && /D1|row|daily|day/i.test(String(e && e.message || ''));
@@ -845,10 +855,10 @@ on('GET', '/api/admin', async (req, env, u) => {
 // (fresh: after a change made on the page); everything else on the page is read as it is
 async function kvCounts(env, key, q, fresh) {
   const hit = !fresh && await env.DB.prepare('SELECT v, at FROM cache WHERE k = ?').bind(key).first();
-  if (hit && Date.now() - hit.at < 3 * 60e3) { try { return JSON.parse(hit.v); } catch (e) {} }
+  if (hit && Date.now() - hit.at < 30 * 60e3) { try { return Object.assign(JSON.parse(hit.v), {at: hit.at}); } catch (e) {} }
   const rows = (await env.DB.prepare(q).all()).results || [];
   await env.DB.prepare('INSERT INTO cache (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(key, JSON.stringify(rows), Date.now()).run();
-  return rows;
+  return Object.assign(rows, {at: Date.now()});
 }
 async function adminNow(env, u, fresh) {
   const all = q => env.DB.prepare(q).all().then(r => r.results || []);
@@ -860,7 +870,8 @@ async function adminNow(env, u, fresh) {
     kvCounts(env, 'admin-kv', `SELECT uid, SUM(CASE WHEN (k LIKE 'v:%' OR instr(k, ':') = 0) AND v LIKE '"____-__-__"' THEN 1 ELSE 0 END) AS entries,
       SUM(CASE WHEN k LIKE 'rv:%' THEN 1 ELSE 0 END) AS reviews, SUM(CASE WHEN k LIKE 'wx:%' THEN 1 ELSE 0 END) AS seen,
       SUM(CASE WHEN k LIKE 'wl:%' THEN 1 ELSE 0 END) AS wl, MAX(ms) AS last FROM kv WHERE v IS NOT NULL AND v != 'null' GROUP BY uid`, fresh),
-    kvCounts(env, 'admin-cfg', `SELECT uid, k, v FROM kv WHERE k IN ('cfg:plan', 'cfg:pubdiary', 'cfg:pubwl', 'cfg:lb') AND v IS NOT NULL`, fresh),
+    // (by account and key, so the database looks up those few rows instead of reading every one)
+    all(`SELECT uid, k, v FROM kv WHERE uid IN (SELECT id FROM users) AND k IN ('cfg:plan', 'cfg:pubdiary', 'cfg:pubwl', 'cfg:lb') AND v IS NOT NULL`),
     all('SELECT a AS uid, COUNT(*) AS n FROM follows GROUP BY a'),
     all('SELECT b AS uid, COUNT(*) AS n FROM follows GROUP BY b'),
     all('SELECT kind, COUNT(*) AS n FROM reacts GROUP BY kind'),
@@ -884,7 +895,7 @@ async function adminNow(env, u, fresh) {
     all(`SELECT r.id, r.text, r.ft, r.at, x.username AS by, o.username AS ownr FROM reacts r JOIN users x ON x.id = r.uid JOIN users o ON o.id = r.owner WHERE r.kind = 'c' ORDER BY r.at DESC LIMIT 40`)]);
   const sum = f => people.reduce((a, x) => a + f(x), 0), R = {}; rx.forEach(r => { R[r.kind] = r.n; });
   const months = {}; users.forEach(x => { const m = new Date(x.created).toISOString().slice(0, 7); months[m] = (months[m] || 0) + 1; });
-  return json({at: now, owner: u.username, people, totals: {
+  return json({at: now, countsAt: kv.at || now, owner: u.username, people, totals: {
     members: people.length, newWeek: people.filter(x => within(x.joined, 7)).length, newMonth: people.filter(x => within(x.joined, 30)).length,
     activeDay: people.filter(x => within(x.seen, 1)).length, activeWeek: people.filter(x => within(x.seen, 7)).length, activeMonth: people.filter(x => within(x.seen, 30)).length,
     publicProfiles: people.filter(x => x.public).length, publicDiaries: people.filter(x => x.diary).length, letterboxd: people.filter(x => x.lb).length,
