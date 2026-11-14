@@ -1500,11 +1500,6 @@ a.fx-pg:active{transform:scale(.97)}
 .hm-days span{display:grid; min-width:0}
 .fx .hm-days a{font-weight:600; font-stretch:106%; color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .hm-days small{font-size:13.5px; color:var(--muted)}
-.hm-yrb{display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px 26px}
-.hm-nums{display:flex; gap:22px}
-.hm-nums div{display:grid; gap:2px}
-.hm-nums b{font-family:var(--display); font-weight:800; font-stretch:125%; font-size:28px; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums}
-.hm-nums span{font-size:13px; color:var(--muted)}
 .hm-months{flex:1 1 200px; max-width:320px; display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:3px}
 .hm-months div{display:grid; grid-template-rows:48px auto; gap:4px; align-items:end; justify-items:stretch; text-align:center}
 .hm-months i{height:var(--h); min-height:2px; border-radius:2px 2px 0 0; background:var(--osd); transform-origin:bottom; animation:fp-rise .5s cubic-bezier(.2,.8,.2,1) both}
@@ -1520,25 +1515,18 @@ a.fx-pg:active{transform:scale(.97)}
 /* the channel's place, kept while the catalog comes */
 .hm-chph{height:263px; border-radius:6px; background:var(--sunk); opacity:.7}
 @media (min-width:520px){ .hm-chph{height:284px} }
-/* on this day, one quiet line at the end */
-.fx .hm-otdl{margin:0; padding:16px 0 4px; border-top:1px solid var(--line); font-size:14.5px; line-height:1.55; color:var(--muted)}
-.fx .hm-otdl a{color:var(--ink); font-weight:600; text-decoration:none}
-.fx .hm-otdl a:hover{text-decoration:underline; text-decoration-color:var(--osd)}
-.hm-otdl .fp-st{margin-inline-start:4px}
-/* your own things (your year, watchlist, on this day): a column beside This week on a wide screen, not on a phone.
-   It starts at the films' row (the third: the top bar, or a backdrop with the top bar over it, then the heading). */
+/* a wide screen: a column beside This week (your watchlist, on this day, the people you follow; home.js draws it from
+   the same width). It starts at the films' row (the third: the top bar, or a backdrop with the top bar over it, then
+   the heading); spare rows it spans at the end are empty. */
 .hm-side{display:none}
 @media (min-width:1000px){
   .fx.fx-app:has(> .hm-side){max-width:1060px; grid-template-columns:minmax(0, 1fr) 300px; column-gap:56px}
   .fx.fx-app:has(> .hm-side) > *{grid-column:1}
   .fx.fx-app:has(> .hm-side) > .fx-hero, .fx.fx-app:has(> .hm-side) > .fx-topbar{grid-column:1 / -1}
   .fx.fx-app:has(> .hm-side) > .hm-side{display:grid; grid-column:2; grid-row:3 / span 6; align-self:start; align-content:start}
-  .fx.fx-app:has(> .hm-side) .hm-otdl{display:none}
   .hm-side .hm-sec:first-child{border-top:0; padding-top:4px}
   .hm-side .hm-strip{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); margin:0; padding:0; overflow:visible}
   .hm-side .hm-sp{width:auto}
-  .hm-side .hm-months{max-width:none; flex-basis:100%}
-  .hm-side .hm-nums b{font-size:24px}
 }
 
 /* a profile inside the app: the profile's own page, without a second set of margins */

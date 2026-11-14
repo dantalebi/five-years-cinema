@@ -53,17 +53,20 @@ const here = p => new URL(p.url()).pathname;
   const dk = await p.evaluate(() => JSON.parse(Store.data['wl:dekalog|1989'] || '{}'));
   ok(dk.tm === -990001 && /\/w185\/dk\.jpg$/.test(dk.p), 'a mini-series on the watchlist: its TV id and poster', dk);
 
-  // Home: the channel right under This week, then friends; your own things (here the watchlist) are in a column beside
-  // This week on a wide screen (here, with no plan, beside the rest of Home), and not on a phone
+  // Home on a phone: the channel right under This week, then the people you follow, what's popular with them, the
+  // watchlist; on a wide screen the watchlist and the people you follow move to a column beside This week (here, with
+  // no plan, beside the rest of Home), and back when the screen narrows
   await p.goto(B + '/'); await p.waitForSelector('.hm-ch', {timeout: 20000});
-  const order = await p.$$eval('.hm > section', ss => ss.map(s => s.className.match(/hm-(ch|fr)\b|pp-tease/) ? s.className.match(/hm-(ch|fr)\b|pp-tease/)[0] : '').filter(Boolean));
-  ok(order[0] === 'hm-ch' && order[1] === 'hm-fr', 'Home: the channel first, then the people you follow', order);
-  ok(await p.$eval('.hm-side', e => getComputedStyle(e).display) === 'none', 'on a phone: no side column');
-  await p.setViewportSize({width: 1280, height: 900}); await p.waitForTimeout(200);
-  const side = await p.evaluate(() => { const s = document.querySelector('.hm-side'), l = document.querySelector('.fx-list') || document.querySelector('.hm'); return {shown: getComputedStyle(s).display !== 'none', top: Math.round(s.getBoundingClientRect().top - l.getBoundingClientRect().top), left: s.getBoundingClientRect().left > l.getBoundingClientRect().right, wl: !!s.querySelector('.hm-wl [data-hm-pick]')}; });
-  ok(side.shown && side.top === 0 && side.left && side.wl, 'on a wide screen: the side column, beside This week, with the watchlist', side);
+  const secs = sel => p.$$eval(sel + ' > section', ss => ss.map(s => (s.className.match(/hm-(ch|fr|wl|otd)\b|pp-tease/) || [''])[0]).filter(Boolean));
+  const order = await secs('.hm');
+  ok(order[0] === 'hm-ch' && order[1] === 'hm-fr' && order.includes('hm-wl') && !(await p.$('.hm-side')), 'Home on a phone: the channel first, then the people you follow; the watchlist further down; no side column', order);
+  await p.setViewportSize({width: 1280, height: 900}); await p.waitForSelector('.hm-side', {timeout: 5000});
+  const side = await p.evaluate(() => { const s = document.querySelector('.hm-side'), l = document.querySelector('.fx-list') || document.querySelector('.hm'); return {shown: getComputedStyle(s).display !== 'none', top: Math.round(s.getBoundingClientRect().top - l.getBoundingClientRect().top), left: s.getBoundingClientRect().left > l.getBoundingClientRect().right}; });
+  const inSide = await secs('.hm-side'), inMain = await secs('.hm');
+  ok(side.shown && side.top === 0 && side.left && inSide.join() === 'hm-wl,hm-fr' && inMain.join() === 'hm-ch', 'on a wide screen: the watchlist and the people you follow in a column beside This week', {side, inSide, inMain});
   await p.screenshot({path: path.join(OUT, 'home-wide.png')});
-  await p.setViewportSize({width: 390, height: 844});
+  await p.setViewportSize({width: 390, height: 844}); await p.waitForFunction(() => !document.querySelector('.hm-side'), null, {timeout: 5000});
+  ok((await secs('.hm')).includes('hm-wl'), 'narrow again: one column');
 
   ok(!errs.length, 'no page errors', errs);
   await b.close();
