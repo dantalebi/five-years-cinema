@@ -854,8 +854,9 @@ on('GET', '/api/admin', async (req, env, u) => {
 // each account's counts of entries, reviews and so on read every key on the site, so they're kept a few minutes
 // (fresh: after a change made on the page); everything else on the page is read as it is
 async function kvCounts(env, key, q, fresh) {
-  const hit = !fresh && await env.DB.prepare('SELECT v, at FROM cache WHERE k = ?').bind(key).first();
-  if (hit && Date.now() - hit.at < 30 * 60e3) { try { return Object.assign(JSON.parse(hit.v), {at: hit.at}); } catch (e) {} }
+  // (one count reads every row on the site, tens of thousands, so even Refresh makes new ones at most every 10 minutes)
+  const hit = await env.DB.prepare('SELECT v, at FROM cache WHERE k = ?').bind(key).first();
+  if (hit && Date.now() - hit.at < (fresh ? 10 : 30) * 60e3) { try { return Object.assign(JSON.parse(hit.v), {at: hit.at}); } catch (e) {} }
   const rows = (await env.DB.prepare(q).all()).results || [];
   await env.DB.prepare('INSERT INTO cache (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(key, JSON.stringify(rows), Date.now()).run();
   return Object.assign(rows, {at: Date.now()});
