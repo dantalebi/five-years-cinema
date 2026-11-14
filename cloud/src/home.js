@@ -1,7 +1,8 @@
 // Home: the screen the app opens on. This week's programme comes first (the plan's own screen, drawn by focus.js);
-// under it, the rest of your film life at a glance: what the people you follow watched lately and what's popular with
-// them, your watchlist, films you watched on this day in other years, your year so far, and a channel from the catalog
-// that changes every day.
+// under it only what you'd act on: a channel from the catalog that changes every day, what the people you follow
+// watched lately, what's popular with them, and one line for a film you watched on this day in another year.
+// On a wide screen a column beside the plan holds your own things: your year so far, your watchlist, on this day.
+// On a phone there's no room for that column: your year is in Stats, your watchlist on your profile.
 // fxHome({FR, pop, redraw}) → {html(), click(button)}: html() is added under This week; click() handles its own buttons.
 function fxHome(o) {
   const U = fxCat, esc = U.esc, num = U.num;
@@ -51,19 +52,25 @@ function fxHome(o) {
     const list = FR.wl.list().slice().sort((a, b) => (+b.at || 0) - (+a.at || 0));
     if (!list.length) return '';
     return sec('hm-wl', `Your watchlist <span class="hm-count">${num(list.length)}</span>`, `<button type="button" class="fx-link hm-more" data-hm-pick>Pick one for me</button>`,
-      `<ul class="hm-strip">${list.slice(0, 14).map(f => `<li><a class="hm-sp" href="${esc(filmHref(f))}" data-app title="${esc(f.t + (f.y ? ' (' + f.y + ')' : ''))}">${okPoster(f.p) ? `<img src="${esc(small(f.p))}" alt="" loading="lazy">` : `<span>${esc(f.t)}</span>`}</a></li>`).join('')}</ul>`);
+      `<ul class="hm-strip">${list.slice(0, 6).map(f => `<li><a class="hm-sp" href="${esc(filmHref(f))}" data-app title="${esc(f.t + (f.y ? ' (' + f.y + ')' : ''))}">${okPoster(f.p) ? `<img src="${esc(small(f.p))}" alt="" loading="lazy">` : `<span>${esc(f.t)}</span>`}</a></li>`).join('')}</ul>`);
   }
 
-  function onThisDay() {
-    const {list} = diary(), t = today(), md = t.slice(5), yr = t.slice(0, 4);
-    const hits = list.filter(e => e.date.slice(5) === md && e.date.slice(0, 4) < yr).slice(0, 3);
+  // films you watched on this day in other years: a list in the side column, one quiet line on a phone
+  function dayHits() {
+    const {list, D} = diary(), t = today(), md = t.slice(5), yr = t.slice(0, 4);
+    return list.filter(e => e.date.slice(5) === md && e.date.slice(0, 4) < yr).slice(0, 3).map(e => ({e, yr: e.date.slice(0, 4), ago: +yr - +e.date.slice(0, 4),
+      f: e.i != null ? {t: D.F[e.i][0], y: D.F[e.i][1], tm: D.F[e.i][16], slug: D.F[e.i][5]} : {t: (e.md || {}).t || e.t, y: (e.md || {}).y || e.y, tm: (e.md || {}).tm}}));
+  }
+  const dayLink = h => `<a href="${esc(filmHref(h.f))}" data-app dir="auto">${esc(U.bare(String(h.f.t)))}</a>`;
+  function onThisDay(hits) {
     if (!hits.length) return '';
-    const D = diary().D;
-    return sec('hm-otd', 'On this day', '', `<ul class="hm-days">${hits.map(e => {
-      const f = e.i != null ? {t: D.F[e.i][0], y: D.F[e.i][1], tm: D.F[e.i][16], slug: D.F[e.i][5]} : {t: (e.md || {}).t || e.t, y: (e.md || {}).y || e.y, tm: (e.md || {}).tm};
-      const n = +yr - +e.date.slice(0, 4);
-      return `<li><b>${e.date.slice(0, 4)}</b><span><a href="${esc(filmHref(f))}" data-app dir="auto">${esc(U.bare(String(f.t)))}</a><small>${n === 1 ? 'A year ago' : n + ' years ago'}${e.r ? ` <span class="fp-st">${stars(e.r)}</span>` : ''}</small></span></li>`;
-    }).join('')}</ul>`);
+    return sec('hm-otd', 'On this day', '', `<ul class="hm-days">${hits.map(h =>
+      `<li><b>${h.yr}</b><span>${dayLink(h)}<small>${h.ago === 1 ? 'A year ago' : h.ago + ' years ago'}${h.e.r ? ` <span class="fp-st">${stars(h.e.r)}</span>` : ''}</small></span></li>`).join('')}</ul>`);
+  }
+  function dayLine(hits) {
+    if (!hits.length) return '';
+    const h = hits[0];
+    return `<p class="hm-otdl">On this day in ${h.yr} you watched ${dayLink(h)}${h.e.r ? ` <span class="fp-st">${stars(h.e.r)}</span>` : ''}</p>`;
   }
 
   function year() {
@@ -83,7 +90,11 @@ function fxHome(o) {
   let catAsked = false;
   function channel() {
     const C = U.get();
-    if (!C) { if (!catAsked && U.status() === 'idle') { catAsked = true; U.load().then(() => o.redraw && o.redraw(), () => {}); } return ''; }
+    if (!C) {
+      if (!catAsked && U.status() === 'idle') { catAsked = true; U.load().then(() => o.redraw && o.redraw(), () => o.redraw && o.redraw()); }
+      // the channel's place kept while the catalog comes, so what's under it doesn't jump down when it arrives
+      return U.status() === 'loading' ? `<section class="fx-card hm-sec hm-chw" aria-hidden="true"><div class="hm-sh"><h2>Today’s channel</h2></div><div class="hm-chph"></div></section>` : '';
+    }
     const day = Math.floor(Date.parse(today()) / 864e5);
     const chans = C.groups.map(g => ({kind: g.kind === 'period' ? 'era' : 'movement', g, name: g.name, films: f => f.m.includes(g.i)}))
       .concat(C.lenses.map(l => ({kind: 'collection', g: l, name: l.name, films: f => !!(f.l & (1 << l.i))})))
@@ -108,9 +119,14 @@ function fxHome(o) {
 
   return {
     html() {
-      let h = '';
-      try { h = (o.news ? o.news.card() : '') + friends() + (o.pop ? o.pop.teaser('friends') : '') + watchlist() + onThisDay() + year() + channel(); } catch (e) { h = ''; }
-      return h ? `<div class="hm">${h}</div>` : '';
+      let h = '', side = '';
+      try {
+        const hits = dayHits();
+        h = (o.news ? o.news.card() : '') + channel() + friends() + (o.pop ? o.pop.teaser('friends') : '') + dayLine(hits);
+        side = year() + watchlist() + onThisDay(hits);
+      } catch (e) { h = ''; side = ''; }
+      // the side column is shown only on a wide screen (focus.css), beside This week
+      return (h ? `<div class="hm">${h}</div>` : '') + (side ? `<aside class="hm-side" aria-label="Your films">${side}</aside>` : '');
     },
     click(b) {
       if (o.news && o.news.click(b)) return true;

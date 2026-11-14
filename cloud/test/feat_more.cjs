@@ -53,6 +53,18 @@ const here = p => new URL(p.url()).pathname;
   const dk = await p.evaluate(() => JSON.parse(Store.data['wl:dekalog|1989'] || '{}'));
   ok(dk.tm === -990001 && /\/w185\/dk\.jpg$/.test(dk.p), 'a mini-series on the watchlist: its TV id and poster', dk);
 
+  // Home: the channel right under This week, then friends; your own things (here the watchlist) are in a column beside
+  // This week on a wide screen (here, with no plan, beside the rest of Home), and not on a phone
+  await p.goto(B + '/'); await p.waitForSelector('.hm-ch', {timeout: 20000});
+  const order = await p.$$eval('.hm > section', ss => ss.map(s => s.className.match(/hm-(ch|fr)\b|pp-tease/) ? s.className.match(/hm-(ch|fr)\b|pp-tease/)[0] : '').filter(Boolean));
+  ok(order[0] === 'hm-ch' && order[1] === 'hm-fr', 'Home: the channel first, then the people you follow', order);
+  ok(await p.$eval('.hm-side', e => getComputedStyle(e).display) === 'none', 'on a phone: no side column');
+  await p.setViewportSize({width: 1280, height: 900}); await p.waitForTimeout(200);
+  const side = await p.evaluate(() => { const s = document.querySelector('.hm-side'), l = document.querySelector('.fx-list') || document.querySelector('.hm'); return {shown: getComputedStyle(s).display !== 'none', top: Math.round(s.getBoundingClientRect().top - l.getBoundingClientRect().top), left: s.getBoundingClientRect().left > l.getBoundingClientRect().right, wl: !!s.querySelector('.hm-wl [data-hm-pick]')}; });
+  ok(side.shown && side.top === 0 && side.left && side.wl, 'on a wide screen: the side column, beside This week, with the watchlist', side);
+  await p.screenshot({path: path.join(OUT, 'home-wide.png')});
+  await p.setViewportSize({width: 390, height: 844});
+
   ok(!errs.length, 'no page errors', errs);
   await b.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);
