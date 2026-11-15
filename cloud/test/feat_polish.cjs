@@ -63,7 +63,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   // a film's page: its backdrop from the very top (with Previous and Next in the header too); links with a 24px tap area
   await p.setViewportSize({width: 390, height: 844});
   await p.goto(B + '/discover/decade/1960s'); await p.waitForSelector('.dx-grid .dx-cell', {timeout: 20000});
-  await p.click('.dx-grid a.dx-cell >> nth=2'); await p.waitForSelector('.fp-seq');
+  await p.click('.dx-grid a.dx-cell >> nth=2'); await p.waitForSelector('.fp-seq'); await p.waitForSelector('.dx-fh', {timeout: 15000});
   const top = await p.evaluate(() => { document.querySelector('.dx-fh').insertAdjacentHTML('beforebegin', '<div class="dx-bd" aria-hidden="true"><img alt=""></div>'); return Math.round(document.querySelector('.dx-bd').getBoundingClientRect().top); });
   ok(top === 0, 'the backdrop starts at the top: no strip above it', top);
   const small = await p.$$eval('a.dx-a', as => as.map(a => Math.round(a.getBoundingClientRect().height)).filter(h => h < 24));

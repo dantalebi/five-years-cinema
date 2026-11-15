@@ -507,14 +507,6 @@ function metaLine(fm, k) {
   const j = fm.indexOf('\n', i + 1), l = fm.slice(i + at.length, j < 0 ? undefined : j).split('\t');
   return l[0] ? {t: l[0], y: +l[1] || 0, p: l[2] || ''} : null;
 }
-// this week of their plan (which week of how many, its films and the days they watched them), small, for the
-// Activity timeline of the people who follow them; read with the feed
-function weekOf(p) {
-  const n = p && p.now && typeof p.now === 'object' ? p.now : {};
-  const films = (Array.isArray(n.films) ? n.films : []).slice(0, 24).map(f => f && typeof f.t === 'string' ? {t: clean1(f.t, 200), y: Math.max(0, Math.min(2100, +f.y || 0)), p: ppath(f.p), tm: Number.isFinite(+f.tm) ? Math.trunc(+f.tm) : 0,
-    l: /^[a-z0-9-]{1,120}$/.test(f.l || '') ? f.l : '', w: /^(\d{4}-\d\d-\d\d|1)$/.test(f.w || '') ? f.w : ''} : null).filter(f => f && f.t);
-  return JSON.stringify({wk: Math.max(0, Math.min(9999, +n.wk || 0)), of: Math.max(0, Math.min(9999, +n.of || 0)), rest: n.rest ? 1 : 0, end: n.end ? 1 : 0, films});
-}
 // a profile published before these indexes existed: build them once, from the profile itself
 // a profile's two indexes, each in a row of its own (and none left in the profile's own row)
 const putIndex = (env, uid, films, fmeta) => [
@@ -547,7 +539,6 @@ on('PUT', '/api/profile', async (req, env, u) => {
     env.DB.prepare(`INSERT INTO profiles (uid, public, payload, recent, films, fmeta, updated) VALUES (?, ?, ?, ?, NULL, NULL, ?) ON CONFLICT(uid) DO UPDATE SET
       public = excluded.public, payload = excluded.payload, recent = excluded.recent, films = NULL, fmeta = NULL, updated = excluded.updated`).bind(u.id, pub, JSON.stringify(p), JSON.stringify(recent), now),
     ...putIndex(env, u.id, filmIndex(p), filmMeta(p)),
-    env.DB.prepare("INSERT INTO pindex (uid, k, v) VALUES (?, 'now', ?) ON CONFLICT(uid, k) DO UPDATE SET v = excluded.v").bind(u.id, weekOf(p)),
     env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, u.id),
   ]);
   return json({updated: now});
@@ -1071,14 +1062,14 @@ const REACT_DAYS = 180;
 const reactRows = rows => rows.map(r => [r.id, r.ou, r.eid, r.kind, r.text, r.at, r.xu, r.xn || '', r.ft || '', r.xa || 0]);
 on('GET', '/api/feed', async (req, env, u) => {
   const [rows, re] = await Promise.all([
-    env.DB.prepare(`SELECT x.username, x.name, x.av, p.recent, n.v AS wk FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
-      LEFT JOIN pindex n ON n.uid = f.b AND n.k = 'now' WHERE f.a = ? AND p.public = 1 AND x.banned = 0 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
+    env.DB.prepare(`SELECT x.username, x.name, x.av, p.recent FROM follows f JOIN users x ON x.id = f.b JOIN profiles p ON p.uid = f.b
+      WHERE f.a = ? AND p.public = 1 AND x.banned = 0 ORDER BY p.updated DESC LIMIT 100`).bind(u.id).all(),
     env.DB.prepare(`SELECT r.id, o.username AS ou, r.eid, r.kind, r.text, r.ft, r.at, x.username AS xu, x.name AS xn, x.av AS xa FROM reacts r
       JOIN users o ON o.id = r.owner JOIN users x ON x.id = r.uid
       WHERE r.owner IN (SELECT b FROM follows WHERE a = ?) AND r.at > ? AND x.banned = 0 AND NOT EXISTS (SELECT 1 FROM blocks WHERE (a = ? AND b = r.uid) OR (a = r.uid AND b = ?))
       ORDER BY r.at LIMIT 3000`).bind(u.id, Date.now() - REACT_DAYS * DAY, u.id, u.id).all(),
   ]);
-  return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"a":' + (+r.av || 0) + ',"recent":' + (r.recent || '[]') + ',"now":' + (r.wk || 'null') + '}').join(',') + ']}');
+  return raw('{"me":' + JSON.stringify(u.username) + ',"re":' + JSON.stringify(reactRows(re.results || [])) + ',"feed":[' + (rows.results || []).map(r => '{"u":' + JSON.stringify(r.username) + ',"n":' + JSON.stringify(r.name || '') + ',"a":' + (+r.av || 0) + ',"recent":' + (r.recent || '[]') + '}').join(',') + ']}');
 }, {auth: true});
 // your notifications: reactions to your own entries, new followers, and replies after your comments on others' entries
 on('GET', '/api/inbox', async (req, env, u) => {

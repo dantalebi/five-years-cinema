@@ -1,8 +1,6 @@
 // The Activity tab of the multi-user site, and its home page. Three parts:
-//   Friends        the people you follow as channels (how far each is into this week of their plan; tap one for their
-//                  week, and watch their next film too), films in both your week and theirs, what several of them
-//                  watched lately and where they don't agree; then their latest entries, each with hearts, "seen it",
-//                  "want to watch" and comments; then your watchlist
+//   Friends        the latest entries of the people you follow, each with hearts, "seen it", "want to watch" and comments;
+//                  then your watchlist
 //   Notifications  what happened to you: reactions and comments on your films, replies after your comments, new followers
 //   People         everyone on the site, to follow
 // fxFriendsTab(CloudSync) → a tab for mountFocus: {id, label, view(lang), click(button, render), submit(form, render), dot()}
@@ -28,10 +26,6 @@ function fxFriendsTab(CS) {
       c: (w, f) => `${w} commented on your entry for ${f}`, r: (w, f) => `${w} replied to your comment on ${f}`, f: w => `${w} started following you`,
     },
     spoil: 'Review hidden (contains spoilers)', aFilm: 'a film',
-    tlFind: 'Find people', tlWeek: n => n + '’s week', tlOf: (w, of) => 'Week ' + w + ' of ' + of, tlRest: 'A week off', tlDone: (d, n) => d + ' of ' + n + ' watched',
-    tlAlong: t => 'Watch ' + t + ' too', tlProfile: n => n + '’s profile', tlLive: 'watched something today', tlChans: 'People you follow, and their week',
-    tlBoth: 'In your week and theirs', tlBothL: (t, names) => `<b>${t}</b> is in your week and in ${names}`, tlEvery: 'Several of them watched', tlSplit: 'They don’t agree',
-    tlLatest: 'Latest', tlWatched: 'Watched',
     logIt: 'Log', wlH: 'Watchlist', wlNone: 'Tap the bookmark on a friend’s entry to save it here.', wlFrom: u => 'via @' + u, remove: 'Remove', wlCount: n => n + (n === 1 ? ' film' : ' films'),
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -277,73 +271,6 @@ function fxFriendsTab(CS) {
   const SEGP = {f: '/activity', n: '/activity/notifications', t: '/activity/tonight', p: '/activity/people'};
   // what people you follow made of a film (from the feed), for the film's page
   const sameFilm = (a, b) => (+a.tm > 0 && +b.tm > 0) ? +a.tm === +b.tm : norm(bare(a.t)) + '|' + (+a.y || 0) === norm(bare(b.t)) + '|' + (+b.y || 0);
-  // ---- the timeline's top: each person you follow is a channel; the ring is how much of this week's plan they've
-  // watched, the dot that they watched something today. One of them is open: their week, poster by poster ----
-  const IMG = p => /^\/[A-Za-z0-9._-]{1,100}$/.test(p || '') ? 'https://image.tmdb.org/t/p/w154' + p : okPoster(p) ? p : '';
-  const todayIs = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-  const daysAgo = n => { const d = new Date(Date.now() - n * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-  const first = n => String(n || '').trim().split(/\s+/)[0];
-  // "Negin’s", "Negin’s and Sara’s": whose weeks a film is in
-  const names = list => { const a = list.map(x => esc(first(x.n) || '@' + x.u) + '’s'); return a.length < 3 ? a.join(' and ') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; };
-  let chSel = '';
-  function chans() {
-    const t = todayIs();
-    return (feed || []).filter(x => okUser(x.u) && x.u !== me && x.now && Array.isArray(x.now.films) && x.now.films.length && !x.now.end).map(x => {
-      const films = x.now.films.filter(f => f && typeof f.t === 'string'), done = films.filter(f => f.w).length;
-      return {u: x.u, n: x.n, a: x.a, now: x.now, films, done, live: (x.recent || []).some(e => e && e.w === t), recent: Array.isArray(x.recent) ? x.recent : []};
-    }).sort((a, b) => b.live - a.live);
-  }
-  // your own week (the plan's films this week), kept a moment: Activity is drawn again on every tap
-  let myWeek = null, myWeekAt = 0;
-  function mine() {
-    if (myWeek && Date.now() - myWeekAt < 3000) return myWeek;
-    try { myWeek = typeof fxNow === 'function' && window.D && window.D.W ? fxNow(window.D, S(), typeof Posters !== 'undefined' ? k => Posters.src(k) : null).films || [] : []; } catch (e) { myWeek = []; }
-    myWeekAt = Date.now(); return myWeek;
-  }
-  function chansHtml(cs) {
-    const sel = cs.find(c => c.u === chSel) || cs[0];
-    const ring = c => Math.round(100 * c.done / Math.max(1, c.films.length));
-    const row = `<div class="tl-chans" role="group" aria-label="${esc(T.tlChans)}">${cs.map(c => `<button type="button" class="tl-chan" data-tl-ch="${c.u}" aria-pressed="${c === sel}" aria-label="${esc((c.n || '@' + c.u) + ', ' + T.tlDone(c.done, c.films.length) + (c.live ? ', ' + T.tlLive : ''))}">`
-      + `<span class="tl-ring" style="--p:${ring(c)}">${av(c.u, c.n, c.a, 'm')}${c.live ? '<i class="tl-live" aria-hidden="true"></i>' : ''}</span><span class="tl-cn" dir="auto">${esc(first(c.n) || '@' + c.u)}</span></button>`).join('')}`
-      + `<button type="button" class="tl-chan tl-add" data-seg="p"><span class="tl-plus" aria-hidden="true"></span><span class="tl-cn">${T.tlFind}</span></button></div>`;
-    const name = first(sel.n) || '@' + sel.u, nx = sel.films.find(f => !f.w), rated = f => { const e = sel.recent.find(e => sameFilm(e, f)); return e && +e.r ? stars(+e.r) : ''; };
-    const sub = sel.now.wk && sel.now.of ? T.tlOf(sel.now.wk, sel.now.of) : '';
-    const along = nx && !wlHas(nx) && !mine().some(f => sameFilm(f, nx)) ? `<button type="button" class="fx-btn primary" data-tl-along="${sel.u}">${esc(T.tlAlong(bare(nx.t)))}</button>` : '';
-    return `<section class="fx-card tl-top">${row}<div class="tl-week"><div class="tl-wh"><h2 dir="auto">${esc(T.tlWeek(name))}</h2>${sub ? `<span>${esc(sub)}</span>` : ''}</div>`
-      + (sel.now.rest ? `<p class="fx-muted tl-rest">${T.tlRest}</p>` : '')
-      + `<ul class="tl-wk">${sel.films.map(f => `<li class="${f.w ? 'on' : ''}"><a href="${esc(filmHref(f))}" data-app aria-label="${esc(bare(f.t) + (f.y ? ' (' + f.y + ')' : '') + (f.w ? ', ' + T.tlWatched : ''))}">${IMG(f.p) ? `<img src="${esc(IMG(f.p))}" alt="" loading="lazy">` : `<span dir="auto">${esc(bare(f.t))}</span>`}</a><small${f.w && rated(f) ? ' class="fx-mini" dir="ltr"' : ''}>${f.w ? esc(rated(f) || T.tlWatched) : ''}</small></li>`).join('')}</ul>`
-      + `<div class="tl-prog"><span>${T.tlDone(sel.done, sel.films.length)}</span><div aria-hidden="true"><i style="width:${ring(sel)}%"></i></div></div>`
-      + `<div class="tl-acts">${along}<a class="fx-btn" href="/u/${sel.u}" dir="auto">${esc(T.tlProfile(name))}</a></div></div></section>`;
-  }
-  // films in your week that are in theirs too
-  function bothHtml(cs) {
-    const out = [];
-    mine().forEach(f => { const who = cs.filter(c => c.films.some(g => sameFilm(g, f))); if (who.length) out.push({f, who}); });
-    if (!out.length) return '';
-    return `<section class="fx-card"><h2>${T.tlBoth}</h2><ul class="tl-rows">${out.slice(0, 3).map(({f, who}) => `<li>${posterBox(f)}<p dir="auto">${T.tlBothL(esc(bare(f.t)), names(who))}${f.w ? ' <span class="fx-muted">(' + T.tlWatched.toLowerCase() + ')</span>' : ''}</p></li>`).join('')}</ul></section>`;
-  }
-  // what several of them watched lately, and where their stars are far apart
-  function groups(since) {
-    const g = new Map();
-    feedRows().filter(e => e.u !== me && e.w && e.w >= since).forEach(e => {
-      const k = +e.tm > 0 ? 'tm' + e.tm : norm(bare(e.t)) + '|' + (+e.y || 0), o = g.get(k) || {f: e, by: new Map()};
-      if (!o.by.has(e.u)) o.by.set(e.u, e); g.set(k, o);
-    });
-    return [...g.values()].map(o => Object.assign(o, {list: [...o.by.values()]}));
-  }
-  function digestHtml() {
-    let h = '';
-    const split = groups(daysAgo(60)).map(o => { const r = o.list.filter(e => +e.r > 0).sort((a, b) => b.r - a.r); return {o, r, gap: r.length > 1 ? r[0].r - r[r.length - 1].r : 0}; }).filter(x => x.gap >= 4).sort((a, b) => b.gap - a.gap)[0];
-    const several = groups(daysAgo(14)).filter(o => o.list.length >= 2 && !(split && sameFilm(o.f, split.o.f))).sort((a, b) => b.list.length - a.list.length).slice(0, 2);
-    const who = e => `<a class="fx-who" href="/u/${e.u}">${av(e.u, e.n, e.a)}<b dir="auto">${esc(first(e.n) || '@' + e.u)}</b></a>`;
-    if (several.length) h += `<section class="fx-card"><h2>${T.tlEvery}</h2>${several.map(o => `<div class="tl-film">${posterBox(o.f)}<div>${filmLink(o.f, 'fx-at')}<ul class="tl-rates">${o.list.map(e => `<li>${who(e)}<span class="fx-mini" dir="ltr">${stars(+e.r)}</span></li>`).join('')}</ul></div></div>`).join('')}</section>`;
-    if (split) {
-      const hi = split.r[0], lo = split.r[split.r.length - 1], bar = e => `<div class="tl-bar${e === lo ? ' lo' : ''}">${who(e)}<div aria-hidden="true"><i style="width:${e.r * 10}%"></i></div><span class="fx-mini" dir="ltr">${stars(+e.r)}</span></div>`;
-      const said = [hi, lo].find(e => e.rx);
-      h += `<section class="fx-card"><h2>${T.tlSplit}</h2><div class="tl-film">${posterBox(split.o.f)}<div>${filmLink(split.o.f, 'fx-at')}<div class="tl-vs">${bar(hi)}${bar(lo)}</div>${said ? `<p class="tl-q" dir="auto">“${esc(String(said.rx).slice(0, 160))}${String(said.rx).length > 160 ? '…' : ''}” <span>${esc(first(said.n) || '@' + said.u)}</span></p>` : ''}</div></div></section>`;
-    }
-    return h;
-  }
   function friendsOn(f, cb) {
     const give = () => cb(feedRows().filter(e => e.u !== me && sameFilm(e, f)).sort((a, b) => String(b.w || '').localeCompare(String(a.w || ''))));
     if (feed) give(); else { fwait.push(give); load(); }
@@ -370,8 +297,7 @@ function fxFriendsTab(CS) {
       }
       if (seg === 'p') return h + `<section class="fx-card">${peopleHtml()}</section>`;
       if (seg === 't') return h + tonightHtml();
-      const cs = chans(), top = cs.length ? chansHtml(cs) + bothHtml(cs) : '', dg = digestHtml();
-      return h + top + dg + `<section class="fx-card">${top || dg ? `<h2>${T.tlLatest}</h2>` : ''}${feedHtml(ix)}</section><section class="fx-card">${wlHtml()}</section>`;
+      return h + `<section class="fx-card">${feedHtml(ix)}</section><section class="fx-card">${wlHtml()}</section>`;
     },
     left() { seenBefore = null; },
     click(b, render) {
@@ -383,12 +309,6 @@ function fxFriendsTab(CS) {
       if (b.hasAttribute('data-tgwl')) { const l = tgList(), c = l[tg.i % l.length]; if (c) { wlSet(c, true, ''); render(); typeof fxOSD === 'function' && fxOSD('On your watchlist'); } return true; }
       if (b.hasAttribute('data-tglog')) { const l = tgList(), c = l[tg.i % l.length]; if (c && logger) logger(c.t, c.y, {tm: c.tm || 0, t: c.t, y: c.y || 0, p: String(c.p || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '')}); return true; }
       if (b.dataset.seg) { if (seg === 'n' && b.dataset.seg !== 'n') seenBefore = null; seg = b.dataset.seg; render(); window.scrollTo(0, 0); if (typeof fxNav !== 'undefined') fxNav.note(SEGP[seg]); return true; }
-      if (b.dataset.tlCh) { chSel = b.dataset.tlCh; render(); return true; }
-      if (b.dataset.tlAlong) {
-        const c = chans().find(x => x.u === b.dataset.tlAlong), nx = c && c.films.find(f => !f.w);
-        if (nx) { wlSet(Object.assign({}, nx, {p: IMG(nx.p)}), true, c.u); render(); typeof fxOSD === 'function' && fxOSD('On your watchlist'); }
-        return true;
-      }
       if (b.hasAttribute('data-fr-retry')) { err = false; feed = null; render(); return true; }
       if (b.hasAttribute('data-fr-more')) { shown += 30; render(); return true; }
       if (b.hasAttribute('data-n-more')) { nShown += 30; render(); return true; }
