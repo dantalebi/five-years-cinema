@@ -17,12 +17,13 @@ const fxAvatarEditor = (() => {
   const SIZE = 260;  // the crop area on screen
   function shell(inner) {
     if (!el) { el = document.body.appendChild(document.createElement('div')); el.className = 'fx-sheetwrap av-wrap'; listen(); }
-    el.hidden = false; document.documentElement.classList.add('fx-lock');
-    el.innerHTML = `<div class="fx-scrim" data-avx></div><div class="fx fx-sheet av-sheet" dir="ltr" lang="en" role="dialog" aria-modal="true" aria-label="Profile picture"><div class="fx-shbody">${inner}</div></div>`;
+    document.documentElement.classList.add('fx-lock');
+    fxSheetFill(el, `<div class="fx-scrim" data-avx></div><div class="fx fx-sheet av-sheet" dir="ltr" lang="en" role="dialog" aria-modal="true" aria-label="Profile picture"><div class="fx-shbody">${inner}</div></div>`);
+    fxSheetIn(el);
   }
   function close(byBack) {
-    if (!el || el.hidden) return;
-    el.hidden = true; el.innerHTML = ''; document.documentElement.classList.remove('fx-lock'); st = null;
+    if (!el || el.hidden || el.classList.contains('out')) return;
+    fxSheetOut(el); document.documentElement.classList.remove('fx-lock'); st = null;
     if (!byBack && typeof fxNav !== 'undefined') fxNav.unmodal('avatar');
     const d = done; done = null; if (d) d(null);
   }

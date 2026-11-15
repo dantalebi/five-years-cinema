@@ -133,12 +133,21 @@ function fxFilmPages(o) {
     return `<div class="fp-seq" role="group" aria-label="Films in this row"><button type="button" class="fp-sq" data-fp-step="-1" aria-label="Previous film"${q.i ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>`
       + `<span>${q.i + 1} of ${q.n}</span><button type="button" class="fp-sq" data-fp-step="1" aria-label="Next film"${q.i < q.n - 1 ? '' : ' disabled'}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button></div>`;
   }
+  // the film you stepped to, read out (its name, where it is in the row) for screen readers
+  let said = '';
+  function say(text) {
+    let el = document.getElementById('fx-say');
+    if (!el) { el = document.body.appendChild(document.createElement('p')); el.id = 'fx-say'; el.className = 'fx-sr'; el.setAttribute('aria-live', 'polite'); }
+    el.textContent = text;
+  }
   function filmView() {
     let h = `<header class="fx-head dx-head"><div class="fx-hrow"><button type="button" class="fx-link fx-bk" data-fp-back>Back</button>${seqBar()}</div></header>`;
     if (!fp || fp.state === 'loading') return h + `<p class="fx-muted dx-wait">Loading…</p>`;
     if (fp.state === 'none') return h + `<section class="fx-card"><h2>Film not found</h2><p class="fx-muted">We couldn’t find this film. It may have been removed from TMDB.</p></section>`;
     const F = film(), C = U.get(), mk = U.marks(WL), seen = mk.seen(F), wl = mk.wl(F), entries = mk.entries(F);
     document.title = F.t + (F.y ? ' (' + F.y + ')' : '') + ' – ' + ((typeof FY_CONFIG !== 'undefined' && FY_CONFIG.siteName) || 'TVC15');
+    const q = o.seq && o.seq();
+    if (q && said !== F.t + '|' + q.i) { said = F.t + '|' + q.i; setTimeout(() => say(`${F.t}, ${q.i + 1} of ${q.n}`), 60); }
     const lb = F.slug ? 'https://letterboxd.com/film/' + F.slug + '/' : F.tm > 0 ? 'https://letterboxd.com/tmdb/' + F.tm + '/' : 'https://letterboxd.com/search/films/' + encodeURIComponent(F.t) + '/';
     const dn = F.dirs.map(n => `<a class="dx-a" href="${esc(fxNav.director(n))}" data-app>${esc(n)}</a>`);
     const year = F.y ? `<a class="dx-a" href="/discover/decade/${Math.floor(F.y / 10) * 10}s" data-app>${F.y}</a>` : '';

@@ -368,9 +368,10 @@ function fxUnlink(D, seen, poster) {
   }
   return out;
 }
-// what the public page may show: the current programme (title, year, director, runtime, poster, log date) and,
-// if enabled, the diary with ratings, likes and reviews. Never lanes, acquisition status, series, skips, the schedule or settings.
-function fxShare(D, seen, posterUrl) {
+// this week of the plan, as a profile shows it: its films (title, year, director, runtime, poster, the day you logged
+// it), which week of how many, and whether it's a week off or the plan is done. The public profile, and the Activity
+// timeline (your week beside the weeks of the people you follow)
+function fxNow(D, seen, posterUrl) {
   const F = D.F, FA = D.faDir || {}, WK = fxCompact(D), w = fxCur(WK, seen), lang = fxLang(seen);
   const KEYIDX = fxKeyIdx(D);
   const dir = i => lang === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
@@ -378,16 +379,10 @@ function fxShare(D, seen, posterUrl) {
   const pos = k => ovp(k) || (posterUrl ? posterUrl(k) || '' : '');
   const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', tm: F[i][16] || 0, w: day || ''});
   const day = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '';
-  const ch = /^https:\/\/[^\s"<>]+$/.test(seen['cfg:channel'] || '') ? seen['cfg:channel'] : '';
-  const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
-  const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
-  const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
-  ['bio', 'pron', 'loc'].forEach(k => { const v = String(seen['cfg:' + k] || '').trim().slice(0, k === 'bio' ? 300 : 60); if (v) out[k] = v; });
-  const lbf = fxFriends(seen['cfg:lbf']); if (lbf.length) out.lbf = lbf;
-  const bd = fxBd(seen);
-  if (bd) out.bd = {p: fxTmdbBd(bd.p), t: String(bd.t || '').slice(0, 120), y: +bd.y || 0};
+  const out = {now: {films: []}};
   if (w > D.W.length) out.now.end = 1;
   else {
+    out.now.wk = w; out.now.of = D.W.length;
     const films = out.now.films;
     if (D.WM[w - 1].free) {
       out.now.rest = 1;
@@ -411,6 +406,27 @@ function fxShare(D, seen, posterUrl) {
       films.push(film(it.i, day(seen[it.k])));
     });
   }
+  return out.now;
+}
+// what the public page may show: the current programme (title, year, director, runtime, poster, log date) and,
+// if enabled, the diary with ratings, likes and reviews. Never lanes, acquisition status, series, skips, the schedule or settings.
+function fxShare(D, seen, posterUrl) {
+  const F = D.F, FA = D.faDir || {}, WK = fxCompact(D), w = fxCur(WK, seen), lang = fxLang(seen);
+  const KEYIDX = fxKeyIdx(D);
+  const dir = i => lang === 'fa' ? F[i][2].split(', ').map(d => FA[d] || d).join('، ') : F[i][2];
+  const ovp = k => fxTmdbImg(seen['ps:' + k]);
+  const pos = k => ovp(k) || (posterUrl ? posterUrl(k) || '' : '');
+  const film = (i, day) => ({t: F[i][0], y: F[i][1], d: dir(i), m: F[i][3] || 0, p: pos(F[i][8]), l: F[i][5] || '', tm: F[i][16] || 0, w: day || ''});
+  const day = v => /^\d{4}-\d\d-\d\d$/.test(v || '') ? v : '';
+  const ch = /^https:\/\/[^\s"<>]+$/.test(seen['cfg:channel'] || '') ? seen['cfg:channel'] : '';
+  const okU = u => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : '';
+  const links = {lb: /^[A-Za-z0-9_]{1,40}$/.test(seen['cfg:lb'] || '') ? seen['cfg:lb'] : '', tg: ch, sp: okU(seen['cfg:sp']), ig: okU(seen['cfg:ig']), web: okU(seen['cfg:web'])};
+  const out = {v: 2, lang, name: String(seen['cfg:name'] || '').slice(0, 60), ch, links, now: {films: []}, diary: []};
+  ['bio', 'pron', 'loc'].forEach(k => { const v = String(seen['cfg:' + k] || '').trim().slice(0, k === 'bio' ? 300 : 60); if (v) out[k] = v; });
+  const lbf = fxFriends(seen['cfg:lbf']); if (lbf.length) out.lbf = lbf;
+  const bd = fxBd(seen);
+  if (bd) out.bd = {p: fxTmdbBd(bd.p), t: String(bd.t || '').slice(0, 120), y: +bd.y || 0};
+  out.now = fxNow(D, seen, posterUrl);
   if (seen['cfg:pubdiary'] !== '0') out.diary = fxDiary(D, seen).map(e => {
     const md = e.md || {};
     const base = e.i != null ? film(e.i, e.date) : {t: md.t || String(e.t).replace(/\s*\(\d{4}\)\s*$/, ''), y: md.y || e.y, d: md.d || '', m: md.m || 0, p: ovp('tx:' + e.t) || fxTmdbImg(md.p) || pos('tx:' + e.t), l: '', tm: md.tm || 0, w: e.date};
@@ -447,6 +463,25 @@ function fxOSD(text) {
 }
 // a short tap from phones that can (never with reduced motion)
 function fxBuzz(ms) { try { if (navigator.vibrate && !matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate(ms || 8); } catch (e) {} }
+// a sheet (the log, the picture, a list) comes in and goes out by a class on its wrapper, so a slide that's under way
+// turns back when you change your mind half way; drawing it again keeps the same elements, and the slide carries on
+function fxSheetIn(el) {
+  clearTimeout(el._out);
+  if (el.hidden) { el.classList.add('out'); el.hidden = false; void el.offsetWidth; }
+  el.classList.remove('out');
+}
+function fxSheetOut(el) {
+  if (!el || el.hidden) return;
+  el.classList.add('out'); clearTimeout(el._out);
+  const quick = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el._out = setTimeout(() => { if (el.classList.contains('out')) { el.hidden = true; el.innerHTML = ''; el.classList.remove('out'); } }, quick ? 0 : 320);
+}
+function fxSheetFill(el, html) {
+  const t = document.createElement('template'); t.innerHTML = html;
+  const kid = (box, c) => [...box.children].find(e => e.classList.contains(c)), pairs = ['fx-scrim', 'fx-sheet'].map(c => [kid(el, c), kid(t.content, c)]);
+  if (el.children.length !== 2 || t.content.children.length !== 2 || pairs.some(([o, n]) => !o || !n)) { el.innerHTML = html; return; }
+  pairs.forEach(([o, n]) => { [...o.attributes].forEach(a => { if (!n.hasAttribute(a.name)) o.removeAttribute(a.name); }); [...n.attributes].forEach(a => o.setAttribute(a.name, a.value)); o.replaceChildren(...n.childNodes); });
+}
 // changing channel: the picture folds into a line of light and opens on the next screen; `first`: switching the set on
 function fxFlip(first) {
   if (typeof document === 'undefined') return;
@@ -1133,7 +1168,7 @@ function mountFocus(root, D, S, opts) {
   function closeSheet(byBack) {
     if (sheet && !byBack && opts.modal) opts.modal.close('sheet');
     sheet = null; clearTimeout(delTimer);
-    if (sheetEl) { sheetEl.hidden = true; sheetEl.innerHTML = ''; }
+    if (sheetEl) fxSheetOut(sheetEl);
     document.documentElement.classList.remove('fx-lock');
   }
   function sheetFilm() {
@@ -1192,8 +1227,8 @@ function mountFocus(root, D, S, opts) {
     if (!sheetEl || !sheet) return;
     if (sheet.pp) {
       const rtl0 = L() === 'fa', old0 = sheetEl.querySelector('.fx-shbody');
-      sheetEl.innerHTML = `<div class="fx-scrim" data-ppclose></div><div class="fx fx-sheet" dir="${rtl0 ? 'rtl' : 'ltr'}" lang="${L()}" role="dialog" aria-modal="true" aria-label="${esc(T().posterH)}"><div class="fx-shbody">${posterGrid()}</div></div>`;
-      sheetEl.hidden = false; document.documentElement.classList.add('fx-lock');
+      fxSheetFill(sheetEl, `<div class="fx-scrim" data-ppclose></div><div class="fx fx-sheet" dir="${rtl0 ? 'rtl' : 'ltr'}" lang="${L()}" role="dialog" aria-modal="true" aria-label="${esc(T().posterH)}"><div class="fx-shbody">${posterGrid()}</div></div>`);
+      fxSheetIn(sheetEl); document.documentElement.classList.add('fx-lock');
       return;
     }
     const t = T(), d = sheet.d, isNew = !sheet.ek, rtl = L() === 'fa';
@@ -1202,7 +1237,7 @@ function mountFocus(root, D, S, opts) {
     for (let n = 1; n <= 10; n++) stars += `<button type="button" data-srate="${n}" aria-label="${esc(t.stars(fa(n / 2)))}" aria-pressed="${n === d.r}"></button>`;
     const have = new Set(d.tg.map(x => x.toLowerCase())), used = usedTags().filter(x => !have.has(x.toLowerCase())).slice(0, 8);
     const sw = (f, label) => `<label class="fx-shline"><span>${label}</span><input type="checkbox" class="fx-sw" role="switch" data-sf="${f}"${d[f] ? ' checked' : ''}></label>`;
-    sheetEl.innerHTML = `<div class="fx-scrim" data-scancel></div>
+    fxSheetFill(sheetEl, `<div class="fx-scrim" data-scancel></div>
     <div class="fx fx-sheet${posterOn() ? ' fx-hasp' : ''}" dir="${rtl ? 'rtl' : 'ltr'}" lang="${L()}" role="dialog" aria-modal="true" aria-label="${esc(isNew ? t.shNew : t.shEdit)}">
       <header class="fx-shh"><button type="button" class="fx-shb${sheet.discard ? ' warn' : ''}" data-scancel>${sheet.discard ? t.shDiscard : t.cancel}</button><span class="fx-sht">${isNew ? t.shNew : t.shEdit}</span><button type="button" class="fx-shb primary" data-ssave>${t.shSave}</button></header>
       <div class="fx-shbody">
@@ -1225,8 +1260,8 @@ function mountFocus(root, D, S, opts) {
         ${sheet.ek ? `<div class="fx-shfoot"><button type="button" class="fx-btn" data-sagain><i class="fx-ico rw" aria-hidden="true"></i>${t.logAgain}</button><button type="button" class="fx-btn" data-spost>${t.copyPost}</button>${lbButton()}</div>${sheet.note ? `<p class="fx-note ok">${esc(sheet.note)}</p>` : ''}
         <button type="button" class="fx-shdel${sheet.del ? ' armed' : ''}" data-sdel>${sheet.del ? t.shRemove2 : t.shRemove}</button>` : ''}
       </div>
-    </div>`;
-    sheetEl.hidden = false;
+    </div>`);
+    fxSheetIn(sheetEl);
     document.documentElement.classList.add('fx-lock');
     const body = sheetEl.querySelector('.fx-shbody'); if (body) body.scrollTop = top;
     if (posterOn()) P.fill(sheetEl);

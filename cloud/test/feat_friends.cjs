@@ -73,6 +73,12 @@ const here = p => p.url().replace(B, '');
   ok(/^4 films/.test(await bob.$eval('.fx-strip', e => e.innerText.trim())), 'her film count counts films, logged or only marked seen (4), not diary entries (3)', await bob.$eval('.fx-strip', e => e.innerText));
   const tabs = await bob.$$eval('.fx-tabs button', bs => bs.map(x => x.textContent));
   ok(tabs.includes('Films') && tabs.includes('Watchlist'), 'Films and Watchlist on her profile', tabs);
+  // what she's watched comes first; her plan's week near the end, at an address of its own
+  ok(await bob.$eval('.fx-tabs [aria-selected="true"]', e => e.dataset.tab) === 'diary' && tabs.indexOf('Their week') > tabs.indexOf('Watchlist'), 'her profile opens on her diary; her week near the end', tabs);
+  await bob.click('[data-tab="now"]'); await bob.waitForFunction(() => location.pathname === '/u/ana/week');
+  await bob.goto(B + '/u/ana/week'); await bob.waitForSelector('.fx-tabs');
+  ok(await bob.$eval('.fx-tabs [aria-selected="true"]', e => e.dataset.tab) === 'now', '/u/ana/week opens on her week');
+  await bob.goto(B + '/u/ana'); await bob.waitForSelector('.fx-tabs');
   await bob.click('[data-tab="films"]'); await bob.waitForSelector('.fx-pgrid li');
   const cells = await bob.$$eval('.fx-pgrid .fx-pg', as => as.map(a => a.getAttribute('aria-label')));
   ok(cells.length === 4 && cells[0] === 'Close-Up (1990)', 'one cell a film, the latest first, the undated ones too', cells);

@@ -37,7 +37,8 @@ function fxHome(o) {
   function friends() {
     if (!FR) return '';
     const rows = FR.recent ? FR.recent(3) : null;  // three on Home; All activity has the rest
-    if (rows === null) return sec('hm-fr', 'From people you follow', '', '<p class="fx-muted hm-wait">Tuning in…</p>');
+    // still coming: the shape of three entries
+    if (rows === null) return sec('hm-fr hm-wait', 'From people you follow', '', `<p class="fx-sr">Loading</p><ul class="hm-fsk" aria-hidden="true">${'<li><span class="sk sk-pos"></span><span><span class="sk sk-a"></span><span class="sk sk-b"></span></span></li>'.repeat(3)}</ul>`);
     if (!rows.length) return sec('hm-fr', 'From people you follow', '', `<p class="fx-muted">Follow people to see what they’re watching. ${more('/activity/people', 'Find people')}</p>`);
     const av = e => typeof fxAvatar === 'function' ? fxAvatar(e.u, e.n, e.a, 's') : '';
     return sec('hm-fr', 'From people you follow', more('/activity', 'All activity'), `<ul class="hm-feed">${rows.map(e => {
@@ -77,8 +78,9 @@ function fxHome(o) {
     const C = U.get();
     if (!C) {
       if (!catAsked && U.status() === 'idle') { catAsked = true; U.load().then(() => o.redraw && o.redraw(), () => o.redraw && o.redraw()); }
-      // the channel's place kept while the catalog comes, so what's under it doesn't jump down when it arrives
-      return U.status() === 'loading' ? `<section class="fx-card hm-sec hm-chw" aria-hidden="true"><div class="hm-sh"><h2>Today’s channel</h2></div><div class="hm-chph"></div></section>` : '';
+      // while the catalog comes: the shape of the channel (its name, six posters), the same height, so nothing jumps
+      return U.status() === 'loading' ? `<section class="fx-card hm-sec hm-chw" aria-busy="true"><div class="hm-sh"><h2>Today’s channel</h2></div><p class="fx-sr">Loading</p>`
+        + `<span class="sk sk-kind" aria-hidden="true"></span><span class="sk sk-title" aria-hidden="true"></span><ul class="dx-row sk-row" aria-hidden="true">${'<li><span class="sk sk-pos"></span><span class="sk sk-t"></span><span class="sk sk-y"></span></li>'.repeat(6)}</ul></section>` : '';
     }
     const day = Math.floor(Date.parse(today()) / 864e5);
     const chans = C.groups.map(g => ({kind: g.kind === 'period' ? 'era' : 'movement', g, name: g.name, films: f => f.m.includes(g.i)}))

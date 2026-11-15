@@ -114,7 +114,7 @@ function fxAccount(CS, o) {
 
   async function click(b, render) {
     const d = b.dataset;
-    if (b.hasAttribute('data-ac-menu')) { st.menu = !st.menu; render(); return true; }
+    if (b.hasAttribute('data-ac-menu')) { if (!menuTo(!st.menu)) render(); return true; }
     if (b.hasAttribute('data-ac-avstill')) { const v = await fxAvatarEditor.stills(); if (v != null) { st.note.av = ['ok', 'Picture saved.']; render(); typeof fxOSD === 'function' && fxOSD('Picture saved'); } return true; }
     if (b.hasAttribute('data-ac-avrm')) { const r = await CS.removeAvatar(); st.note.av = r.ok ? null : ['bad', CS.say(r.code)]; render(); return true; }
     if (b.hasAttribute('data-ac-out') || b.hasAttribute('data-ac-retry')) {
@@ -237,10 +237,19 @@ function fxAccount(CS, o) {
     const item = ([href, label]) => `<a role="menuitem" href="${href}"${here === href || (href === '/' && here === '/week') ? ' aria-current="page"' : ''}>${label}</a>`;
     const yours = [['/', 'Home'], [u, 'Profile'], [u + '/films', 'Films'], ['/diary', 'Diary'], [u + '/reviews', 'Reviews'], [u + '/watchlist', 'Watchlist'], [u + '/lists', 'Lists'], ['/stats', 'Stats']];
     return `<div class="av-top"><button type="button" class="av-me${onSettings ? ' on' : ''}" data-ac-menu aria-haspopup="menu" aria-expanded="${st.menu}" aria-label="Your account" title="Your account">${pic(me.username, me.name, me.av, 's')}${sync.state === 'err' ? '<i class="av-err" aria-hidden="true"></i>' : ''}</button>
-      ${st.menu ? `<div class="av-menu" role="menu"><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
+      ${me.username ? `<div class="av-menu${st.menu ? ' on' : ''}" role="menu"${st.menu ? '' : ' inert'}><div class="av-mh"><b dir="auto">${esc(me.name || me.username || '')}</b><span>@${esc(me.username || '')}</span></div>
         <div class="av-mg">${yours.map(item).join('')}</div>
         <div class="av-mg av-msys">${(me.owner ? [['/admin', 'Your site']] : []).concat([['/invite', 'Invite friends'], ['/settings', 'Settings'], ['/about', 'Help and about']]).map(item).join('')}<button type="button" role="menuitem" data-ac-out>Sign out</button></div></div>` : ''}</div>`;
   }
-  const closeMenu = () => { if (!st.menu) return false; st.menu = false; return true; };
+  // the menu opens and closes in place (a class, not a redraw), so it can turn back half way; false: not on the page
+  function menuTo(open) {
+    st.menu = open;
+    const m = document.querySelector('.av-top .av-menu'), b = document.querySelector('.av-top [data-ac-menu]');
+    if (!m || !b) return false;
+    m.classList.toggle('on', open); m.inert = !open; b.setAttribute('aria-expanded', String(open));
+    return true;
+  }
+  // closed, in place; true only when the page has to be drawn again for it
+  const closeMenu = () => { if (!st.menu) return false; return !menuTo(false); };
   return {ui, click, submit, about, device, corner, closeMenu, file};
 }

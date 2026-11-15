@@ -48,8 +48,8 @@ const here = p => p.url().replace(B, '');
   await p.fill('.fx-shrv', 'Beautiful.');
   await p.goBack(); await p.waitForTimeout(300);
   ok(!!(await p.$('.fx-sheet')), 'Back with an unsaved review: the sheet stays and asks');
-  await p.goBack(); await p.waitForTimeout(300);
-  ok(!(await p.$('.fx-sheet')) && here(p) === href, 'Back again: closed, still on the film', here(p));
+  await p.goBack(); await p.waitForTimeout(500);
+  ok(!(await p.$('.fx-sheet')) && here(p) === href, 'Back again: closed (once it has slid away), still on the film', here(p));
 
   // log it for real, then find it in the diary: the title opens the film's page
   await p.click('[data-fp-log]'); await p.waitForSelector('.fx-sheet'); await p.click('.fx-sheet [data-srate="8"]'); await p.click('.fx-sheet [data-ssave]'); await p.waitForTimeout(400);

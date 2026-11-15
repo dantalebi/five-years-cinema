@@ -554,7 +554,7 @@
   }
   document.addEventListener('keydown', e => {
     if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.metaKey || e.ctrlKey || e.altKey || !location.pathname.startsWith('/film/')) return;
-    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('.fx-sheetwrap:not([hidden])')) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('.fx-sheetwrap:not([hidden]):not(.out)')) return;
     if (stepFilm(e.key === 'ArrowRight' ? 1 : -1)) e.preventDefault();
   });
   // where a plan film sits in your plan, for its page
@@ -759,12 +759,13 @@
 
   // ================= /u/<name>: a member's profile =================
   // For members it's a screen of the app (the tab bar, Back, the corner); for visitors, a page of its own. Each tab has
-  // an address, the way Letterboxd's do (/u/<name>/films, /diary, /reviews, /watchlist, /lists, /stats); and its other
+  // an address, the way Letterboxd's do (/u/<name>/films, /diary, /reviews, /watchlist, /lists, /stats, /week; /u/<name> is
+  // the first, the diary); and its other
   // parts: /u/<name>/followers, /u/<name>/following, /u/<name>/list/<slug> (a list anyone can open when it's public).
   // Your own profile, inside the app, is built from this device, so it shows everything, the private parts too.
   let curPF = null;
-  const U_PATH = /^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|films|diary|reviews|watchlist|lists|stats|list\/[a-z0-9-]{1,80}))?\/?$/;
-  const TAB_OF = {films: 'films', diary: 'diary', reviews: 'reviews', watchlist: 'wl', lists: 'lists', stats: 'stats'};
+  const U_PATH = /^\/u\/([a-z0-9_]{3,24})(?:\/(followers|following|films|diary|reviews|watchlist|lists|stats|week|list\/[a-z0-9-]{1,80}))?\/?$/;
+  const TAB_OF = {films: 'films', diary: 'diary', reviews: 'reviews', watchlist: 'wl', lists: 'lists', stats: 'stats', week: 'now'};
   const SLUG_OF = Object.fromEntries(Object.entries(TAB_OF).map(([s, t]) => [t, s]));
   const tabPath = (name, t) => '/u/' + name + (SLUG_OF[t] ? '/' + SLUG_OF[t] : '');
   // what's private on your own profile, in a sentence (nothing when it's all public)
@@ -821,7 +822,7 @@
       // inside the app an entry is a screen of its own: Back returns to wherever you were (the feed, the film, the diary)
       openEntry: inApp ? eid => fxNav.open(location.pathname + '#' + eid) : null,
       back: inApp ? () => fxNav.back('/u/' + name) : null, canBack: inApp ? () => fxNav.depth() > 0 : null,
-      tab: tab || '', onTab: t => { const u = tabPath(name, t); if (inApp) fxNav.replace(u); else if (u !== location.pathname) history.replaceState(history.state, '', u); },
+      tab: tab || '', noWeek: own, onTab: t => { const u = tabPath(name, t); if (inApp) fxNav.replace(u); else if (u !== location.pathname) history.replaceState(history.state, '', u); },
       // a member's films open on the site's own film pages; a visitor's go to Letterboxd
       filmHref: me ? fxNav.film : null, dirHref: me ? fxNav.director : null,
       // on someone else's grids, the films you've seen too

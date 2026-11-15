@@ -121,7 +121,7 @@ let fails = 0; const ok = (c, what, x) => { console.log((c ? 'ok   ' : 'FAIL ') 
   { const cdp = await v.context().newCDPSession(v); await cdp.send('Network.clearBrowserCache'); }
   await v.goto(B + '/u/danial'); await v.waitForTimeout(800);
   ok(/isn’t public|published/.test(await text(v, 'h1')), 'profile off → not readable');
-  await a.click('[data-sset-back]'); await a.waitForSelector('[data-ac-out]'); await a.click('[data-ac-out]'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
+  await a.click('[data-sset-back]'); await a.waitForSelector('[data-ac-out]:visible'); await a.click('[data-ac-out]:visible'); await a.waitForSelector('form[data-auth]', {timeout: 10000});
   ok(await a.evaluate(() => !localStorage.getItem('fy-state') && !localStorage.getItem('fd-me')), 'signing out leaves nothing on the device');
   // nothing went straight to TMDB or Letterboxd
   console.log('errors', errs);

@@ -49,9 +49,9 @@ function png(w, h) {
   ok(!blocked.length, 'nothing covers the menu: not the week’s films, not the tab bar', blocked);
   await p.setViewportSize({width: 390, height: 844});
   await p.keyboard.press('Escape'); await p.waitForTimeout(150);
-  ok(!(await p.$('.av-menu')), 'Escape closes it');
+  await p.waitForTimeout(250); ok(!(await p.$('.av-menu.on')), 'Escape closes it');
   await p.click('[data-ac-menu]'); await p.click('.av-menu a[href="/settings"]'); await p.waitForSelector('.ac-me');
-  ok(p.url().endsWith('/settings') && !(await p.$('.av-menu')), 'Settings from the menu');
+  ok(p.url().endsWith('/settings') && !(await p.$('.av-menu.on')), 'Settings from the menu');
 
   // upload a photo, frame it, save it (in Profile)
   await p.click('[data-sset="profile"]'); await p.waitForSelector('.ac-pic'); await p.waitForTimeout(300);
@@ -67,7 +67,7 @@ function png(w, h) {
   const img = await p.evaluate(async s => { const r = await fetch(s); const a = new Uint8Array(await r.arrayBuffer()); return {type: r.headers.get('content-type'), cache: r.headers.get('cache-control'), jpeg: a[0] === 0xFF && a[1] === 0xD8, n: a.length}; }, src);
   ok(img.type === 'image/jpeg' && img.jpeg && img.n < 80000 && /immutable/.test(img.cache), 'a small JPEG, cached for good', img);
   ok(await p.$('.av-top img.av') !== null, 'and in the corner');
-  ok(!(await p.$('.fx-sheet')), 'the framing sheet is gone');
+  await p.waitForTimeout(400); ok(!(await p.$('.fx-sheet')), 'the framing sheet is gone');
 
   // bio, pronouns, location; the profile page
   await p.fill('textarea[data-cfg="cfg:bio"]', 'Slow cinema and Saturday matinees.'); await p.fill('input[data-cfg="cfg:pron"]', 'she/her'); await p.fill('input[data-cfg="cfg:loc"]', 'Tehran');

@@ -42,6 +42,7 @@ const here = p => p.url().replace(B, '');
 
   // ---- her profile, inside the app: Lists ----
   await ivy.goto(B + '/u/ivy'); await ivy.waitForSelector('.fx-tabs', {timeout: 15000});
+  ok(!(await ivy.$('.fx-tabs [data-tab="now"]')), 'your own profile: no week tab (your week is on Home)');
   ok(await ivy.$('.fx-tabbar') !== null && await ivy.$('.av-top') !== null, 'a profile is a screen of the app (tab bar, corner)');
   await ivy.click('[data-tab="lists"]'); await ivy.waitForSelector('.ls-cards li');
   const cards = await ivy.$$eval('.ls-card', as => as.map(a => a.innerText.replace(/\s+/g, ' ')));

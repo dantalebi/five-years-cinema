@@ -3,7 +3,7 @@
 // fxProfile(root, gistId, entryId, {clean, base}): clean = served at the app's own address, permalinks are base#<entry>
 function fxProfile(root, id, focusId, opts) {
   opts = opts || {};
-  let lang = 'en', data = null, updated = '', tab = opts.tab || (focusId ? 'diary' : 'now'), open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
+  let lang = 'en', data = null, updated = '', tab = opts.tab || (focusId ? 'diary' : ''), open = {}, withP = false, year = null, cur = focusId || '', pushed = false, listScroll = 0;
   const stv = {dec: 'n', gcl: 'g', gm: 'n', dir: 'n', cast: 'n', fs: 'w', ws: 'a'};  // which way each stats card (and the Films and Watchlist grids) is showing
   const shown = {films: 120, wl: 120};  // how much of a long grid is drawn
   // the games (play.js), when the page has them; ?play=duel|tonight|match opens one straight away
@@ -11,7 +11,7 @@ function fxProfile(root, id, focusId, opts) {
   const PL = typeof fxPlay === 'function' ? fxPlay({data: () => data, lang: () => lang, render: () => render(), feed: opts.feed || '', link: playLink, lbProxy: opts.lbProxy || '', mine: opts.mine || null}) : null;
   let wantPlay = (location.search.match(/[?&]play=(duel|tonight|match)\b/) || [])[1] || '';
   const TX = {
-    en: {diary: 'Film diary', title: 'Film diary', now: 'This week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', tFilms: 'Films', tWl: 'Watchlist',
+    en: {diary: 'Film diary', title: 'Film diary', now: 'This week', theirWeek: 'Their week', tDiary: 'Diary', tReviews: 'Reviews', tStats: 'Stats', tPlay: 'Play', tFilms: 'Films', tWl: 'Watchlist',
       fsorts: [['w', 'Last watched'], ['r', 'Rating'], ['y', 'Release year'], ['t', 'Title']], wsorts: [['a', 'Recently added'], ['y', 'Release year'], ['t', 'Title']],
       noFilms: 'No films here yet.', noWl: 'Nothing on the watchlist.', showMore: 'Show more', ofN: (a, b) => a + ' of ' + b, wlN: n => n + (n === 1 ? ' film' : ' films') + ' to watch', seenByYou: 'You’ve seen it', updated: a => 'Updated ' + a,
       prog: (n, of, rt) => of + (of === 1 ? ' film' : ' films') + (rt ? ', ' + rt : '') + (n ? ', ' + n + ' watched' : ''), end: 'Five-year plan complete.', rest: 'A week off. Nothing scheduled.',
@@ -25,7 +25,7 @@ function fxProfile(root, id, focusId, opts) {
       ago: m => m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago',
       hmf: m => m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '') : m + 'm', attr: 'Posters from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
       inApp: 'app', links: {lb: 'Letterboxd', tg: 'Telegram', sp: 'Spotify', ig: 'Instagram', web: 'Website'}},
-    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', tPlay: 'بازی', tFilms: 'فیلم‌ها', tWl: 'واچ‌لیست',
+    fa: {diary: 'دفتر فیلم', title: 'دفتر فیلم', now: 'این هفته', theirWeek: 'برنامه‌ی این هفته', tDiary: 'دفتر', tReviews: 'ریویوها', tStats: 'آمار', tPlay: 'بازی', tFilms: 'فیلم‌ها', tWl: 'واچ‌لیست',
       fsorts: [['w', 'آخرین دیده‌شده'], ['r', 'امتیاز'], ['y', 'سال ساخت'], ['t', 'نام']], wsorts: [['a', 'تازه‌ترین'], ['y', 'سال ساخت'], ['t', 'نام']],
       noFilms: 'هنوز فیلمی نیست.', noWl: 'واچ‌لیست خالیه.', showMore: 'بیشتر', ofN: (a, b) => a + ' از ' + b, wlN: n => n + ' فیلم برای دیدن', seenByYou: 'دیدی‌ش', updated: a => 'به‌روز شده ' + a,
       prog: (n, of, rt) => n + ' از ' + of + ' دیده شد' + (rt ? ' · ' + rt : ''), end: 'برنامه‌ی پنج‌ساله تموم شده.', rest: 'این هفته برنامه نداره؛ هفته‌ی آزاده.',
@@ -103,10 +103,13 @@ function fxProfile(root, id, focusId, opts) {
     if (tabsL.length > 1) h += `<nav class="fx-tabs" role="tablist">${tabsL.map(([k, l]) => `<button type="button" role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</nav>`;
     return h;
   }
-  // the films tabs when the diary is public; the watchlist when it is; lists and the rest whenever they're there
+  // what they've watched comes first (the diary opens a profile); their plan's week near the end, and not on your own
+  // profile (it's on your Home already) unless there's nothing else to show
   function tabList() {
     const t = T(), hasD = (data.diary || []).length || (Array.isArray(data.seen) && data.seen.length);
-    return [['now', t.now]].concat(hasD ? [['films', t.tFilms], ['diary', t.tDiary], ['reviews', t.tReviews]] : [], Array.isArray(data.wl) ? [['wl', t.tWl]] : [], (opts.extraTabs || []).map(x => [x.id, x.label]), hasD ? [['stats', t.tStats]] : [], PL && hasD ? [['play', t.tPlay]] : []);
+    const rest = (hasD ? [['diary', t.tDiary], ['films', t.tFilms], ['reviews', t.tReviews], ['stats', t.tStats]] : []).concat(Array.isArray(data.wl) ? [['wl', t.tWl]] : [], (opts.extraTabs || []).map(x => [x.id, x.label]));
+    const week = opts.noWeek && rest.length ? [] : [['now', rest.length ? t.theirWeek : t.now]];
+    return rest.concat(week, PL && hasD ? [['play', t.tPlay]] : []);
   }
   // a signed-in visitor sees at once how close their taste is to this person's
   function tasteChip() {
@@ -311,12 +314,15 @@ function fxProfile(root, id, focusId, opts) {
       root.innerHTML = `<div class="fx fx-share fx-pub fx-epage${withP ? ' fx-hasp' : ''}" dir="${dir}"><nav class="fx-ebar"><button type="button" class="fx-link fx-backl" data-back>${esc((opts.canBack ? opts.canBack() : pushed) ? '← ' + t.back : t.backTo(name))}</button></nav>${entryView(e)}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
       return;
     }
-    // a tab this profile doesn't have (an address for a diary that's private, say): This week instead
-    if (!tabList().some(x => x[0] === tab)) tab = 'now';
+    // no tab asked for, or one this profile doesn't have (an address for a diary that's private, say): its first
+    if (!tab || !tabList().some(x => x[0] === tab)) tab = tabList()[0][0];
     const xtab = (opts.extraTabs || []).find(x => x.id === tab);
     const body = xtab ? xtab.view() : tab === 'diary' ? diaryView() : tab === 'films' ? filmsView() : tab === 'wl' ? wlView() : tab === 'reviews' ? reviewsView() : tab === 'stats' ? statsView() : tab === 'play' && PL ? PL.view() : nowView();
     const yn = xtab || tab === 'now' || tab === 'play' || tab === 'wl' || tab === 'films' ? '' : yearNav();
     root.innerHTML = `<div class="fx fx-share fx-pub${withP ? ' fx-hasp' : ''}${hero() ? ' fx-withbd' : ''}" dir="${dir}">${hero()}${header()}${yn}${body}<footer class="fx-foot fx-muted" dir="ltr">${esc(t.attr)}</footer></div>`;
+    // the open tab in sight in a row of tabs that scrolls sideways (Their week sits near the end)
+    const tn = root.querySelector('.fx-tabs'), ts = tn && tn.querySelector('[aria-selected="true"]');
+    if (ts && (ts.offsetLeft < tn.scrollLeft || ts.offsetLeft + ts.offsetWidth > tn.scrollLeft + tn.clientWidth)) tn.scrollLeft = ts.offsetLeft - 16;
   }
   function shell(title, sub) {
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
@@ -404,7 +410,7 @@ function fxProfile(root, id, focusId, opts) {
   load();
   const timer = opts.data ? 0 : setInterval(() => { if (document.visibilityState === 'visible') load(); }, 300000);
   return {stop: () => { clearInterval(timer); window.removeEventListener('hashchange', onHash); }, render: () => { if (data) render(); }, data: () => data, tab: () => tab,
-    setTab: t => { if (t && t !== tab) { tab = t; if (data && !cur) render(); } },
+    setTab: t => { t = t || ''; if (t !== tab) { tab = t; if (data && !cur) render(); } },
     // the entry the address names ('' for none), when the site changed the address itself
     setEntry: eid => { eid = eid || ''; if (eid === cur) return; cur = eid; if (data && cur && !data.diary.some(x => x.id === cur)) cur = ''; if (data) render(); }};
 }

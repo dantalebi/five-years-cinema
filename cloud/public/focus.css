@@ -182,6 +182,8 @@ a.fx-film:hover{text-decoration:underline; text-decoration-thickness:1px; text-u
 /* ---------- public profile ---------- */
 .fx-share .fx-i{grid-template-columns:minmax(0,1fr) 40px}
 .fx-share.fx-hasp .fx-i{grid-template-columns:60px minmax(0,1fr) 40px}
+/* a profile shown inside the app: its rows have posters only when the profile has them (the app's own posters don't count) */
+.fx-share:not(.fx-hasp) .fx-i{grid-template-columns:minmax(0,1fr) 40px}
 .fx-ro .fx-chk{cursor:default; width:24px; height:24px; font-size:13px}
 .fx-ro .fx-chk:hover{box-shadow:inset 0 0 0 1.5px var(--faint)}
 .fx-ro.done .fx-chk{background:var(--star); box-shadow:none}
@@ -293,10 +295,10 @@ a.fx-favb:hover, button.fx-favb:hover{box-shadow:inset 0 0 0 2px var(--star)}
 @media (max-width:420px){ .fx-cal{grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px 10px} .fx-favs{gap:7px} }
 
 /* ---------- app shell: bottom tab bar ---------- */
-.fx.fx-app, #root .fx.fx-app{padding-bottom:calc(92px + env(safe-area-inset-bottom, 0px))}
-.fx-tabbar{position:fixed; left:0; right:0; bottom:0; z-index:50; background:color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter:saturate(1.5) blur(16px); backdrop-filter:saturate(1.5) blur(16px); border-top:1px solid var(--line); padding:0 max(10px, env(safe-area-inset-left, 0px)) env(safe-area-inset-bottom, 0px)}
-.fx-tabbar > div{max-width:660px; margin:0 auto; display:grid; grid-auto-flow:column; grid-auto-columns:1fr}
-.fx-tabbar button{all:unset; cursor:pointer; position:relative; text-align:center; padding:15px 6px 14px; font-size:14.5px; font-weight:500; color:var(--muted)}
+.fx.fx-app, #root .fx.fx-app{padding-bottom:calc(100px + env(safe-area-inset-bottom, 0px))}
+.fx-tabbar{position:fixed; left:max(10px, env(safe-area-inset-left, 0px)); right:max(10px, env(safe-area-inset-right, 0px)); bottom:calc(env(safe-area-inset-bottom, 0px) + 10px); z-index:50; background:color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter:saturate(1.5) blur(16px); backdrop-filter:saturate(1.5) blur(16px); border:1px solid var(--line); border-radius:22px; padding:5px; box-shadow:0 12px 32px -14px rgba(0,0,0,.45)}
+.fx-tabbar > div{margin:0 auto; display:grid; grid-auto-flow:column; grid-auto-columns:1fr}
+.fx-tabbar button{all:unset; cursor:pointer; position:relative; text-align:center; padding:11px 4px; border-radius:16px; font-size:14.5px; font-weight:500; color:var(--muted)}
 .fx[dir="ltr"] .fx-tabbar button{font-family:var(--sans); font-size:13.5px; font-weight:600; font-stretch:108%; letter-spacing:.005em}
 .fx-tabbar button:hover{color:var(--ink)}
 .fx-tabbar button[aria-current="page"]{color:var(--ink)}
@@ -325,9 +327,14 @@ a.fx-btn{display:inline-block; text-decoration:none}
 html.fx-lock, html.fx-lock body{overflow:hidden}
 .fx-sheetwrap{position:fixed; inset:0; z-index:1000}
 .fx-sheetwrap[hidden]{display:none}
-.fx-scrim{position:absolute; inset:0; background:rgba(6,8,12,.52); animation:fx-fade .18s ease-out}
-.fx.fx-sheet{position:absolute; left:0; right:0; bottom:0; top:max(26px, calc(env(safe-area-inset-top, 0px) + 10px)); max-width:none; margin:0; padding:0; gap:0; display:flex; flex-direction:column; background:var(--bg); border-radius:16px 16px 0 0; box-shadow:0 -12px 48px rgba(0,0,0,.28); overflow:hidden; animation:fx-up .28s cubic-bezier(.2,.8,.2,1)}
-@media (min-width:720px){ .fx.fx-sheet{top:5vh; bottom:5vh; width:600px; max-width:calc(100% - 32px); margin-inline:auto; border-radius:16px; animation:fx-pop .2s ease-out} }
+.fx-scrim{position:absolute; inset:0; background:rgba(6,8,12,.52); transition:opacity .22s ease-out}
+.fx.fx-sheet{position:absolute; left:0; right:0; bottom:0; top:max(26px, calc(env(safe-area-inset-top, 0px) + 10px)); max-width:none; margin:0; padding:0; gap:0; display:flex; flex-direction:column; background:var(--bg); border-radius:16px 16px 0 0; box-shadow:0 -12px 48px rgba(0,0,0,.28); overflow:hidden; transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+@media (min-width:720px){ .fx.fx-sheet{top:5vh; bottom:5vh; width:600px; max-width:calc(100% - 32px); margin-inline:auto; border-radius:16px; transition:transform .22s cubic-bezier(.2,.8,.2,1), opacity .22s ease-out} }
+/* opening and closing: the sheet slides between these two states, and turns back if you change your mind half way */
+.fx-sheetwrap.out{pointer-events:none}
+.fx-sheetwrap.out .fx-scrim{opacity:0}
+.fx-sheetwrap.out .fx.fx-sheet{transform:translateY(100%)}
+@media (min-width:720px){ .fx-sheetwrap.out .fx.fx-sheet{transform:translateY(14px) scale(.98); opacity:0} }
 .fx-shh{flex:none; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line)}
 .fx-shh .fx-shb:first-child{justify-self:start}
 .fx-shh .fx-shb:last-child{justify-self:end}
@@ -475,6 +482,7 @@ html.fx-lock, html.fx-lock body{overflow:hidden}
 #root .fx.fx-withbd, .fx.fx-withbd{padding-top:0}
 body:has(.fx-withbd){overflow-x:clip}
 .fx-hero{position:relative; margin:0 calc(50% - 50vw) -110px; height:clamp(230px, 48vw, 460px); overflow:hidden; pointer-events:none; z-index:0}
+@media (min-width:1000px){ .fx-hero{height:clamp(230px, 46vh, 330px)} }
 .fx-hero img{width:100%; height:100%; object-fit:cover; object-position:center 30%; display:block}
 .fx-hero::after{content:""; position:absolute; inset:0; background:linear-gradient(to bottom, color-mix(in srgb, var(--bg) 10%, transparent) 0%, transparent 30%, color-mix(in srgb, var(--bg) 70%, transparent) 72%, var(--bg) 100%), linear-gradient(to right, color-mix(in srgb, var(--bg) 55%, transparent), transparent 22%, transparent 78%, color-mix(in srgb, var(--bg) 55%, transparent))}
 .fx-withbd > .fx-head, .fx-withbd > header{position:relative; z-index:1}
@@ -612,7 +620,7 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-callegend[dir="rtl"] span{font-family:"Vazirmatn", Tahoma, sans-serif; letter-spacing:0}
 
 /* ---- Friends: activity with reactions (multi-user site) ---- */
-.fx-tabbar button .fx-ndot{position:absolute; top:11px; inset-inline-end:calc(50% - 30px); width:7px; height:7px; border-radius:50%; background:var(--heart)}
+.fx-tabbar button .fx-ndot{position:absolute; top:7px; inset-inline-end:calc(50% - 30px); width:7px; height:7px; border-radius:50%; background:var(--heart)}
 .fx-afeed{list-style:none; margin:0; padding:0; display:grid}
 .fx-actv{display:grid; grid-template-columns:78px minmax(0,1fr); gap:14px; padding:16px 0; border-bottom:1px solid var(--line)}
 .fx-actv:first-child{padding-top:4px}
@@ -653,7 +661,7 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-cm{list-style:none; margin:4px 0 0; padding:0; display:grid; gap:6px}
 .fx-cm li{font-size:14px; line-height:1.5; overflow-wrap:anywhere; background:var(--sunk); border-radius:10px; padding:7px 11px}
 .fx-cm a{color:var(--ink); text-decoration:none}
-.fx-cmt{font-size:12.5px; color:var(--faint); white-space:nowrap}
+.fx-cmt{font-size:12.5px; color:var(--muted); white-space:nowrap}
 .fx-cmdel{font-size:15px; padding:0 4px; line-height:1}
 .fx-cform{display:flex; gap:8px; margin-top:6px; min-width:0}
 .fx-cform input{flex:1; min-width:0; font:inherit; font-size:15px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink)}
@@ -701,7 +709,7 @@ button.fx-pos{all:unset; cursor:pointer; position:relative; display:block}
 .fx-tchip b{color:var(--star); font-weight:700; font-size:14px}
 .fx-tchip:hover{border-color:var(--ink); color:var(--ink)}
 /* the + in the tab bar: log a film from anywhere */
-.fx-tabbar .fx-tplus{display:grid; place-items:center; padding:8px 6px}
+.fx-tabbar .fx-tplus{display:grid; place-items:center; padding:4px}
 .fx-tabbar .fx-tplus i{display:block; width:38px; height:30px; border-radius:9px; background:var(--star); position:relative}
 .fx-tabbar .fx-tplus i::before, .fx-tabbar .fx-tplus i::after{content:""; position:absolute; left:50%; top:50%; width:14px; height:2.4px; margin:-1.2px 0 0 -7px; border-radius:2px; background:var(--on-star)}
 .fx-tabbar .fx-tplus i::after{transform:rotate(90deg)}
@@ -986,7 +994,8 @@ span.fx-tgc{cursor:default}
 .dx-cell:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .fx-pos.dx-pos{width:100%; border-radius:5px}
 .dx-cell .dx-pos::after{content:""; position:absolute; inset:0; z-index:2; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(127,127,127,.22); transition:box-shadow .12s}
-.dx-cell:hover .dx-pos::after{box-shadow:inset 0 0 0 2px var(--star)}
+.dx-cell .dx-pos{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s}
+@media (hover:hover){ .dx-cell:hover .dx-pos{transform:translateY(-3px); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ink), 0 14px 26px -14px rgba(0,0,0,.7)} }
 .dx-nop{background:var(--sunk)}
 .dx-npt{position:absolute; inset:0; display:grid; place-items:center; padding:10px 8px; text-align:center; font-family:var(--title); font-size:14px; line-height:1.15; color:var(--muted); overflow:hidden; overflow-wrap:anywhere; font-weight:600; font-stretch:106%}
 .dx-mk{position:absolute; z-index:3; top:5px; inset-inline-end:5px; width:22px; height:22px; border-radius:50%; background:rgba(14,16,20,.72)}
@@ -997,7 +1006,11 @@ span.fx-tgc{cursor:default}
 .dx-more{display:flex; align-items:center; justify-content:center; gap:14px; padding:6px 0 0}
 
 /* a film's page */
-.dx-bd{position:relative; z-index:0; margin:-74px calc(50% - 50vw) -150px; height:clamp(220px, 52vw, 400px); overflow:hidden; pointer-events:none}
+/* the backdrop starts at the very top: above it are the page's top padding, the header row (40px, with or without
+   Previous and Next) and the gap under it */
+.dx-head .fx-hrow{min-height:40px}
+.dx-bd{position:relative; z-index:0; margin:calc(-62px - max(22px, calc(env(safe-area-inset-top, 0px) + 12px))) calc(50% - 50vw) -150px; height:clamp(220px, 52vw, 400px); overflow:hidden; pointer-events:none}
+@media (max-width:420px){ .dx-bd{margin-top:calc(-58px - max(22px, calc(env(safe-area-inset-top, 0px) + 12px)))} }
 .dx-bd img{width:100%; height:100%; object-fit:cover; object-position:center 25%; display:block}
 .dx-bd::after{content:""; position:absolute; inset:0; background:linear-gradient(to bottom, color-mix(in srgb, var(--bg) 25%, transparent) 0%, transparent 30%, color-mix(in srgb, var(--bg) 78%, transparent) 70%, var(--bg) 100%), linear-gradient(to right, color-mix(in srgb, var(--bg) 55%, transparent), transparent 22%, transparent 78%, color-mix(in srgb, var(--bg) 55%, transparent))}
 .dx-head, .dx-fh, .dx-acts, .dx-seen, .dx-ov{position:relative; z-index:1}
@@ -1032,7 +1045,7 @@ span.fx-tgc{cursor:default}
 .dx-polls em{display:block; font-style:normal; font-size:13.5px; color:var(--muted)}
 .dx-polls b{font-family:var(--sans); font-weight:500; font-size:15px; font-variant-numeric:tabular-nums}
 .dx-sh{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
-.dx-row{list-style:none; margin:0; padding:0 0 8px; display:grid; grid-auto-flow:column; grid-auto-columns:94px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scrollbar-width:thin}
+.dx-row{list-style:none; margin:-6px -6px 0; padding:6px 6px 8px; scroll-padding-inline:6px; display:grid; grid-auto-flow:column; grid-auto-columns:94px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scrollbar-width:thin}
 .dx-row li{scroll-snap-align:start}
 @media (min-width:520px){ .dx-row{grid-auto-columns:108px} }
 
@@ -1289,12 +1302,12 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 .fx-sw:checked{background:var(--osd)}
 
 /* the tab bar: glass, with the channel you're on lit */
-.fx-tabbar{background:color-mix(in srgb, var(--bg) 82%, transparent); border-top-color:var(--line)}
+.fx-tabbar{background:color-mix(in srgb, var(--bg) 82%, transparent); border-color:var(--line)}
+@media (min-width:720px){ .fx-tabbar{left:50%; right:auto; width:min(560px, calc(100% - 32px)); transform:translateX(-50%)} }
 .fx[dir="ltr"] .fx-tabbar button{font-size:13px; font-weight:600; font-stretch:106%}
-.fx-tabbar button{transition:color .15s}
-.fx-tabbar button[aria-current="page"]{color:var(--ink); font-weight:700}
-.fx-tabbar button[aria-current="page"]::before{height:3px; width:22px; margin-left:-11px; top:-1px; border-radius:0 0 3px 3px; background:var(--osd); box-shadow:0 0 10px var(--glow)}
-.fx-chan .fx-tabbar button[aria-current="page"]::before{animation:fx-lit .3s cubic-bezier(.2,.8,.2,1)}
+.fx-tabbar button{transition:color .15s, background-color .2s}
+.fx-tabbar button[aria-current="page"]{color:var(--ink); font-weight:700; background:color-mix(in srgb, var(--ink) 8%, transparent)}
+.fx-tabbar button[aria-current="page"]::before{display:none}
 @keyframes fx-lit{from{transform:scaleX(0); opacity:0} to{transform:none; opacity:1}}
 .fx-tabbar .fx-tplus i{width:44px; height:32px; border-radius:11px / 13px; background:var(--osd); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18), 0 0 14px -4px var(--glow); transition:transform .12s, box-shadow .2s}
 .fx-tabbar .fx-tplus:active i{transform:scale(.9)}
@@ -1304,7 +1317,8 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 .fx.fx-sheet{border-radius:18px 18px 0 0; background:var(--bg)}
 @media (min-width:720px){ .fx.fx-sheet{border-radius:18px} }
 .fx-scrim{background:rgba(5,10,9,.58); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px)}
-.av-menu{border-radius:14px; box-shadow:0 0 0 1px var(--line), var(--shadow); animation:fx-pop .16s ease-out; transform-origin:top right}
+.av-menu{border-radius:14px; box-shadow:0 0 0 1px var(--line), var(--shadow); transform-origin:top right; opacity:0; transform:translateY(-4px) scale(.97); visibility:hidden; pointer-events:none; transition:opacity .16s ease-out, transform .16s ease-out, visibility 0s linear .16s}
+.av-menu.on{opacity:1; transform:none; visibility:visible; pointer-events:auto; transition:opacity .16s ease-out, transform .16s ease-out, visibility 0s}
 .av-me .av{transition:box-shadow .15s}
 .av-me:hover .av, .av-me.on .av, .av-me[aria-expanded="true"] .av{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--osd)}
 /* the menu: everything of yours, then Settings, About and Sign out; the screen you're on is marked on the left edge */
@@ -1341,8 +1355,8 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 
 /* tuning: while something loads, a stripe of the bars runs along the top edge */
 .fx-tune{position:fixed; z-index:2001; top:0; left:0; right:0; height:3px; pointer-events:none; opacity:0; transition:opacity .25s;
-  background:linear-gradient(90deg, #C9CFCB 0 14.28%, #E8C547 0 28.57%, #3FC1D0 0 42.85%, #4BE37E 0 57.14%, #D978C4 0 71.42%, #EF6B5A 0 85.71%, #7D90F2 0) 0 0 / 280px 100% repeat-x; animation:fx-tuning 1.1s linear infinite}
-.fx-tune.on{opacity:1}
+  background:linear-gradient(90deg, #C9CFCB 0 14.28%, #E8C547 0 28.57%, #3FC1D0 0 42.85%, #4BE37E 0 57.14%, #D978C4 0 71.42%, #EF6B5A 0 85.71%, #7D90F2 0) 0 0 / 280px 100% repeat-x}
+.fx-tune.on{opacity:1; animation:fx-tuning 1.1s linear infinite}
 @keyframes fx-tuning{to{background-position:280px 0}}
 
 /* nothing on yet: a dimmed test card above the line that says what to do */
@@ -1354,7 +1368,8 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
   .fx-tv{display:none !important}
   .fx-osd.on{animation:fx-osd-out 1.7s ease-in both}
   .fx-tune{animation:none}
-  .fx-chk.just, .fx-bars.full i, .fx-chan .fx-tabbar button[aria-current="page"]::before, .av-menu{animation:none}
+  .fx-chk.just, .fx-bars.full i, .fx-chan .fx-tabbar button[aria-current="page"]::before{animation:none}
+  .av-menu, .av-menu.on, .fx-scrim, .fx.fx-sheet, .dx-cell .dx-pos, .hm-sp, a.fx-pg, .sk{transition:none; animation:none}
   a.fx-pos, .fx-btn, .fx-chk{transition:none}
 }
 
@@ -1416,7 +1431,7 @@ a.fx-film:hover{text-decoration-color:var(--osd); text-decoration-thickness:2px}
 .fx-pgrid li{display:grid; gap:5px; align-content:start; min-width:0}
 .fx-pg{position:relative; display:block; aspect-ratio:2 / 3; border-radius:3px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s}
 .fx-pg img{width:100%; height:100%; object-fit:cover; display:block}
-@media (hover:hover){ a.fx-pg:hover{transform:translateY(-2px); box-shadow:0 0 0 2px var(--osd), 0 8px 18px -8px rgba(0,0,0,.5)} }
+@media (hover:hover){ a.fx-pg:hover{transform:translateY(-3px); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ink), 0 14px 26px -14px rgba(0,0,0,.7)} }
 a.fx-pg:active{transform:scale(.97)}
 .fx-pgt{position:absolute; inset:0; display:grid; place-items:center; padding:6px; text-align:center; font-size:11px; font-weight:600; font-stretch:106%; line-height:1.25; color:var(--muted); overflow:hidden}
 .fx-pgy{position:absolute; top:4px; right:4px; width:16px; height:16px; border-radius:50%; background:var(--osd); box-shadow:0 0 0 2px rgba(0,0,0,.35)}
@@ -1485,13 +1500,14 @@ a.fx-pg:active{transform:scale(.97)}
 .hm-ft:hover{text-decoration:underline; text-decoration-color:var(--osd)}
 .hm-fm{display:flex; align-items:center; gap:7px; min-height:16px}
 .hm-fm .fx-ico{width:13px; height:13px}
-.hm-strip{list-style:none; margin:0 calc(-1 * max(16px, env(safe-area-inset-left))); padding:2px max(16px, env(safe-area-inset-left)); display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none}
+.hm-strip{list-style:none; margin:-4px calc(-1 * max(16px, env(safe-area-inset-left))) 0; padding:6px max(16px, env(safe-area-inset-left)) 2px; scroll-padding-inline:max(16px, env(safe-area-inset-left)); display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none}
 .hm-strip::-webkit-scrollbar{display:none}
 .hm-strip li{flex:none; scroll-snap-align:start}
 .hm-sp{display:grid; place-items:center; width:78px; aspect-ratio:2 / 3; border-radius:3px; overflow:hidden; background:var(--sunk); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); text-decoration:none; transition:transform .18s cubic-bezier(.2,.8,.2,1)}
 .hm-sp img{width:100%; height:100%; object-fit:cover; display:block}
 .hm-sp span{padding:6px; font-size:11px; font-weight:600; text-align:center; color:var(--muted); line-height:1.25}
-@media (hover:hover){ .hm-sp:hover{transform:translateY(-2px)} }
+.hm-sp{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s}
+@media (hover:hover){ .hm-sp:hover{transform:translateY(-3px); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ink), 0 14px 26px -14px rgba(0,0,0,.7)} }
 .hm-sp:active{transform:scale(.97)}
 .hm-days{list-style:none; margin:0; padding:0; display:grid}
 .hm-days li{display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:center; gap:14px; padding:9px 0; border-top:1px solid var(--line)}
@@ -1513,8 +1529,12 @@ a.fx-pg:active{transform:scale(.97)}
 @media (prefers-reduced-motion: reduce){ .hm-months i{animation:none} }
 .fx .hm-chn{color:var(--ink)}
 /* the channel's place, kept while the catalog comes */
-.hm-chph{height:263px; border-radius:6px; background:var(--sunk); opacity:.7}
-@media (min-width:520px){ .hm-chph{height:284px} }
+.sk{display:block; border-radius:4px; background:linear-gradient(90deg, var(--sunk) 0 40%, color-mix(in srgb, var(--sunk) 45%, var(--bg)) 50%, var(--sunk) 60% 100%) 0 0 / 300% 100%; animation:sk 1.6s ease-in-out infinite}
+@keyframes sk{from{background-position:100% 0} to{background-position:0 0}}
+.sk-kind{width:78px; height:12px; margin:2px 0 8px} .sk-title{width:min(240px, 70%); height:24px; margin-bottom:7px}
+.sk-row{pointer-events:none} .sk-pos{width:100%; aspect-ratio:2 / 3; border-radius:5px} .sk-t{width:85%; height:12px; margin-top:6px} .sk-y{width:36%; height:10px; margin-top:5px}
+.hm-fsk{display:grid; gap:14px; margin:0; padding:0; list-style:none} .hm-fsk li{display:grid; grid-template-columns:40px 1fr; gap:12px; align-items:start}
+.hm-fsk .sk-pos{width:40px} .hm-fsk .sk-a{width:90px; height:12px; margin-top:4px} .hm-fsk .sk-b{width:60%; height:15px; margin-top:8px}
 /* a wide screen: a column beside This week (your watchlist, on this day, the people you follow; home.js draws it from
    the same width). It starts at the films' row (the third: the top bar, or a backdrop with the top bar over it, then
    the heading); spare rows it spans at the end are empty. */
@@ -1599,7 +1619,7 @@ a.fx-pg:active{transform:scale(.97)}
 .ls-mv button:hover{background:color-mix(in srgb, var(--ink) 7%, transparent); color:var(--ink)}
 .ls-mv button:disabled{opacity:.25; cursor:default}
 .ls-mv button:focus-visible{outline:2px solid var(--osd)}
-.ls-save{position:sticky; bottom:calc(76px + env(safe-area-inset-bottom, 0px)); z-index:5; padding:10px 0; background:linear-gradient(to top, var(--bg) 70%, transparent)}
+.ls-save{position:sticky; bottom:calc(84px + env(safe-area-inset-bottom, 0px)); z-index:5; padding:10px 0; background:linear-gradient(to top, var(--bg) 70%, transparent)}
 .ls-sheet .fx-shbody{display:grid; gap:12px; align-content:start; padding:4px 16px 24px}
 .ls-for{margin:0; font-weight:600; color:var(--ink)}
 .ls-pick{list-style:none; margin:0; padding:0; display:grid; border-radius:12px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--line)}
@@ -1652,7 +1672,7 @@ a.fx-pg:active{transform:scale(.97)}
 .fx .fx-ewho{color:var(--ink); font-weight:700; text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--osd) 70%, transparent); text-decoration-thickness:2px; text-underline-offset:3px}
 .fx .fx-ewho:hover{text-decoration-color:var(--osd)}
 .fx-eposl{display:block; border-radius:6px}
-.fx-eposl:hover .fx-epos{box-shadow:0 0 0 2px var(--osd)}
+@media (hover:hover){ .fx-eposl:hover .fx-epos{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ink)} }
 .fx .hm-fw a.hm-fwhen{flex:none; font-size:13px; color:var(--muted); text-decoration:none}
 .fx a.hm-fm, .fx a.fx-aent, .fx a.fp-fe, .fx a.fp-f2{color:inherit; text-decoration:none}
 .fx a.hm-fm{width:fit-content}
@@ -1767,6 +1787,9 @@ a.fx-pg:active{transform:scale(.97)}
 /* email for password resets; the forgot-password page */
 .fx-fsub{display:block; margin-top:6px; font-size:14px; line-height:1.4; color:var(--muted)}
 .au-optl{font-weight:400; color:var(--muted)}
+/* names, dates and film links: a taller tap area, the layout unchanged */
+.fx a.fx-film, .fx a.hm-fwhen, .fx a.hm-fm, .fx .hm-fw > a:first-child, .fx a.fx-awhen, .fx a.fx-at, .fx a.fx-who, .fx a.fx-fm, .fx a.dx-a, .fx a.hm-ft{padding-block:4px; margin-block:-4px}
+.fx details > summary{min-height:24px; padding-block:2px}
 .fx-sr{position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
 .fx-ok{color:var(--ready); font-weight:600}
 .ac-em{display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; margin:4px 0 10px}
@@ -1840,3 +1863,63 @@ a.fx-pg:active{transform:scale(.97)}
 .ad-heavy li{display:grid; gap:2px; padding:8px 10px; border-radius:8px; background:var(--sunk); font-size:14px}
 .ad-heavy code{font-size:13px; overflow-wrap:anywhere}
 .ad-heavy span{color:var(--muted)}
+
+/* ---------- Activity: the people you follow as channels ---------- */
+/* the row: a ring round each picture, filled as far as they are into this week's plan; a red dot, they watched today */
+.tl-top{display:grid; gap:16px}
+.tl-chans{display:flex; gap:14px; overflow-x:auto; margin:0 calc(-1 * max(16px, env(safe-area-inset-left))); padding:4px max(16px, env(safe-area-inset-left)); scroll-padding-inline:max(16px, env(safe-area-inset-left)); scrollbar-width:none}
+.tl-chans::-webkit-scrollbar{display:none}
+.tl-chan{all:unset; box-sizing:border-box; cursor:pointer; flex:none; width:68px; display:grid; justify-items:center; gap:6px; font-size:12.5px; color:var(--muted); text-align:center; border-radius:10px; padding:2px 0 4px}
+.tl-chan:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.tl-ring{position:relative; width:60px; height:60px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--star) calc(var(--p) * 1%), var(--line) 0)}
+.tl-ring::before{content:""; position:absolute; inset:3px; border-radius:50%; background:var(--bg)}
+.tl-ring .av{position:relative; width:48px; height:48px; font-size:20px}
+.tl-live{position:absolute; right:1px; bottom:1px; width:13px; height:13px; border-radius:50%; background:#E5533F; box-shadow:0 0 0 3px var(--bg)}
+.tl-cn{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tl-chan[aria-pressed="true"] .tl-cn{color:var(--ink); font-weight:650}
+.tl-chan[aria-pressed="true"] .tl-ring{box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px color-mix(in srgb, var(--ink) 35%, transparent)}
+.tl-add .tl-plus{position:relative; width:56px; height:56px; margin:2px; border-radius:50%; border:1.5px dashed var(--line2, var(--line))}
+.tl-add .tl-plus::before, .tl-add .tl-plus::after{content:""; position:absolute; left:50%; top:50%; width:16px; height:2px; margin:-1px 0 0 -8px; border-radius:2px; background:var(--muted)}
+.tl-add .tl-plus::after{transform:rotate(90deg)}
+@media (hover:hover){ .tl-chan:hover .tl-cn{color:var(--ink)} }
+/* their week, poster by poster: the watched ones lit, with their stars */
+.tl-week{display:grid; gap:12px}
+.tl-wh{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+.fx .tl-wh h2{margin:0}
+.tl-wh span{font-size:13px; color:var(--muted); white-space:nowrap}
+.tl-rest{margin:-6px 0 0}
+.tl-wk{display:grid; grid-template-columns:repeat(auto-fill, minmax(74px, 1fr)); gap:12px 8px; margin:0; padding:0; list-style:none}
+.tl-wk li{display:grid; gap:4px; min-width:0; text-align:center}
+.tl-wk a{display:grid; place-items:center; aspect-ratio:2 / 3; border-radius:4px; overflow:hidden; background:var(--sunk); text-decoration:none; color:var(--muted); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s}
+.tl-wk a img{width:100%; height:100%; object-fit:cover; display:block}
+.tl-wk a span{padding:6px; font-size:11px; font-weight:600; line-height:1.25}
+.tl-wk li:not(.on) a{opacity:.45; filter:grayscale(.5)}
+@media (hover:hover){ .tl-wk a:hover{opacity:1; filter:none; transform:translateY(-3px); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ink)} }
+.tl-wk a:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.tl-wk small{min-height:16px; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tl-wk small.fx-mini{color:var(--star)}
+.tl-prog{display:grid; gap:6px; font-size:13px; color:var(--muted)}
+.tl-prog div{height:6px; border-radius:3px; background:var(--sunk); overflow:hidden}
+.tl-prog i{display:block; height:100%; border-radius:3px; background:var(--star)}
+.tl-acts{display:flex; flex-wrap:wrap; gap:8px}
+/* films in both weeks; what several of them watched; where they don't agree */
+.tl-rows{display:grid; gap:12px; margin:0; padding:0; list-style:none}
+.tl-rows li{display:grid; grid-template-columns:42px minmax(0, 1fr); gap:12px; align-items:center}
+.tl-rows .fx-apos{width:42px; border-radius:3px}
+.tl-rows p{margin:0; font-size:14.5px}
+.tl-film{display:grid; grid-template-columns:56px minmax(0, 1fr); gap:14px; align-items:start}
+.tl-film + .tl-film{margin-top:16px}
+.tl-film .fx-apos{width:56px; border-radius:4px}
+.tl-rates{display:grid; gap:6px; margin:8px 0 0; padding:0; list-style:none}
+.tl-rates li{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px}
+.tl-vs{display:grid; gap:8px; margin-top:8px}
+.tl-bar{display:grid; grid-template-columns:minmax(0, 92px) minmax(0, 1fr) auto; align-items:center; gap:10px; font-size:13px}
+.tl-bar > div{height:8px; border-radius:4px; background:var(--sunk); overflow:hidden}
+.tl-bar > div i{display:block; height:100%; border-radius:4px; background:var(--star)}
+.tl-bar.lo > div i{background:var(--muted)}
+.tl-q{margin:10px 0 0; padding:10px 12px; border-radius:10px; background:var(--sunk); font-size:14px}
+.tl-q span{color:var(--muted)}
+@media (prefers-reduced-motion: reduce){ .tl-wk a{transition:none} }
+.fx .tl-rates a.fx-who, .fx .tl-bar a.fx-who{color:var(--ink); text-decoration:none; min-width:0}
+.fx .tl-bar a.fx-who b{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tl-add .tl-cn{white-space:normal; line-height:1.2}

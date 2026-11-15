@@ -69,7 +69,7 @@ const here = p => p.url().replace(B, '');
   // ---- signing out with changes this device hasn't saved yet ----
   await c1.setOffline(true);
   await p.evaluate(() => Store.set('log:off', 't:Offline Film (2001)'));
-  await p.click('[data-sset-back]'); await p.waitForSelector('[data-ac-out]'); await p.click('[data-ac-out]'); await p.waitForSelector('.ac-warn', {timeout: 8000});
+  await p.click('[data-sset-back]'); await p.waitForSelector('[data-ac-out]:visible'); await p.click('[data-ac-out]:visible'); await p.waitForSelector('.ac-warn', {timeout: 8000});
   ok(/haven’t been saved/.test(await p.$eval('.ac-warn', e => e.innerText)), 'unsaved changes: it warns before signing out');
   await c1.setOffline(false);
   await p.click('[data-ac-retry]'); await p.waitForSelector('form[data-auth]', {timeout: 10000});

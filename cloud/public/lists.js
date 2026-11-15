@@ -131,7 +131,7 @@ function fxLists(CS, o) {
     if (!member()) return;
     sh = {film: {t: U.bare(String(film.t || '')), y: +film.y || 0, tm: +film.tm || 0, p: pathOf(film.p)}, busy: new Set(), msg: ''};
     if (!shEl) { shEl = document.body.appendChild(document.createElement('div')); shEl.className = 'fx-sheetwrap ls-wrap'; shEl.addEventListener('click', shClick); shEl.addEventListener('submit', shSubmit); }
-    shEl.hidden = false; document.documentElement.classList.add('fx-lock');
+    document.documentElement.classList.add('fx-lock');
     if (typeof fxNav !== 'undefined') fxNav.modal('lists', () => { shClose(true); return true; });
     shRender(); loadMine(true).then(shRender);
   }
@@ -139,16 +139,17 @@ function fxLists(CS, o) {
   function shRender() {
     if (!sh || !shEl) return;
     const f = sh.film;
-    shEl.innerHTML = `<div class="fx-scrim" data-lsx></div><div class="fx fx-sheet ls-sheet" dir="ltr" lang="en" role="dialog" aria-modal="true" aria-label="Add to a list"><div class="fx-shbody">
+    fxSheetFill(shEl, `<div class="fx-scrim" data-lsx></div><div class="fx fx-sheet ls-sheet" dir="ltr" lang="en" role="dialog" aria-modal="true" aria-label="Add to a list"><div class="fx-shbody">
       <div class="fx-shh"><h2 class="fx-h2">Add to a list</h2><button type="button" class="fx-btn primary" data-lsx>Done</button></div>
       <p class="fx-muted ls-for" dir="auto">${esc(f.t)}${f.y ? ' (' + f.y + ')' : ''}</p>
       ${mine === null ? '<p class="fx-muted">Tuning in…</p>' : mine.length ? `<ul class="ls-pick">${mine.map(l => { const on = has(l, f); return `<li><button type="button" data-lstog="${l.id}" aria-pressed="${on}"${sh.busy.has(l.id) ? ' disabled' : ''}><span><b dir="auto">${esc(l.name)}</b><small>${num(l.n)} ${l.n === 1 ? 'film' : 'films'}${l.pub ? '' : ', private'}</small></span><i aria-hidden="true"></i></button></li>`; }).join('')}</ul>` : '<p class="fx-muted">You don’t have any lists yet.</p>'}
       <form class="fx-form ls-new" data-lsnew><input type="text" name="name" maxlength="100" dir="auto" placeholder="A new list" aria-label="Name of a new list" required><label class="fx-check"><input type="checkbox" name="pub" checked> Public</label><button type="submit" class="fx-btn">Create and add</button></form>
-      ${sh.msg ? `<p class="fx-note bad">${esc(sh.msg)}</p>` : ''}</div></div>`;
+      ${sh.msg ? `<p class="fx-note bad">${esc(sh.msg)}</p>` : ''}</div></div>`);
+    fxSheetIn(shEl);
   }
   function shClose(byBack) {
-    if (!shEl || shEl.hidden) return;
-    shEl.hidden = true; shEl.innerHTML = ''; sh = null; document.documentElement.classList.remove('fx-lock');
+    if (!shEl || shEl.hidden || shEl.classList.contains('out')) return;
+    fxSheetOut(shEl); sh = null; document.documentElement.classList.remove('fx-lock');
     if (!byBack && typeof fxNav !== 'undefined') fxNav.unmodal('lists');
     redraw();
   }
